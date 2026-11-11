@@ -45,10 +45,10 @@ func setup(editor, night_game) -> void:
 	column.offset_right = 397
 	column.offset_top = -162
 	column.add_theme_constant_override("separation",12)
-	var title: Label = home.hud.label("RADION",64)
+	var title: Label = home.hud.label(str(ProjectSettings.get_setting("application/config/name")),64)
 	title.modulate = Color("#dcf2fa")
 	column.add_child(title)
-	var subtitle: Label = home.hud.label("DJ SIMULATOR",17)
+	var subtitle: Label = home.hud.label("DJ Simulator",17)
 	subtitle.modulate = Color("#87dce7")
 	column.add_child(subtitle)
 	var gap := Control.new()

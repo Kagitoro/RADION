@@ -1,4 +1,4 @@
-# RADION · DJ Simulator
+# Late Set
 
 Ночной DJ-симулятор от первого лица на Godot 4.
 

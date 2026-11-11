@@ -120,7 +120,7 @@ func build_overlay() -> void:
 	hint.modulate = Color("#a3a5b3")
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	group.add_child(hint)
-	caption = home.hud.label("RADION     /     FIRST NIGHT",27)
+	caption = home.hud.label("LATE SET     /     FIRST NIGHT",27)
 	root.add_child(caption)
 	caption.position = Vector2(24,17)
 	fade = ColorRect.new()

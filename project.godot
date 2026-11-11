@@ -14,7 +14,9 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
-config/name="RADION Home"
+config/name="Late Set"
+config/use_custom_user_dir=true
+config/custom_user_dir_name="Godot/app_userdata/RADION Home"
 run/main_scene="res://home.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
