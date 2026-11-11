@@ -1,0 +1,7 @@
+.godot/
+.mono/
+export_credentials.cfg
+.env
+.env.*
+Thumbs.db
+.DS_Store

@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://dpigvury3vtai"]
+
+[ext_resource type="Script" uid="uid://bom8nact7awvu" path="res://scripts/home.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://v81rok7si6kt" path="res://assets/house.glb" id="2"]
+
+[node name="RADIONHome" type="Node3D" unique_id=1172049457]
+script = ExtResource("1")
+
+[node name="HouseGeometry" parent="." unique_id=1642676425 instance=ExtResource("2")]
+
+[node name="Mesh1155" parent="HouseGeometry/E_base_150/Node585/Node584/Node583" parent_id_path=PackedInt32Array(1642676425, 361795771) index="3" unique_id=2065239752]
+transform = Transform3D(1.0000001, 0, 2.9802322e-08, 0, 1, 0, 0, 0, 1, -0.017178059, 1.2151707, -0.029753208)
+
+[node name="Mesh1355" parent="HouseGeometry/E_base_35/Node865/Node860" parent_id_path=PackedInt32Array(1642676425, 1460334210) index="0" unique_id=472074867]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.7077148, 1.2697898, 1.7490792)
+
+[node name="Mesh1392" parent="HouseGeometry/Catalog/C_wall/Node896" parent_id_path=PackedInt32Array(1642676425, 278291778) index="0" unique_id=1855341182]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.06012261, 0.58857423, 0.50169575)
+
+[node name="Mesh1439" parent="HouseGeometry/Catalog/C_cabinet/Node913/Node912" parent_id_path=PackedInt32Array(1642676425, 694471578) index="0" unique_id=427576786]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.065784454, 1.0014644, -0.93803525)
+
+[node name="Mesh1445" parent="HouseGeometry/Catalog/C_panel/Node916/Node915" parent_id_path=PackedInt32Array(1642676425, 879962745) index="0" unique_id=407749737]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.29434323, 0.6296265, -0.46539414)
+
+[editable path="HouseGeometry"]

@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://hyuomrih5iuk"
+path="res://.godot/imported/DJ Dance.mp3-135539e660f06b67e3463fcde0f687b7.mp3str"
+
+[deps]
+
+source_file="res://assets/party/DJ Dance.mp3"
+dest_files=["res://.godot/imported/DJ Dance.mp3-135539e660f06b67e3463fcde0f687b7.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

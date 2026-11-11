@@ -1,0 +1,6 @@
+Quaternius — Ultimate Animated Character Pack
+https://quaternius.com/packs/ultimatedanimatedcharacter.html
+License: CC0 1.0 Universal (https://creativecommons.org/publicdomain/zero/1.0/)
+
+Casual_Male.glb and Casual_Female.glb are the repacked files archived at:
+https://github.com/moenarch-games/mmorpg/tree/c8704e4247c91bb33986c17c9f10b17c0b2dd652/assets/quaternius

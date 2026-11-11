@@ -1,0 +1,5 @@
+Quaternius Ultimate Animated Character Pack — CC0 1.0
+https://quaternius.com/packs/ultimatedanimatedcharacter.html
+Source for Casual2, Casual3, Casual_Bald and Worker glTF models:
+https://github.com/AbrahamBrookes/hey-you-steal-that-bling/tree/5b8a8c0dc26f/stolen_assets/Quaternius-characters
+DJ.gltf is adapted from Casual3_Male with a first-person lower-body mesh using the same skeleton.

@@ -1,0 +1,16 @@
+Pixel Modern City Street — 3DAssets.dev, CC0 1.0
+https://3dassets.dev/packs/pixel-modern-city-street
+Building extracted from Corner Block Afternoon. Traffic uses the Taxi, Hatchback and Saloon.
+The source GLBs were converted to standard float mesh attributes and embedded PNG textures for Godot.
+
+Poly Haven, CC0 1.0:
+https://polyhaven.com/a/modular_urban_apartments_facade — selected doors and window meshes
+https://polyhaven.com/a/red_brick_03
+https://polyhaven.com/a/asphalt_02
+https://polyhaven.com/a/concrete_pavers
+
+City hatchback and Utility pickup — 3DAssets.dev, CC0 1.0
+https://3dassets.dev/packs/air-land-sea-vehicles
+
+Open 16 inch laptop — 3DAssets.dev, CC0 1.0
+https://3dassets.dev/assets/computers-and-desk-gadgets-laptop-open-16-683c7073
