@@ -1,5 +1,6 @@
 extends Node3D
 
+const Subway = preload("res://scripts/subway_station.gd")
 const Nightclub = preload("res://scripts/nightclub.gd")
 const GROUND_SHADER = preload("res://assets/city/district_ground.gdshader")
 const FACADE_DETAILS = preload("res://assets/city/facade_details.glb")
@@ -32,7 +33,7 @@ func _init(night_world) -> void:
 
 func build() -> void:
 	var center := BOUNDS.get_center()
-	world.box(self,Vector3(center.x,-.12,center.y),Vector3(BOUNDS.size.x,.24,BOUNDS.size.y),Color.TRANSPARENT,true,true)
+	build_ground_collision()
 	for z in [-34.9,33.9]:
 		world.box(self,Vector3(center.x,.65,z),Vector3(63.1,1.3,.22),Color("#383d4c"),true)
 	world.box(self,Vector3(-76.9,.65,center.y),Vector3(.22,1.3,69),Color("#383d4c"),true)
@@ -69,6 +70,17 @@ static func place_car(parent: Node3D, index: int, at: Vector3, moving: bool = fa
 	car.add_child(body)
 	return car
 
+func build_ground_collision() -> void:
+	var cut := Subway.OPENING
+	for section in [
+		Rect2(BOUNDS.position,Vector2(cut.position.x-BOUNDS.position.x,BOUNDS.size.y)),
+		Rect2(Vector2(cut.end.x,BOUNDS.position.y),Vector2(BOUNDS.end.x-cut.end.x,BOUNDS.size.y)),
+		Rect2(Vector2(cut.position.x,BOUNDS.position.y),Vector2(cut.size.x,cut.position.y-BOUNDS.position.y)),
+		Rect2(Vector2(cut.position.x,cut.end.y),Vector2(cut.size.x,BOUNDS.end.y-cut.end.y)),
+	]:
+		var center: Vector2 = section.get_center()
+		world.box(self,Vector3(center.x,-.12,center.y),Vector3(section.size.x,.24,section.size.y),Color.TRANSPARENT,true,true)
+
 func build_roads() -> void:
 	var surface := PlaneMesh.new()
 	surface.size = BOUNDS.size
@@ -77,6 +89,8 @@ func build_roads() -> void:
 	var material := ShaderMaterial.new()
 	material.shader = GROUND_SHADER
 	material.set_shader_parameter("club_half_width",Nightclub.FLOOR_WIDTH*.5)
+	var opening := Subway.OPENING
+	material.set_shader_parameter("subway_opening",Vector4(opening.position.x,opening.position.y,opening.end.x,opening.end.y))
 	material.set_shader_parameter("asphalt",ASPHALT_TEXTURE)
 	material.set_shader_parameter("pavers",PAVERS)
 	model.material_override = material

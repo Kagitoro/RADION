@@ -3,6 +3,7 @@ render_mode specular_disabled;
 uniform sampler2D asphalt : source_color, repeat_enable, filter_linear_mipmap_anisotropic;
 uniform sampler2D pavers : source_color, repeat_enable, filter_linear_mipmap_anisotropic;
 uniform float club_half_width;
+uniform vec4 subway_opening;
 varying vec2 district_position;
 
 void vertex() {
@@ -12,6 +13,9 @@ void vertex() {
 void fragment() {
 	vec2 p = district_position;
 	if (p.x > -33.60 && p.x < -21.80 && abs(p.y+4.2) < club_half_width) {
+		discard;
+	}
+	if (p.x > subway_opening.x && p.x < subway_opening.z && p.y > subway_opening.y && p.y < subway_opening.w) {
 		discard;
 	}
 	float avenue = min(abs(p.x+18.8),abs(p.x+55.3));

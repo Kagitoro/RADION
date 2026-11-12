@@ -86,6 +86,7 @@ func setup() -> void:
 	add_child(menu)
 	menu.setup(home,self)
 	home.night_world.shop.setup()
+	home.night_world.subway.setup()
 
 func add_slider(parent: VBoxContainer, text: String, value: float, changed: Callable) -> void:
 	var row := HBoxContainer.new()
@@ -119,6 +120,10 @@ func _process(delta: float) -> void:
 	hint_time = .10
 	if home.night_world.shop.can_interact():
 		interact_hint.text = "E · Night Shop"
+		return
+	var rider: Node3D = home.night_world.subway.aimed_person()
+	if rider != null:
+		interact_hint.text = "E · Поговорить" if home.night_world.subway.helped.has(rider) else "E · Дать  · "+rider.name_tag.text
 		return
 	if home.party.events.near_fight():
 		interact_hint.text = "E · Разнять гостей"
@@ -186,6 +191,10 @@ func aimed_guest() -> Node3D:
 func interact() -> void:
 	if home.night_world.shop.can_interact():
 		home.night_world.shop.open()
+		return
+	var rider: Node3D = home.night_world.subway.aimed_person()
+	if rider != null:
+		home.night_world.subway.give(rider)
 		return
 	if home.party.events.near_fight():
 		close_talk()

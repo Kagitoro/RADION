@@ -736,7 +736,11 @@ func set_modal(open: bool) -> void:
 func _physics_process(delta: float) -> void:
 	if player == null or modal:
 		return
-	if player.global_position.y < -1.2:
+	var below_street: bool = night_world.subway.underground(player.global_position)
+	if below_street and player.is_on_floor():
+		player.safe_floor = player.global_position
+		player.has_safe_floor = true
+	if player.global_position.y < -1.2 and not below_street:
 		var safe: Vector3 = player.safe_floor
 		if player.has_safe_floor and floor_below(Vector2(safe.x,safe.z)):
 			player.return_to_floor()
