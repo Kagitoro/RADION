@@ -399,8 +399,11 @@ func play_action(animation: StringName, duration: float) -> void:
 	action_time = duration
 	clip = &""
 
-func make_first_person(visible_bones := PackedStringArray()) -> void:
+func make_first_person(visible_bones := PackedStringArray(), hidden_bones := PackedStringArray()) -> void:
 	var roots: Array[int] = [head_bone]
+	var hidden: Array[int] = []
+	for name in hidden_bones:
+		hidden.append(skeleton.find_bone(name))
 	if not visible_bones.is_empty():
 		roots.clear()
 		for name in visible_bones:
@@ -426,16 +429,19 @@ func make_first_person(visible_bones := PackedStringArray()) -> void:
 			visible_vertices.resize(vertices.size())
 			for vertex in range(vertices.size()):
 				var weight := 0.0
+				var hidden_weight := 0.0
 				for influence in range(stride):
 					var index := vertex * stride + influence
 					var bone := part.skin.get_bind_bone(bones[index])
 					if bone < 0:
 						bone = skeleton.find_bone(part.skin.get_bind_name(bones[index]))
-					while bone >= 0 and not roots.has(bone):
+					while bone >= 0 and not roots.has(bone) and not hidden.has(bone):
 						bone = skeleton.get_bone_parent(bone)
-					if bone >= 0:
+					if hidden.has(bone):
+						hidden_weight += weights[index]
+					elif bone >= 0:
 						weight += weights[index]
-				visible_vertices[vertex] = int(weight <= .4 if visible_bones.is_empty() else weight > .22)
+				visible_vertices[vertex] = int((weight <= .4 if visible_bones.is_empty() else weight > .22) and hidden_weight < .65)
 			var indices := PackedInt32Array()
 			for triangle in range(0,source.size(),3):
 				var keep := true

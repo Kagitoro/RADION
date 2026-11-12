@@ -9,7 +9,9 @@ var wheel := Node3D.new()
 var phone := Node3D.new()
 var phone_amount := 0.0
 const PhoneUI = preload("res://scripts/arrival_phone_ui.gd")
+const TapHand = preload("res://scripts/arrival_tap_hand.gd")
 var phone_ui: PhoneUI
+var tap_hand: TapHand
 var cabin_light: OmniLight3D
 var screen_light: OmniLight3D
 var driver_look := 0.0
@@ -87,7 +89,10 @@ func build(night_world: NightWorld) -> void:
 		passenger.position = Vector3(EYE.x,-.27,-.32)
 		passenger.rotation.y = PI
 		passenger.player_body = true
-		passenger.make_first_person(PackedStringArray(["LeftForeArm","RightForeArm"]))
+		passenger.make_first_person(PackedStringArray(["LeftForeArm","RightForeArm"]),PackedStringArray(["RightHand"]))
+		tap_hand = TapHand.new()
+		add_child(tap_hand)
+		tap_hand.build(world)
 	else:
 		passenger.free()
 		passenger = null
@@ -101,7 +106,7 @@ func build(night_world: NightWorld) -> void:
 	screen_light.position = Vector3(0,0,.10)
 	screen_light.light_color = Color("#a6cdff")
 	screen_light.omni_range = .43
-	screen_light.light_energy = .36
+	screen_light.light_energy = .18
 
 func lit_box(parent: Node3D, at: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
 	var shape := BoxMesh.new()
@@ -152,7 +157,7 @@ func sit(rig: GuestModel) -> void:
 		rig.rotate_local(side+"UpLeg",Vector3(-1.20,0,0))
 		rig.rotate_local(side+"Leg",Vector3(1.52,0,0))
 
-func update_pose(delta: float, clock: float, phone_view: PhoneUI.Page, played: float, tap: Vector2, touch: float, talking: bool) -> void:
+func update_pose(delta: float, clock: float, phone_view: PhoneUI.Page, played: float, tap: Vector2, reach: float, touch: float, talking: bool) -> void:
 	wheel.rotation.y = sin(clock*.81)*.062 + sin(clock*1.48)*.017
 	cabin_light.light_energy = .29 + .21*pow(maxf(0,sin(clock*1.20)),4)
 	var rig := driver.imported_model as GuestModel
@@ -185,6 +190,7 @@ func update_pose(delta: float, clock: float, phone_view: PhoneUI.Page, played: f
 	phone.rotate_object_local(Vector3.RIGHT,-.033*phone_press)
 	if passenger != null:
 		passenger.visible = phone.visible
+		tap_hand.hide()
 		passenger.pose(0.0,false,1.0,false,0.0)
 		sit(passenger)
 		var contact := Vector3(-.027,-.078,-.082)
@@ -203,15 +209,19 @@ func update_pose(delta: float, clock: float, phone_view: PhoneUI.Page, played: f
 			phone.global_position = wrist - phone.global_basis*contact
 			var fingers := phone.to_global(Vector3(-.015,.040,contact.z-.006))
 			orient_hand(passenger,arm.z,wrist,fingers,phone.global_basis.z,.94)
-			if touch>.001:
+			if reach>.001:
 				var tap_arm := passenger.arms[1]
-				var local := Vector3((tap.x/360.0-.5)*.074,(.5-tap.y/720.0)*.148,.013)
-				var tip := phone.to_global(local+Vector3(0,0,.040*(1.0-touch)))
-				var hand := phone.to_global(local+Vector3(.081,-.057,.022))
+				var local := Vector3((tap.x/360.0-.5)*.074,(.5-tap.y/720.0)*.148,.014)
+				var tip := phone.to_global(local)
+				var hand := phone.to_global(local+Vector3(.083,-.041,.048))
 				var rest := passenger.skeleton.to_global(Vector3(-.23,.71,.22))
-				passenger.point_arm(tap_arm,passenger.skeleton.to_local(rest.lerp(hand,touch)),Vector3(-1,-.9,-.15))
+				passenger.point_arm(tap_arm,passenger.skeleton.to_local(rest.lerp(hand,reach)),Vector3(-1,-.9,-.15))
 				var tap_wrist := passenger.skeleton.to_global(passenger.skeleton.get_bone_global_pose(tap_arm.z).origin)
-				orient_hand(passenger,tap_arm.z,tap_wrist,tip,-phone.global_basis.z,touch*.85)
+				var pointing := tap_wrist.direction_to(tip)
+				var across := pointing.cross(phone.global_basis.z).normalized()
+				tap_hand.global_transform = Transform3D(Basis(across,pointing,across.cross(pointing)),tap_wrist)
+				tap_hand.pose_tip(tip,touch)
+				tap_hand.show()
 
 func orient_hand(rig: GuestModel, bone: int, wrist: Vector3, fingers: Vector3, palm_normal: Vector3, influence: float) -> void:
 	var inverse := rig.skeleton.global_basis.inverse()

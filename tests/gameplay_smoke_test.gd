@@ -295,24 +295,34 @@ func check_intro() -> void:
 	intro.elapsed = intro.WAKE_CALL-.08
 	await wait(.24)
 	expect(intro.fade.color.a>.95 and intro.wake_voice.playing, "Интро: Кир не слышен сквозь сон")
-	intro.elapsed = intro.CLEAR_WAKE_LINE
+	intro.wake_voice.stop()
+	intro.elapsed = intro.voice_lead
 	await wait(.18)
 	expect(intro.cabin.visible and intro.fade.color.a<.05 and intro.voice.playing, "Интро: герой не проснулся")
 	intro.advance_line()
 	await wait(.35)
 	expect(intro.voice.playing and intro.cabin.position.z > car_start, "Интро: реплика или движение машины не начались")
-	intro.advance_line()
+	while intro.line<intro.PHONE_LINE:
+		intro.advance_line()
 	await wait(1.28)
 	expect(intro.cabin.phone.visible and intro.cabin.phone_amount>.8 and intro.ringtone.playing and intro.cabin.phone_ui.page==intro.PhoneUI.Page.CALL, "Интро: входящий звонок не появился")
 	for step in range(intro.PHONE_TAPS.size()):
-		intro.elapsed = intro.PHONE_TAPS[step][0]+.05
-		await wait(.14)
+		intro.elapsed = intro.PHONE_TAPS[step][0]-.04
+		await wait(.20)
 		expect(intro.cabin.phone_ui.page==intro.PHONE_TAPS[step][2], "Интро: не переключился экран телефона")
+		expect(intro.cabin.tap_hand.visible, "Интро: не появилась рука для нажатия пальцем")
+	await wait(.10)
 	expect(intro.voice.playing, "Интро: голосовое не началось после нажатия на запись")
 	intro.advance_line()
 	await wait(.25)
-	expect(intro.line == 3, "Интро: реплики не переключаются")
+	expect(intro.line == intro.PHONE_LINE+1, "Интро: реплики не переключаются")
 	expect(not intro.subtitle.text.is_empty() and not intro.speaker.text.is_empty(), "Интро: субтитры не показываются")
+	while intro.line<intro.KEY_LINE:
+		intro.advance_line()
+	await wait(1.0)
+	var kir := intro.friend.imported_model as GuestModel
+	var wrist := kir.skeleton.get_bone_global_pose(kir.arms[0].z).origin
+	expect(intro.key_prop.visible and intro.key_prop.global_position.distance_to(kir.skeleton.to_global(wrist))<.16, "Интро: ключ не держится у пальцев Кира")
 	intro.finish()
 	await wait(.2)
 	expect(not intro.active and not home.modal, "Интро: не завершается")

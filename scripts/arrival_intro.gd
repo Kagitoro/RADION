@@ -10,7 +10,7 @@ const CLUB_BED = preload("res://assets/story/ambience/club_outside.mp3")
 const Cabin = preload("res://scripts/arrival_cabin.gd")
 const PhoneUI = preload("res://scripts/arrival_phone_ui.gd")
 const Highway = preload("res://scripts/arrival_highway.gd")
-const DISTANT_KIR := preload("res://assets/story/voice/cabin_wakeup_distant.mp3")
+const DISTANT_KIR := preload("res://assets/story/voice/acted_wakeup.mp3")
 const EXTERIOR_END := 4.55
 const WAKE_CALL := 5.40
 const PHONE_TAPS := [
@@ -21,26 +21,30 @@ const PHONE_TAPS := [
 ]
 const CLEAR_WAKE_LINE := 9.16
 const VOICEMAIL_PLAY := 7.58
+const PHONE_LINE := 4
+const KEY_LINE := 15
 const LINES := [
-	[0,13.2,"Kir","Yo. Wake up, man. We're coming into the city.","cabin_wakeup"],
-	[0,3.1,"You","Already? Shit. How long was I out?","cabin_awake"],
-	[1,5.0,"Old voicemail","Hey. Where are you? You said ten minutes. We've been waiting forty. I put Nico on. Call me back.","cabin_maya_message"],
-	[1,4.3,"Kir","Maya? From your old club? … You hungry? I know a spot. They still sell beer.","cabin_maya_kir"],
-	[1,2.3,"You","Food, Kir. Actual food.","cabin_maya_you"],
-	[1,2.8,"Kir","Yeah. I heard you.","cabin_heard"],
-	[2,4.2,"Kir","Yo, brother. Get out. Easy with the door, man. It's older than both of us.","line_02"],
-	[2,3.5,"You","You said somebody was waiting on me. Who?","line_03"],
-	[3,6.0,"Kir","See Samir by the door? I left him your name. If their opener doesn't show, you get twenty minutes.","arrival_slot"],
-	[3,3.5,"You","You put my name down without asking me?","arrival_name"],
-	[3,4.8,"Kir","I told him you could play. I didn't tell him you'd show up.","arrival_promise"],
-	[4,3.6,"You","Shit. When's the set?","line_07"],
-	[4,4.0,"Kir","Tonight. Keep your phone on. Last thing I need is two DJs I can't get hold of.","arrival_tonight"],
-	[5,5.5,"Kir","Here. This one's for the front door. The controller's in the bedroom. You bring your tracks?","arrival_keys"],
-	[5,3.8,"You","Two tracks. One clean shirt. Clean-ish.","line_10"],
-	[5,4.4,"Kir","Then you're overdressed. Warm the room up first. Save the big shit for later.","line_11"],
-	[6,5.5,"Kir","Previous tenant left you a note on the fridge. Read it before you open anything that smells funny.","arrival_note"],
-	[6,3.2,"You","You could've led with that.","arrival_led"],
-	[6,3.7,"Kir","And miss the look on your face? See you at the club.","arrival_goodbye"],
+	[0,13.2,"You","Mm... What's up?","acted_groggy"],
+	[0,3.1,"Kir","You missed my whole damn playlist.","acted_playlist"],
+	[0,2.5,"You","Yeah? Guess I got lucky.","acted_lucky"],
+	[0,3.7,"Kir","Get outta here. That's our exit, by the way.","acted_exit"],
+	[1,5.0,"Old voicemail","Hey. Where are you? You said ten minutes. We've been waiting forty. I put Nico on. Call me back.","acted_maya"],
+	[1,4.3,"Kir","Maya? From the old club? ... You want food? I know a place. They've got beer.","acted_food"],
+	[1,2.3,"You","Food, Kir. The stuff you chew.","acted_chew"],
+	[1,2.8,"Kir","Yeah, yeah. I heard you.","acted_heard"],
+	[2,4.2,"Kir","Easy with the door, man. It's older than both of us.","acted_door"],
+	[2,3.5,"You","So who's waiting on me?","acted_waiting"],
+	[3,6.0,"Kir","See Samir by the door? I gave him your name. If the opener flakes, you get twenty minutes.","acted_slot"],
+	[3,3.5,"You","You signed me up? You could've texted.","acted_name"],
+	[3,4.8,"Kir","And you'd have spent all night talking yourself out of it. I told him you could play. That's all.","acted_promise"],
+	[4,3.6,"You","Shit. When's the set?","acted_when"],
+	[4,4.0,"Kir","Tonight. Keep your phone on, all right? Do me that one favor.","acted_tonight"],
+	[5,5.5,"Kir","Here, catch. Front door key. Controller's in the bedroom. You bring your tracks?","acted_keys"],
+	[5,3.8,"You","Two tracks. One clean shirt. Clean-ish.","acted_shirt"],
+	[5,4.4,"Kir","Look at you. Warm the room up first. Save the big stuff for later.","acted_warm"],
+	[6,5.5,"Kir","Oh, and there's a note on the fridge. Read it before you open anything that smells funny.","acted_note"],
+	[6,3.2,"You","You could've led with that.","acted_led"],
+	[6,3.7,"Kir","And miss that face? Nah. See you at the club, man.","acted_goodbye"],
 ]
 
 var home: Home
@@ -128,7 +132,7 @@ func setup(game_home: Home, night_game: NightGame) -> void:
 	add_child(voice)
 	add_child(wake_voice)
 	wake_voice.stream = DISTANT_KIR
-	wake_voice.volume_db = -8.5
+	wake_voice.volume_db = -3.5
 	add_child(ringtone)
 	ringtone.stream = make_ringtone()
 	ringtone.volume_db = -13.0
@@ -312,6 +316,7 @@ func start(is_replay: bool = false) -> void:
 	home.night_world.point_light(friend,Vector3(0,1.8,-.82),Color("#f5c7a8"),.68,2.7)
 	key_prop = Node3D.new()
 	friend.add_child(key_prop)
+	key_prop.scale = Vector3.ONE*.78
 	var ring := TorusMesh.new()
 	ring.inner_radius = .013
 	ring.outer_radius = .019
@@ -408,8 +413,8 @@ func set_line() -> void:
 	var row: Array = LINES[line]
 	speaker.text = tr(str(row[2])).to_upper()
 	subtitle.text = tr(str(row[3]))
-	caption.visible = line<2
-	key_prop.visible = line==13
+	caption.visible = line<PHONE_LINE
+	key_prop.visible = line==KEY_LINE
 	line_duration = float(row[1])
 	voice.stop()
 	wake_voice.stop()
@@ -419,9 +424,11 @@ func set_line() -> void:
 	voice_pending = clip != null
 	if clip == null:
 		return
-	voice_lead = CLEAR_WAKE_LINE if line==0 else (VOICEMAIL_PLAY if line==2 else .20)
+	voice_lead = CLEAR_WAKE_LINE if line==0 else (VOICEMAIL_PLAY if line==PHONE_LINE else .19)
+	if line==0:
+		voice_lead = maxf(voice_lead,WAKE_CALL+DISTANT_KIR.get_length()+.28)
 	voice.volume_db = -1.0 if row[2]=="Old voicemail" else 0.0
-	line_duration = clip.get_length()+voice_lead+(.85 if row[2]=="Old voicemail" else .45)
+	line_duration = clip.get_length()+voice_lead+(.74 if row[2]=="Old voicemail" else .53)
 	if line==0:
 		line_duration = maxf(line_duration,float(row[1]))
 
@@ -468,10 +475,10 @@ func _process(delta: float) -> void:
 	if line==0 and not wake_played and elapsed>=WAKE_CALL:
 		wake_played = true
 		wake_voice.play()
-	if line==2 and not ring_played and elapsed>=.12:
+	if line==PHONE_LINE and not ring_played and elapsed>=.12:
 		ring_played = true
 		ringtone.play()
-	if voice_pending and elapsed>=voice_lead:
+	if voice_pending and elapsed>=voice_lead and not wake_voice.playing:
 		voice_pending = false
 		voice.play()
 	if elapsed>=line_duration and (not voice.playing or elapsed>=line_duration+1.0):
@@ -487,10 +494,13 @@ func _process(delta: float) -> void:
 	if line==0:
 		eyelids = smoothstep(4.10,EXTERIOR_END,elapsed)*(1.0-smoothstep(6.53,8.75,elapsed))
 		eyelids += .23*(smoothstep(7.92,8.22,elapsed)-smoothstep(8.27,8.64,elapsed))
-		subtitle.visible = elapsed>=voice_lead
+		var waking := elapsed>=WAKE_CALL and wake_voice.playing
+		subtitle.text = "Hey, man... You with me?" if waking else str(LINES[0][3])
+		speaker.text = "KIR" if waking else "YOU"
+		subtitle.visible = waking or elapsed>=voice_lead
 		speaker.visible = subtitle.visible
 	else:
-		subtitle.visible = line!=2 or elapsed>=voice_lead
+		subtitle.visible = line!=PHONE_LINE or elapsed>=voice_lead
 		speaker.visible = subtitle.visible
 	wake_mask.visible = line==0 and elapsed>=EXTERIOR_END and eyelids>.035
 	if wake_mask.visible:
@@ -506,7 +516,8 @@ func update_shot(delta: float) -> void:
 	if shot<=1:
 		driving_clock += delta
 		var speed := Highway.speed(cabin.position.z)
-		if line==5:
+		speed *= lerpf(.20,1.0,smoothstep(0.0,6.5,17.9-cabin.position.z))
+		if line==7:
 			speed = lerpf(speed,.65,smoothstep(0.0,line_duration,elapsed))
 		cabin.position.z += speed*delta
 		if cabin.position.z>17.9:
@@ -535,25 +546,27 @@ func update_shot(delta: float) -> void:
 			friend.hide()
 			return
 		var clip_length := voice.stream.get_length() if voice.stream != null else line_duration
-		var clip_time := voice.get_playback_position() if voice.playing else (clip_length if line==2 and not voice_pending else 0.0)
+		var clip_time := voice.get_playback_position() if voice.playing else (clip_length if line==PHONE_LINE and not voice_pending else 0.0)
 		var phone_view := PhoneUI.Page.OFF
 		var tap_position := Vector2.ZERO
 		var touch := 0.0
-		if line==2 and elapsed>.29:
+		var reach := 0.0
+		if line==PHONE_LINE and elapsed>.29:
 			phone_view = PhoneUI.Page.CALL
 			for tap in PHONE_TAPS:
 				var at: float = tap[0]
 				if elapsed>=at+.10:
 					phone_view = tap[2]
-				if absf(elapsed-at)<.36:
+				if absf(elapsed-at)<.62:
 					tap_position = tap[1]
-					touch = smoothstep(at-.36,at-.04,elapsed)*(1.0-smoothstep(at+.04,at+.36,elapsed))
-		cabin.update_pose(delta,driving_clock,phone_view,clampf(clip_time/maxf(.1,clip_length),0,1),tap_position,touch,LINES[line][2]=="Kir" and (voice.playing or wake_voice.playing))
+					reach = smoothstep(at-.62,at-.28,elapsed)*(1.0-smoothstep(at+.24,at+.61,elapsed))
+					touch = smoothstep(at-.19,at-.025,elapsed)*(1.0-smoothstep(at+.04,at+.24,elapsed))
+		cabin.update_pose(delta,driving_clock,phone_view,clampf(clip_time/maxf(.1,clip_length),0,1),tap_position,reach,touch,wake_voice.playing or (LINES[line][2]=="Kir" and voice.playing))
 		var look := smoothstep(0.0,1.0,cabin.phone_amount)
 		var sleepy := 1.0-smoothstep(6.55,10.0,elapsed) if line==0 else 0.0
 		var base_eye := Cabin.EYE+Vector3(-sleepy*.11,sin(driving_clock*2.5)*.004-sleepy*.18,-sleepy*.07)+Vector3(0,-.033,.046)*look
 		eye = cabin.to_global(base_eye)-origin
-		cabin_glance = move_toward(cabin_glance,1.0 if line in [3,4,5] else 0.0,delta*1.48)
+		cabin_glance = move_toward(cabin_glance,1.0 if line in [1,2,3,5,6,7] else 0.0,delta*1.48)
 		var gaze := Vector3(-.31,1.34,2.9).lerp(Vector3(.46,1.36,-.19),smoothstep(0,1,cabin_glance)*.98)
 		gaze = gaze.lerp(Vector3(-.57,.87,1.55),sleepy)
 		focus = cabin.to_global(gaze.lerp(cabin.phone.position,look))-origin
@@ -591,23 +604,30 @@ func update_shot(delta: float) -> void:
 			if shot==5:
 				eye = Vector3(-4.65,1.75,-.48+motion*.20)
 				focus = friend.position+Vector3(0,1.29,0)
+				if line==KEY_LINE:
+					eye = Vector3(-4.18,1.59,-.27+motion*.09)
+					focus = friend.position+Vector3(0,1.25,0)
 			else:
 				eye = Vector3(-3.85,1.63,-.73+motion*.14)
 				focus = Vector3(-.81,1.52,.17)
 		var direction := friend.position.direction_to(eye)
 		friend.rotation.y = atan2(-direction.x,-direction.z)
-		friend.pose(delta,0.0,false)
-		if LINES[line][2]=="Kir" and is_instance_valid(friend.imported_model):
-			var rig = friend.imported_model
-			if line in [6,8,10,13,15,16,18] and rig.arms.size()==2:
+		var rig := friend.imported_model as GuestModel
+		if rig != null:
+			rig.pose(delta,false,1.0,false,0.0)
+			if line in [8,10,12,KEY_LINE,17,18,20] and rig.arms.size()==2:
 				var gesture := sin(clampf(elapsed/2.2,0.0,1.0)*PI)
-				var held := Vector3(.27,1.32,.51) if line==13 else Vector3(.36,1.23,.32)
-				var wrist := Vector3(.18,.87,.10).lerp(held,gesture if line!=13 else smoothstep(0.0,1.0,elapsed))
+				var held := Vector3(.28,1.31,.43) if line==KEY_LINE else Vector3(.36,1.23,.32)
+				var wrist := Vector3(.18,.87,.10).lerp(held,gesture if line!=KEY_LINE else smoothstep(0.0,.9,elapsed))
 				rig.point_arm(rig.arms[0],wrist,Vector3(.85,-.4,-.15))
 				if key_prop.visible:
-					var bone: Transform3D = rig.skeleton.get_bone_global_pose(rig.arms[0].z)
-					key_prop.global_position = rig.skeleton.to_global(bone.origin+Vector3(.015,-.045,.09))
-					key_prop.rotation.y = -.23
+					var hand := rig.skeleton.get_bone_global_pose(rig.arms[0].z)
+					var pinch := rig.skeleton.to_global(hand*Vector3(.016,.107,-.012))
+					var toward_view := pinch.direction_to(origin+eye)
+					key_prop.global_position = pinch+toward_view*.028+Vector3.DOWN*.045
+					key_prop.rotation = Vector3(.055*sin(elapsed*6),.16,.075*sin(elapsed*7.5))
+		else:
+			friend.pose(delta,0.0,false)
 	camera.global_position = origin+eye
 	camera.look_at(origin+focus)
 	if line==0:
