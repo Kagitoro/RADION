@@ -3,6 +3,7 @@ extends RefCounted
 ## Walkable grid of the house for guests: which cells are indoors, outdoors, on the dance floor, and A* routes between them.
 
 const CELL := .28
+const DANCE_SPACING := .90
 var navigation := AStarGrid2D.new()
 var cells := {}
 var connected: Array[Vector2i] = []
@@ -96,23 +97,66 @@ func closest_cell(point: Vector3, candidates: Array) -> Vector2i:
 			result = id
 	return result
 
-func find_destination(guest) -> void:
+func find_destination(guest: PartyGuest, prefer_dance: bool = false) -> void:
 	var group := indoor_cells if not indoor_cells.is_empty() else connected
-	if not outdoor_cells.is_empty() and party.rng.randf()<guest.outdoor_interest:
+	if not prefer_dance and not outdoor_cells.is_empty() and party.rng.randf()<guest.outdoor_interest:
 		group = outdoor_cells
-	elif not dance_floor.is_empty() and party.rng.randf()<guest.dance_interest:
+	elif not dance_floor.is_empty() and (prefer_dance or party.rng.randf()<guest.dance_interest):
 		group = dance_floor
-	var destination: Vector2i = group[party.rng.randi_range(0,group.size()-1)]
-	var player_point: Vector3 = party.home.player.global_position
-	for trial in range(5):
-		if player_point.distance_to(cells[destination])>.65 and party.guests.all(func(other): return other==guest or other.position.distance_to(cells[destination])>.55):
-			break
-		destination = group[party.rng.randi_range(0,group.size()-1)]
-	route_to(guest,destination)
+	if try_destination(guest,group):
+		return
+	if group!=indoor_cells and try_destination(guest,indoor_cells):
+		return
+	if group!=outdoor_cells and try_destination(guest,outdoor_cells):
+		return
+	guest.rest = 3.5
 
-func route_to(guest, destination: Vector2i) -> void:
+func try_destination(guest: PartyGuest, group: Array[Vector2i]) -> bool:
+	if group.is_empty():
+		return false
+	var offset := party.rng.randi_range(0,group.size()-1)
+	var player := party.home.player.global_position
+	for step in range(group.size()):
+		var cell := group[(offset+step)%group.size()]
+		var point: Vector3 = cells[cell]
+		if point.distance_squared_to(player)>.70*.70 and space_available(guest,point,true) and route_to(guest,cell):
+			return true
+	return false
+
+func space_available(guest: PartyGuest, point: Vector3, reserve_destinations: bool) -> bool:
+	for other in party.guests:
+		if other==guest:
+			continue
+		if other.position.distance_squared_to(point)<DANCE_SPACING*DANCE_SPACING:
+			return false
+		if reserve_destinations and other.cursor<other.route.size():
+			var goal: Vector3 = other.route[-1]
+			if goal.distance_squared_to(point)<DANCE_SPACING*DANCE_SPACING:
+				return false
+	return true
+
+func route_to(guest: PartyGuest, destination: Vector2i) -> bool:
+	if connected.is_empty() or not cells.has(destination):
+		return false
 	var from := closest_cell(guest.position,connected)
+	var ids := navigation.get_id_path(from,destination)
+	if ids.is_empty():
+		return false
 	var path := PackedVector3Array()
-	for id in navigation.get_id_path(from,destination):
+	for id in ids:
 		path.append(cells[id])
 	guest.follow(path)
+	return true
+
+func route_out(guest: PartyGuest, side: float) -> bool:
+	if outdoor_cells.is_empty():
+		return false
+	var door := party.home.night_world.door_center
+	var gate := closest_cell(door+Vector3(-13.45,0,0),outdoor_cells)
+	var gate_position: Vector3 = cells[gate]
+	if absf(gate_position.z-door.z)>1.25 or gate_position.x>door.x-12.2 or not route_to(guest,gate):
+		return false
+	guest.route.append(door+Vector3(-14.8,0,0))
+	guest.route.append(door+Vector3(-14.8,.09,2.1*side))
+	guest.route.append(door+Vector3(-14.8,.09,26.0*side))
+	return true

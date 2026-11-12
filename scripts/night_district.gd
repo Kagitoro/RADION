@@ -18,7 +18,10 @@ const BOUNDS := Rect2(-77,-35,63.1,69)
 const TRAFFIC_ROUTE := [Vector3(-17.5,0,-22),Vector3(-17.5,0,20),Vector3(-54,0,20),Vector3(-54,0,-22)]
 
 var world: NightWorld
+const TRAFFIC_GAP := 7.4
+
 var traffic: Array[Dictionary] = []
+var route_length := 0.0
 var walkers: Array[Dictionary] = []
 var elapsed := 0.0
 var facade_meshes := {}
@@ -39,13 +42,16 @@ func build() -> void:
 		world.box(self,Vector3(-13.91,.65,(interval.x+interval.y)*.5),Vector3(.11,1.3,interval.y-interval.x),Color("#353e4e"),true)
 	build_roads()
 	build_blocks()
+	for index in range(TRAFFIC_ROUTE.size()):
+		route_length += TRAFFIC_ROUTE[index].distance_to(TRAFFIC_ROUTE[(index+1)%TRAFFIC_ROUTE.size()])
 	for index in range(3):
-		var at: Vector3 = TRAFFIC_ROUTE[index].lerp(TRAFFIC_ROUTE[index+1],.25)
-		var car := place_car(self,index%2,at,true)
-		var direction: Vector3 = at.direction_to(TRAFFIC_ROUTE[index+1])
+		var distance := route_length*(float(index)+.18)/3.0
+		var car := place_car(self,index%2,traffic_point(distance),true)
+		var direction := traffic_point(distance+.7)-car.position
 		car.rotation.y = atan2(direction.x,direction.z)
 		var wheels := car.find_children("Axle-*","Node3D",true,false)
-		traffic.append({"car":car,"next":index+1,"speed":4.3+index*.45,"wheels":wheels,"radius":.34 if index%2==0 else .46})
+		traffic.append({"car":car,"distance":distance,"speed":0.0,"cruise":4.3+index*.45,
+			"wheels":wheels,"radius":.34 if index%2==0 else .46})
 	for index in range(4):
 		var car := place_car(self,index%2,Vector3(-45.2+index*4.0,0,14.6))
 		car.rotation.y = PI
@@ -256,20 +262,7 @@ func _process(delta: float) -> void:
 	var observer := to_local(player.global_position)
 	var view := get_viewport().get_camera_3d()
 	var viewer := to_local(view.global_position) if view!=null else observer
-	for route in traffic:
-		var car: Node3D = route.car
-		var target: Vector3 = TRAFFIC_ROUTE[route.next]
-		var direction := car.position.direction_to(target)
-		var moving := (car.position+direction*2.2).distance_to(observer)>3.1
-		if car.position.distance_to(target)<.22:
-			route.next = (route.next+1)%TRAFFIC_ROUTE.size()
-		elif moving:
-			var previous := car.position
-			car.position = car.position.move_toward(target,route.speed*delta)
-			var turn := previous.distance_to(car.position)/float(route.radius)
-			for wheel in route.wheels:
-				wheel.rotate_x(turn)
-			car.rotation.y = lerp_angle(car.rotation.y,atan2(direction.x,direction.z),minf(1.0,delta*5))
+	step_traffic(delta,observer)
 	elapsed += delta
 	if elapsed<.05:
 		return
@@ -285,3 +278,41 @@ func _process(delta: float) -> void:
 		if person.position.distance_squared_to(viewer)<32.0*32.0:
 			person.pose(elapsed,0.0,true)
 	elapsed = 0.0
+
+func traffic_point(distance: float) -> Vector3:
+	var remaining := fposmod(distance,route_length)
+	for index in range(TRAFFIC_ROUTE.size()):
+		var start: Vector3 = TRAFFIC_ROUTE[index]
+		var end: Vector3 = TRAFFIC_ROUTE[(index+1)%TRAFFIC_ROUTE.size()]
+		var length := start.distance_to(end)
+		if remaining<length:
+			return start.lerp(end,remaining/length)
+		remaining -= length
+	return TRAFFIC_ROUTE[0]
+
+func step_traffic(delta: float, observer: Vector3) -> void:
+	var previous := PackedFloat64Array()
+	for route in traffic:
+		previous.append(route.distance)
+	for index in range(traffic.size()):
+		var route := traffic[index]
+		var distance := previous[index]
+		var gap := route_length
+		for other in range(previous.size()):
+			if other!=index:
+				gap = minf(gap,fposmod(previous[other]-distance,route_length))
+		var room := maxf(0.0,gap-TRAFFIC_GAP)
+		var target_speed := minf(float(route.cruise),room*1.2)
+		var car: Node3D = route.car
+		if traffic_point(distance+2.4).distance_to(observer)<3.25:
+			target_speed = 0.0
+		var acceleration := 2.6 if target_speed>float(route.speed) else 8.0
+		route.speed = move_toward(float(route.speed),target_speed,delta*acceleration)
+		var step := minf(float(route.speed)*delta,room)
+		distance = fposmod(distance+step,route_length)
+		route.distance = distance
+		car.position = traffic_point(distance)
+		var direction := traffic_point(distance+.65)-traffic_point(distance-.65)
+		car.rotation.y = lerp_angle(car.rotation.y,atan2(direction.x,direction.z),minf(1.0,delta*6.0))
+		for wheel in route.wheels:
+			wheel.rotate_x(step/float(route.radius))

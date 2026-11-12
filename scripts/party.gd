@@ -23,8 +23,11 @@ var bonus := 0.0
 var beat := 0.0
 var active := false
 var starting := false
+var silence_time := 0.0
+var departure_delay := 0.0
+var departure_side := 1.0
 var won := false
-var guests: Array[Node3D] = []
+var guests: Array[PartyGuest] = []
 var guest_serial := 0
 var rng := RandomNumberGenerator.new()
 var hud_elapsed := 0.0
@@ -70,15 +73,18 @@ func bottle_template() -> Node3D:
 	return consumables.bottle_model
 
 ## Sends a guest somewhere new on the walkable grid.
-func find_destination(guest: Node3D) -> void:
+func find_destination(guest: PartyGuest) -> void:
 	navigation_grid.find_destination(guest)
 
-func route_to(guest: Node3D, destination: Vector2i) -> void:
+func route_to(guest: PartyGuest, destination: Vector2i) -> void:
 	navigation_grid.route_to(guest, destination)
 
 ## Walkable cell nearest to a world point.
 func cell_near(point: Vector3) -> Vector2i:
 	return navigation_grid.closest_cell(point, navigation_grid.connected)
+
+func invite_to_dance(guest: PartyGuest) -> void:
+	navigation_grid.find_destination(guest,true)
 
 func has_walkable_area() -> bool:
 	return not navigation_grid.connected.is_empty()
@@ -189,9 +195,15 @@ func stop() -> void:
 	for channel in music:
 		channel.stop()
 	for guest in guests:
-		guest.queue_free()
-	guests.clear()
-	conversation.clear()
+		guest.dancing = false
+	departure_delay = .4
+	silence_time = 0.0
+	if not conversation.is_empty():
+		for guest in [conversation.first,conversation.second]:
+			if is_instance_valid(guest):
+				guest.partner = null
+				guest.speech.hide()
+		conversation.clear()
 
 func start() -> void:
 	starting = false
@@ -204,7 +216,10 @@ func start() -> void:
 	arrival = Balance.PARTY_FIRST_ARRIVAL
 	atmosphere = Balance.PARTY_START_ATMOSPHERE
 	bonus = 0
-	guest_serial = 0
+	if guests.is_empty():
+		guest_serial = 0
+	silence_time = 0.0
+	departure_delay = 0.0
 	requested = 0
 	request_time = Balance.PARTY_FIRST_REQUEST
 	mix_time = 0
@@ -283,7 +298,15 @@ func _physics_process(delta: float) -> void:
 	var street_fade := minf(48.0,maxf(0.0,distance_from_house-12.0)*4.0)
 	var volume_target := (-12.0-street_fade if outdoors else 0.0)+linear_to_db(maxf(.0001,music_gain))
 	AudioServer.set_bus_volume_db(music_bus,lerpf(bus_volume,volume_target,minf(1,delta*3)))
-	if not active or pause_music:
+	if pause_music:
+		return
+	var music_running: bool = active and music_gain>.02 and dj.has_playback()
+	silence_time = 0.0 if music_running else silence_time+delta
+	departure_delay = maxf(0.0,departure_delay-delta)
+	if not active or silence_time>=6.0:
+		begin_departure()
+	if not active:
+		update_guests(delta,false)
 		return
 	mix_time = maxf(0,mix_time-delta)
 	track_time += delta
@@ -310,15 +333,36 @@ func _physics_process(delta: float) -> void:
 	arrival -= delta
 	if arrival<=0:
 		arrival = Balance.PARTY_ARRIVAL_FAST if atmosphere>=Balance.PARTY_HOT_ATMOSPHERE else Balance.PARTY_ARRIVAL_SLOW
-		if atmosphere>=Balance.PARTY_INVITE_ATMOSPHERE and guests.size()<GOAL+Balance.PARTY_OVERFLOW_GUESTS:
+		if music_running and atmosphere>=Balance.PARTY_INVITE_ATMOSPHERE and guests.size()<GOAL+Balance.PARTY_OVERFLOW_GUESTS:
 			invite()
-		elif atmosphere<Balance.PARTY_LEAVE_ATMOSPHERE and guests.size()>0:
-			for guest in guests:
-				if not guest.leaving:
-					guest.leaving = true
-					navigation_grid.route_to(guest,navigation_grid.entrance)
-					break
-	var music_running: bool = dj.has_playback()
+		elif music_running and atmosphere<Balance.PARTY_LEAVE_ATMOSPHERE:
+			begin_departure()
+	update_guests(delta,music_running)
+	update_conversation(delta)
+	if indoor_count()>=GOAL and atmosphere>=64:
+		full_time += delta
+		if full_time>=15 and not won:
+			won = true
+			GameEvents.notify(tr("Аншлаг! Ты удержал полный дом и атмосферу."))
+	else:
+		full_time = 0
+
+func begin_departure() -> void:
+	if departure_delay>0.0:
+		return
+	for node in guests:
+		var guest := node as PartyGuest
+		if guest.leaving or guest.fighting or is_instance_valid(guest.partner):
+			continue
+		if navigation_grid.route_out(guest,departure_side):
+			guest.leaving = true
+			departure_side = -departure_side
+			departure_delay = 1.1
+			return
+	departure_delay = 1.1
+
+func update_guests(delta: float, music_running: bool) -> void:
+	var dj := home.night_game.dj
 	for guest in guests.duplicate():
 		if not music_running:
 			guest.dancing = false
@@ -339,22 +383,18 @@ func _physics_process(delta: float) -> void:
 		if guest.fighting:
 			continue
 		if guest.leaving:
-			guests.erase(guest)
-			guest.queue_free()
-		elif is_instance_valid(guest.partner):
+			if guest.cursor<guest.route.size():
+				continue
+			var view := get_viewport().get_camera_3d()
+			if view==null or not view.is_position_in_frustum(guest.global_position+Vector3.UP*.85) or distance>32.0*32.0:
+				guests.erase(guest)
+				guest.queue_free()
+		elif is_instance_valid(guest.partner) or not active:
 			continue
 		elif guest.rest>5.0+float(guest.preference):
 			navigation_grid.find_destination(guest)
-		elif music_running and atmosphere>=52 and (guest.position-deck.position).length()<3.6:
-			guest.dancing = true
-	update_conversation(delta)
-	if indoor_count()>=GOAL and atmosphere>=64:
-		full_time += delta
-		if full_time>=15 and not won:
-			won = true
-			GameEvents.notify(tr("Аншлаг! Ты удержал полный дом и атмосферу."))
-	else:
-		full_time = 0
+		else:
+			guest.dancing = music_running and atmosphere>=52 and (guest.position-deck.position).length()<3.6 				and navigation_grid.space_available(guest,guest.position,false)
 
 func update_conversation(delta: float) -> void:
 	if not conversation.is_empty():
@@ -408,6 +448,10 @@ func show_dialogue() -> void:
 
 
 func invite() -> void:
+	var arrival_point: Vector3 = navigation_grid.cells[navigation_grid.entrance]
+	for guest in guests:
+		if guest.position.distance_squared_to(arrival_point)<.65*.65:
+			return
 	var variants: Array = guest_models[guest_serial%2]
 	var model: Node3D = null
 	if not variants.is_empty():
@@ -416,7 +460,7 @@ func invite() -> void:
 	guest_serial += 1
 	cash += 1
 	home.shop.save_stock()
-	guest.position = navigation_grid.cells[navigation_grid.entrance]
+	guest.position = arrival_point
 	crowd.add_child(guest)
 	guests.append(guest)
 	navigation_grid.find_destination(guest)

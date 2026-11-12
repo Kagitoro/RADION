@@ -13,6 +13,7 @@ func run(collected: Array[String]) -> void:
 	errors = collected
 	await check_dj_station()
 	await check_house_party()
+	check_traffic_spacing()
 	await check_night_shop()
 	await check_cigarette()
 	await check_music_library()
@@ -83,8 +84,19 @@ func check_house_party() -> void:
 	await wait(4.0)
 	expect(not party.guests.is_empty(), "Вечеринка: гости не приходят")
 	expect(party.panel.visible and not party.status.text.is_empty(), "Вечеринка: панель статуса пуста")
+	var guest := party.guests[0]
+	var grid := party.navigation_grid
+	var second := PartyGuest.new(21,null,party.psx_assets)
+	party.crowd.add_child(second)
+	party.guests.append(second)
+	second.position = grid.cells[grid.entrance]
+	party.invite_to_dance(guest)
+	party.invite_to_dance(second)
+	expect(not guest.route.is_empty() and not second.route.is_empty() and guest.route[-1].distance_to(second.route[-1])>=PartyNavigation.DANCE_SPACING, "Вечеринка: гости бронируют одно место для танца")
 	party.stop()
-	expect(not party.active and party.guests.is_empty(), "Вечеринка: остановка не убирает гостей")
+	expect(not party.active and is_instance_valid(guest) and party.guests.has(guest), "Вечеринка: гость пропал в момент остановки")
+	await wait(.7)
+	expect(guest.leaving and guest.route.size()>0, "Вечеринка: гость не получил маршрут на выход")
 	expect(not party.music.any(func(p: AudioStreamPlayer): return p.playing), "Вечеринка: музыка играет после остановки")
 
 func check_night_shop() -> void:
@@ -296,6 +308,26 @@ func check_translation_coverage() -> void:
 			if not translated.has(message):
 				missing += 1
 	expect(missing == 0, "Перевод: %d строк без английского перевода (обновите locale/en.po)" % missing)
+
+func check_traffic_spacing() -> void:
+	var district := home.night_world.district
+	var traffic := district.traffic
+	for index in range(traffic.size()):
+		traffic[index].distance = [40.0,29.0,15.0][index]
+		traffic[index].speed = 0.0
+		traffic[index].car.position = district.traffic_point(traffic[index].distance)
+	var crossing := district.traffic_point(43.0)
+	for frame in range(360):
+		district.step_traffic(1.0/60.0,crossing)
+	expect(absf(traffic[0].distance-40.0)<.08, "Трафик: машина не остановилась перед игроком")
+	expect(traffic[0].distance-traffic[1].distance>=NightDistrict.TRAFFIC_GAP-.02, "Трафик: машина наехала на остановившуюся впереди")
+	var nearest := INF
+	for frame in range(360):
+		district.step_traffic(1.0/60.0,Vector3.UP*100)
+		for a in range(traffic.size()):
+			for b in range(a+1,traffic.size()):
+				nearest = minf(nearest,traffic[a].car.position.distance_to(traffic[b].car.position))
+	expect(traffic[0].distance>45.0 and nearest>=4.8, "Трафик: очередь не разъехалась или машины наложились на повороте")
 
 func key_event(code: Key) -> InputEventKey:
 	var event := InputEventKey.new()

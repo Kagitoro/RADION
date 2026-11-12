@@ -251,7 +251,7 @@ func choose(number: int) -> void:
 				return
 			close_talk(false)
 			say(person,tr("Я к колонкам. Увидимся на танцполе!"),4.0)
-			party.route_to(person,pool[party.rng.randi_range(0,pool.size()-1)])
+			party.invite_to_dance(person)
 		3:
 			if not party.has_walkable_area():
 				say(person,tr("Давай чуть позже."))
