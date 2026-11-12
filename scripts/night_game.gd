@@ -327,7 +327,7 @@ func interact() -> void:
 		return
 	var rider := home.subway.aimed_person()
 	if rider != null:
-		home.subway.give(rider)
+		home.subway.begin_encounter(rider)
 		return
 	if home.party.events.near_fight():
 		close_talk()
@@ -452,6 +452,9 @@ func toggle_pause() -> void:
 
 ## Routes a gameplay input event to the matching action.
 func handle_input(event: InputEvent) -> void:
+	if home.subway.encounter != null:
+		home.subway.encounter_input(event)
+		return
 	if home.shop.is_open():
 		if event.is_action_pressed("pause"):
 			home.shop.close()

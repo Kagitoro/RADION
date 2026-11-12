@@ -17,7 +17,7 @@ const NAMES := ["Лео","Мара","Фрэнк"]
 ## Riders' replies (translation keys).
 const THANKS := "Спасибо. Правда, выручил."
 const THANKS_AGAIN := "Спасибо ещё раз. Хорошей ночи."
-const NO_MONEY_REPLY := "Ничего, бывает. Доброй ночи."
+const REFUSALS := ["Да пошёл ты нахуй. И не стой надо мной.","Тогда чего уставился? Иди нахуй отсюда.","Ни цента? Ну и катись нахуй."]
 ## How long a rider's speech bubble stays up (seconds).
 const SPEECH_TIME := 5.0
 ## A rider counts as "looked at" within this distance and view-direction dot product.
@@ -36,12 +36,19 @@ var world: NightWorld
 var home: Home
 var people: Array[PartyGuest] = []
 var helped: Array[PartyGuest] = []
-var asked: Array[PartyGuest] = []
+var approached: Array[PartyGuest] = []
+var fly_swarms: Array[MultiMeshInstance3D] = []
+var fly_time := 0.0
+var encounter: PartyGuest
+var encounter_left := 0.0
+var reacting := false
+var encounter_panel: PanelContainer
+var encounter_text: Label
+var encounter_choices: Label
 var train := Node3D.new()
 var train_sound: AudioStreamPlayer3D
 var clock := 0.0
 var pose_time := 0.0
-var welcomed := false
 var speaking: PartyGuest
 var speech_time := 0.0
 
@@ -239,7 +246,153 @@ func setup() -> void:
 		person.rotation.y = PI
 		person.name_tag.text = NAMES[index]  # key; the 3D label translates it
 		people.append(person)
+		dress_rider(person,index)
+	build_encounter_panel()
 	set_process(true)
+
+func dress_rider(person: PartyGuest, index: int) -> void:
+	var rig := person.imported_model as GuestModel
+	if rig != null:
+		rig.street_wear = true
+		var colors := [Color("#5f5141"),Color("#514c4d"),Color("#535747")]
+		var garments := 0
+		for part in rig.find_children("*","MeshInstance3D",true,false):
+			var paint := part.material_override as StandardMaterial3D
+			if paint == null or paint.albedo_texture == null:
+				continue
+			var cloth := part.get_parent() == rig.skeleton
+			if cloth:
+				garments += 1
+			var image := paint.albedo_texture.get_image()
+			if image == null:
+				continue
+			if image.is_compressed() and image.decompress() != OK:
+				continue
+			image.convert(Image.FORMAT_RGBA8)
+			var noise := FastNoiseLite.new()
+			noise.seed = 73 + index*31
+			noise.frequency = .17
+			for y in range(image.get_height()):
+				for x in range(image.get_width()):
+					var pixel := image.get_pixel(x,y)
+					var grime := smoothstep(-.16,.55,noise.get_noise_2d(x,y))
+					image.set_pixel(x,y,Color(pixel.lerp(Color("#463a2a"),grime*(.66 if cloth else .31)),pixel.a))
+			paint.albedo_texture = ImageTexture.create_from_image(image)
+			if cloth:
+				var tint: Color = colors[index]
+				paint.albedo_color = tint.darkened(.16) if garments%2==0 else tint.lightened(.13)
+			else:
+				paint.albedo_color = paint.albedo_color.darkened(.10)
+	var bag := Node3D.new()
+	add_child(bag)
+	bag.position = person.position + Vector3(.48,0,-.16)
+	world.box(bag,Vector3(0,.022,0),Vector3(.68,.04,.49),Color("#6e5745"))
+	world.sphere(bag,Vector3(.1,.15,.01),Vector3(.36,.29,.27),Color("#333530"))
+	var flies := MultiMeshInstance3D.new()
+	var body := SphereMesh.new()
+	body.radius = .009
+	body.height = .020
+	body.radial_segments = 6
+	body.rings = 3
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color("#201a16")
+	body.material = dark
+	var swarm := MultiMesh.new()
+	swarm.transform_format = MultiMesh.TRANSFORM_3D
+	swarm.mesh = body
+	swarm.instance_count = 7
+	flies.multimesh = swarm
+	flies.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	person.add_child(flies)
+	fly_swarms.append(flies)
+
+func build_encounter_panel() -> void:
+	encounter_panel = UIKit.panel()
+	home.hud.root.add_child(encounter_panel)
+	encounter_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	encounter_panel.offset_left = -300
+	encounter_panel.offset_right = 300
+	encounter_panel.offset_top = -158
+	encounter_panel.offset_bottom = -66
+	var rows := VBoxContainer.new()
+	encounter_panel.add_child(rows)
+	encounter_text = UIKit.label("",19)
+	encounter_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	encounter_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	rows.add_child(encounter_text)
+	encounter_choices = UIKit.label("",16)
+	encounter_choices.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	rows.add_child(encounter_choices)
+	encounter_panel.hide()
+
+func begin_encounter(person: PartyGuest) -> void:
+	if encounter != null or home.modal or home.player.collapsed or home.player.vomiting:
+		return
+	encounter = person
+	if not approached.has(person):
+		approached.append(person)
+	reacting = false
+	encounter_left = 9.0
+	home.set_modal(true)
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	home.hud.crosshair.hide()
+	person.name_tag.hide()
+	encounter_text.text = "%s — %s" % [tr(person.name_tag.text),tr(REQUESTS[people.find(person)])]
+	encounter_choices.text = tr("1 / E · Дать $%d     2 / Esc · Отказать") % Balance.SUBWAY_DONATION
+	encounter_choices.show()
+	encounter_panel.show()
+	person.speech.hide()
+
+func encounter_input(event: InputEvent) -> void:
+	if reacting:
+		return
+	if event.is_action_pressed("interact") or event.is_action_pressed("talk_1"):
+		answer(true)
+	elif event.is_action_pressed("pause") or event.is_action_pressed("talk_2"):
+		answer(false)
+
+func answer(pay: bool) -> void:
+	reacting = true
+	encounter_left = 1.85
+	encounter_choices.hide()
+	var line: String = REFUSALS[people.find(encounter)]
+	if pay and (helped.has(encounter) or home.party.cash >= Balance.SUBWAY_DONATION):
+		line = THANKS_AGAIN if helped.has(encounter) else THANKS
+		give(encounter)
+		encounter.speech.hide()
+	elif pay:
+		GameEvents.notify(tr("Для помощи нужно $%d") % Balance.SUBWAY_DONATION)
+	encounter_text.text = "%s — %s" % [tr(encounter.name_tag.text),tr(line)]
+	var rig := encounter.imported_model as GuestModel
+	if rig != null:
+		rig.street_reaction = .85 if line in REFUSALS else -.65
+
+func update_encounter(delta: float) -> void:
+	var player := home.player
+	var offset := face_point(encounter) - player.camera.global_position
+	var direction := offset.normalized()
+	var speed := 1.0-exp(-delta*9.0)
+	player.rotation.y = lerp_angle(player.rotation.y,atan2(-direction.x,-direction.z),speed)
+	player.pitch = lerpf(player.pitch,asin(clampf(direction.y,-1,1)),speed)
+	player.camera.rotation.x = player.pitch
+	player.camera.fov = lerpf(player.camera.fov,61.0,speed*.38)
+	encounter_left -= delta
+	if encounter_left>0:
+		return
+	if not reacting:
+		answer(false)
+		return
+	encounter.name_tag.show()
+	encounter = null
+	encounter_panel.hide()
+	home.set_modal(false)
+	home.hud.crosshair.show()
+
+func face_point(person: PartyGuest) -> Vector3:
+	var rig := person.imported_model as GuestModel
+	if rig != null:
+		return rig.mouth_transform().origin+Vector3.UP*.07
+	return person.global_position+Vector3.UP*1.43*person.body_height
 
 func underground(point: Vector3) -> bool:
 	var at := to_local(point)
@@ -255,7 +408,7 @@ func aimed_person() -> PartyGuest:
 	var best := AIM_DOT
 	var result: PartyGuest
 	for person in people:
-		var head := person.global_position+Vector3.UP*1.43*float(person.body_height)
+		var head := face_point(person)
 		var direction := head-camera.global_position
 		var score := direction.normalized().dot(-camera.global_basis.z)
 		if direction.length()>AIM_REACH or score<=best:
@@ -274,7 +427,7 @@ func give(person: PartyGuest) -> void:
 		say(person,THANKS_AGAIN)
 	elif home.party.cash<price:
 		GameEvents.notify(tr("Для помощи нужно $%d") % price)
-		say(person,NO_MONEY_REPLY)
+		say(person,REFUSALS[people.find(person)])
 	else:
 		home.party.cash -= price
 		helped.append(person)
@@ -286,7 +439,7 @@ func give(person: PartyGuest) -> void:
 func hint_for(person: PartyGuest) -> String:
 	if helped.has(person):
 		return tr("E · Поговорить")
-	return tr("E · Дать $%d · %s") % [Balance.SUBWAY_DONATION, tr(person.name_tag.text)]
+	return tr("E · Поговорить · %s") % tr(person.name_tag.text)
 
 ## text is a translation key; the speech label translates it (also after a language switch).
 func say(person: PartyGuest, text: String) -> void:
@@ -302,16 +455,20 @@ func _process(delta: float) -> void:
 	if not is_instance_valid(player):
 		return
 	var downstairs := underground(player.global_position)
-	var at := to_local(player.global_position)
-	if downstairs and at.x < -32.9 and not welcomed:
-		welcomed = true
-		var person := people[0]
-		if not helped.has(person):
-			asked.append(person)
-			say(person,REQUESTS[0])
-	elif not downstairs:
-		welcomed = false
-		asked.clear()
+	if encounter != null:
+		update_encounter(delta)
+	elif downstairs and not home.modal and home.game_mode and not SavePaths.is_test_run():
+		for person in people:
+			if approached.has(person) or helped.has(person):
+				continue
+			var eye := player.camera.global_position
+			var face := face_point(person)
+			if eye.distance_squared_to(face) > 3.35*3.35:
+				continue
+			var ray := PhysicsRayQueryParameters3D.create(eye,face,1,[player.get_rid()])
+			if get_world_3d().direct_space_state.intersect_ray(ray).is_empty():
+				begin_encounter(person)
+				break
 	if speech_time>0.0:
 		speech_time -= delta
 		if speech_time<=0.0 and is_instance_valid(speaking):
@@ -337,14 +494,17 @@ func _process(delta: float) -> void:
 	pose_time += delta
 	if pose_time<.05:
 		return
-	if speech_time<=0.0:
-		var listener := aimed_person()
-		if listener!=null and not asked.has(listener) and not helped.has(listener):
-			asked.append(listener)
-			say(listener,REQUESTS[people.find(listener)])
-	for person in people:
+	fly_time += pose_time
+	for index in range(people.size()):
+		var person := people[index]
 		var direction := person.global_position.direction_to(player.global_position)
 		if person.global_position.distance_to(player.global_position)<5.5:
 			person.rotation.y = lerp_angle(person.rotation.y,atan2(-direction.x,-direction.z),pose_time*3.0)
 		person.pose(pose_time,0.0,false)
+		var swarm := fly_swarms[index].multimesh
+		for fly in range(swarm.instance_count):
+			var phase := fly_time*(5.0+fly*.39)+fly*2.399
+			var radius := .31+sin(phase*.63+index)*.13
+			var point := Vector3(cos(phase)*radius,person.body_height*1.66+sin(phase*1.31)*.17,sin(phase)*radius)
+			swarm.set_instance_transform(fly,Transform3D(Basis.IDENTITY,point))
 	pose_time = 0.0

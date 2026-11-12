@@ -19,7 +19,10 @@ var retching := AudioStreamPlayer3D.new()
 var retch_variants: Array[AudioStreamMP3] = []
 var impact_target: Node3D
 var impact_attacker: Node3D
-var impact_wait := 0.0
+var exchange_time := 0.0
+var exchange_length := .60
+var impact_done := false
+var fight_volume := PhysicsShapeQueryParameters3D.new()
 var hit_counts := {}
 var fight_ending := 0.0
 var streams: Array[Dictionary] = []
@@ -29,6 +32,11 @@ func _init(game_home: Home) -> void:
 	home = game_home
 
 func setup() -> void:
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = .18
+	capsule.height = 1.56
+	fight_volume.shape = capsule
+	fight_volume.collision_mask = 1
 	add_child(sounds)
 	add_child(grunt)
 	grunt.volume_db = -18
@@ -134,13 +142,13 @@ func start_fight(preferred: Node3D = null) -> bool:
 	if not fighters.is_empty() or not home.party.active:
 		return false
 	for first in home.party.guests:
-		if first.leaving or (preferred!=null and first!=preferred) or (is_instance_valid(first.partner) and first.partner!=home.player):
+		if first.leaving or not is_instance_valid(first.imported_model) or (preferred!=null and first!=preferred) or (is_instance_valid(first.partner) and first.partner!=home.player):
 			continue
 		for second in home.party.guests:
-			if second==first or second.leaving or is_instance_valid(second.partner):
+			if second==first or second.leaving or not is_instance_valid(second.imported_model) or is_instance_valid(second.partner):
 				continue
 			var distance: float = first.global_position.distance_to(second.global_position)
-			if distance<.65 or distance>1.25:
+			if distance<.56 or distance>(2.15 if preferred!=null else 1.35):
 				continue
 			var query := PhysicsRayQueryParameters3D.create(first.global_position+Vector3.UP,second.global_position+Vector3.UP,1)
 			if not get_world_3d().direct_space_state.intersect_ray(query).is_empty():
@@ -148,7 +156,7 @@ func start_fight(preferred: Node3D = null) -> bool:
 			if home.night_game.guest==first:
 				home.night_game.close_talk(false)
 			fighters.assign([first,second])
-			fight_time = 12.0
+			fight_time = 16.0
 			fight_ending = 0.0
 			hit_counts.clear()
 			next_hit = .85
@@ -157,6 +165,9 @@ func start_fight(preferred: Node3D = null) -> bool:
 				person.follow(PackedVector3Array())
 				person.fighting = true
 				person.imported_model.combat = true
+				person.imported_model.combat_swing = 0.0
+				person.imported_model.combat_guard = 0.0
+				person.imported_model.combat_recoil = 0.0
 				person.dancing = false
 				person.speech.text = tr(SHOUTS[0] if person==first else SHOUTS[3])
 				person.speech.show()
@@ -175,53 +186,92 @@ func update_fight(delta: float) -> void:
 		if fight_ending<=0:
 			end_fight(false)
 		return
-	if impact_wait>0:
-		impact_wait -= delta
-		if impact_wait<=0:
-			land_punch()
 	for index in range(2):
-		var person = fighters[index]
-		var other = fighters[1-index]
-		var direction: Vector3 = other.position-person.position
+		var person := fighters[index] as PartyGuest
+		var other := fighters[1-index] as PartyGuest
+		var rig := person.imported_model as GuestModel
+		rig.combat_clock += delta
+		rig.combat_recoil = move_toward(rig.combat_recoil,0,delta*3.7)
+		var direction := other.global_position-person.global_position
+		direction.y = 0
 		person.rotation.y = lerp_angle(person.rotation.y,atan2(-direction.x,-direction.z),minf(1,delta*10))
-		if direction.length()>.84:
-			var next: Vector3 = person.position+direction.normalized()*minf(delta*.65,(direction.length()-.84)*.5)
-			if is_finite(home.rooms.ground_height(Vector2(next.x,next.z))):
-				person.position = next
+		var axis := direction.normalized()
+		var side := axis.cross(Vector3.UP)
+		var defending := person == impact_target and hit_index%4 == 2
+		rig.combat_guard = move_toward(rig.combat_guard,1.0 if defending else .16,delta*5)
+		var gap := direction.length()
+		var drift := clampf((gap-.73)*2.7,-.75,1.35)
+		var step := axis*drift + side*sin(rig.combat_clock*3.1)*.30
+		if person == impact_attacker:
+			step = axis*clampf((gap-.68)*3.9,-.5,1.65)
+		elif rig.combat_recoil>.05 or defending:
+			step = -axis*(.58*rig.combat_recoil)+side*(.56 if defending else 0.0)
+		if gap<.61:
+			step -= axis*.7
+		fight_step(person,step*delta)
+	if is_instance_valid(impact_attacker):
+		var rig := impact_attacker.imported_model as GuestModel
+		var defender := impact_target.imported_model as GuestModel
+		exchange_time += delta
+		rig.combat_swing = clampf(exchange_time/exchange_length,0,1)
+		rig.combat_target = defender.mouth_transform().origin - Vector3.UP*(.36 if rig.combat_style==2 else .02)
+		if not impact_done and rig.combat_swing >= .54:
+			impact_done = true
+			land_punch()
+		if rig.combat_swing >= 1.0:
+			rig.combat_swing = 0.0
+			impact_attacker = null
+			impact_target = null
 	home.party.bonus = maxf(-18,home.party.bonus-delta*1.1)
-	if next_hit<=0:
-		next_hit = .92+float(hit_index%3)*.09
-		var attacker = fighters[hit_index%2]
-		var defender = fighters[1-hit_index%2]
-		attacker.imported_model.play_action(&"attack",.72)
-		attacker.imported_model.punch_side = int(hit_index/2)%2
-		attacker.imported_model.combat_target = defender.imported_model.mouth_transform().origin
-		impact_attacker = attacker
-		impact_target = defender
-		impact_wait = .20
-		attacker.speech.text = tr(SHOUTS[hit_index%SHOUTS.size()])
+	if next_hit<=0 and impact_attacker == null and fight_ending <= 0:
+		var attacker_index: int = [0,0,1,1,0,1][hit_index%6]
+		impact_attacker = fighters[attacker_index]
+		impact_target = fighters[1-attacker_index]
+		var rig := impact_attacker.imported_model as GuestModel
+		rig.punch_side = hit_index%2
+		rig.combat_style = hit_index%3
+		exchange_length = [.48,.61,.54][rig.combat_style]
+		exchange_time = 0.0
+		impact_done = false
+		next_hit = exchange_length + (.12 if hit_index%3==0 else .40)
+		impact_attacker.speech.text = tr(SHOUTS[hit_index%SHOUTS.size()])
 		hit_index += 1
 	if fight_time<=0:
 		end_fight(false)
+
+func fight_step(person: PartyGuest, step: Vector3) -> void:
+	var next := person.global_position+step
+	var floor := home.rooms.ground_height(Vector2(next.x,next.z))
+	if not is_finite(floor) or absf(floor-next.y)>.24:
+		return
+	fight_volume.transform.origin = Vector3(next.x,floor+.84,next.z)
+	if get_world_3d().direct_space_state.intersect_shape(fight_volume,1).is_empty():
+		person.global_position = Vector3(next.x,floor,next.z)
 
 func land_punch() -> void:
 	if not is_instance_valid(impact_target) or not is_instance_valid(impact_attacker):
 		return
 	var rig = impact_attacker.imported_model
 	var fist: Vector3 = rig.skeleton.to_global(rig.skeleton.get_bone_global_pose(rig.arms[rig.punch_side].z).origin)
-	var face: Vector3 = impact_target.imported_model.mouth_transform().origin
-	if fist.distance_to(face)>.42:
+	var face: Vector3 = rig.combat_target
+	if fist.distance_to(face)>.36:
 		return
-	impact_target.imported_model.play_action(&"hit",.58)
+	var ray := PhysicsRayQueryParameters3D.create(fist,face,1)
+	if not get_world_3d().direct_space_state.intersect_ray(ray).is_empty():
+		return
+	var blocked: bool = impact_target.imported_model.combat_guard > .56
+	impact_target.imported_model.combat_recoil = .32 if blocked else 1.0
 	sounds.global_position = face
 	sounds.pitch_scale = 0.88+float(hit_index%4)*.08
 	sounds.play()
+	if blocked:
+		return
 	grunt.global_position = face
 	grunt.pitch_scale = 1.10 if impact_target.female else .91
 	grunt.play()
 	hit_counts[impact_target] = int(hit_counts.get(impact_target,0))+1
 	impact_target.speech.text = tr(SHOUTS[(hit_index+2)%SHOUTS.size()])
-	if int(hit_counts[impact_target])>=3:
+	if int(hit_counts[impact_target])>=4:
 		impact_target.imported_model.knockdown_time = 2.3
 		impact_target.imported_model.combat = false
 		impact_target.speech.text = tr("Всё, блядь, хватит!")
@@ -242,7 +292,7 @@ func end_fight(intervened: bool) -> void:
 		if home.party.active and home.party.has_walkable_area():
 			home.party.find_destination(person)
 	fighters.clear()
-	impact_wait = 0
+	exchange_time = 0.0
 	impact_target = null
 	impact_attacker = null
 	hit_counts.clear()

@@ -1335,3 +1335,15 @@ msgstr "Not enough bottles"
 
 msgid "Холодильник заполнен"
 msgstr "The fridge is full"
+
+msgid "Да пошёл ты нахуй. И не стой надо мной."
+msgstr "Fuck off. And quit standing over me."
+
+msgid "Тогда чего уставился? Иди нахуй отсюда."
+msgstr "Then what are you staring at? Get the fuck out of here."
+
+msgid "Ни цента? Ну и катись нахуй."
+msgstr "Not a cent? Then fuck off."
+
+msgid "1 / E · Дать $%d     2 / Esc · Отказать"
+msgstr "1 / E · Give $%d     2 / Esc · Refuse"

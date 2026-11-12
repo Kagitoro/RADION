@@ -233,7 +233,7 @@ func set_action_pose(amount: float) -> void:
 
 func held_item_offset(beer: bool) -> Vector3:
 	if is_instance_valid(dj_rig):
-		return Vector3(.049,.012,-.035) if beer else Vector3(.058,.006,-.036)
+		return Vector3(.081,.008,-.032) if beer else Vector3(.067,.006,-.036)
 	return Vector3(-.018,0,-.015) if beer else Vector3(-.012,0,-.017)
 
 func update_body(delta: float) -> void:
@@ -295,8 +295,12 @@ func update_dj_body(delta: float, moving: bool) -> void:
 		dj_rig.point_arm(arm,idle.lerp(mouth_target,action_amount),Vector3(.72,-1,-.28))
 		var grip_basis := skeleton.global_basis.inverse()*avatar.global_basis*Basis.from_euler(tilt)
 		var palm_y := (grip_basis*Vector3(.94,.05,-.34)).normalized()
-		var palm_x := palm_y.cross(grip_basis*Vector3.BACK).normalized()
-		dj_rig.set_joint_rotation(arm.z,Basis(palm_x,palm_y,palm_x.cross(palm_y)))
+		var wrist := skeleton.get_bone_global_pose(arm.z).basis.orthonormalized()
+		# Bend from the animated wrist and preserve its roll around the forearm.
+		var bend := Quaternion(wrist.y,palm_y)
+		var blend := minf(1.0,deg_to_rad(24.0)/maxf(.001,bend.get_angle()))
+		blend *= smoothstep(0.0,.25,action_amount)
+		dj_rig.set_joint_rotation(arm.z,Basis(Quaternion.IDENTITY.slerp(bend,blend))*wrist)
 	action_grip.global_position = skeleton.to_global(skeleton.get_bone_global_pose(arm.z).origin)
 	action_grip.rotation = tilt
 

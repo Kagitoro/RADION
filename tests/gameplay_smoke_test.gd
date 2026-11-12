@@ -94,11 +94,34 @@ func check_house_party() -> void:
 	party.invite_to_dance(guest)
 	party.invite_to_dance(second)
 	expect(not guest.route.is_empty() and not second.route.is_empty() and guest.route[-1].distance_to(second.route[-1])>=PartyNavigation.DANCE_SPACING, "Вечеринка: гости бронируют одно место для танца")
+	await check_fight(guest,second)
 	party.stop()
 	expect(not party.active and is_instance_valid(guest) and party.guests.has(guest), "Вечеринка: гость пропал в момент остановки")
 	await wait(.7)
 	expect(guest.leaving and guest.route.size()>0, "Вечеринка: гость не получил маршрут на выход")
 	expect(not party.music.any(func(p: AudioStreamPlayer): return p.playing), "Вечеринка: музыка играет после остановки")
+
+func check_fight(first: PartyGuest, second: PartyGuest) -> void:
+	var party := home.party
+	var grid := party.navigation_grid
+	var events := party.events
+	var placed := false
+	for cell in grid.dance_floor:
+		var neighbor := cell + Vector2i(3,0)
+		if grid.dance_floor.has(neighbor):
+			first.position = grid.cells[cell]
+			second.position = grid.cells[neighbor]
+			placed = true
+			break
+	expect(placed and events.start_fight(first), "Драка: провокация не запустила драку")
+	if events.fighters.is_empty():
+		return
+	var start := first.position
+	await wait(4.5)
+	expect(events.hit_index>=4 and not events.hit_counts.is_empty(), "Драка: нет нескольких атак и попаданий")
+	expect(first.position.distance_to(start)>.04, "Драка: NPC стоят на одном месте")
+	events.end_fight(true)
+	expect(events.fighters.is_empty() and not first.fighting and not second.fighting, "Драка: вмешательство не прекращает бой")
 
 func check_night_shop() -> void:
 	var shop := home.shop
@@ -218,7 +241,6 @@ func check_subway() -> void:
 	await home.get_tree().physics_frame
 	expect(subway.underground(home.player.global_position), "Метро: платформа не считается подземкой")
 	expect(subway.aimed_person() == first, "Метро: пассажир перед игроком не в прицеле")
-	expect(subway.hint_for(first).contains("$%d" % Balance.SUBWAY_DONATION), "Метро: в подсказке нет цены")
 	home.party.cash = 10
 	subway.give(first)
 	expect(home.party.cash == 10 - Balance.SUBWAY_DONATION and subway.helped.has(first), "Метро: помощь не списывает деньги")
@@ -234,7 +256,22 @@ func check_subway() -> void:
 	await home.get_tree().physics_frame
 	home.party.cash = 5
 	home._unhandled_input(key_event(KEY_E))
-	expect(subway.helped.has(third), "Метро: клавиша E не помогает пассажиру")
+	expect(subway.encounter == third and home.modal, "Метро: E не открывает разговор с блокировкой движения")
+	expect(subway.encounter_choices.text.contains("$%d" % Balance.SUBWAY_DONATION), "Метро: в выборе нет цены")
+	home.player.rotation.y += .65
+	await wait(.6)
+	var gaze := home.player.camera.global_position.direction_to(subway.face_point(third))
+	expect(gaze.dot(-home.player.camera.global_basis.z)>.97, "Метро: камера не навелась на собеседника")
+	home._unhandled_input(key_event(KEY_1))
+	expect(subway.helped.has(third) and home.party.cash == 5 - Balance.SUBWAY_DONATION, "Метро: клавиша 1 не помогает пассажиру")
+	await wait(1.95)
+	expect(subway.encounter == null and not home.modal, "Метро: камера не отпускает после разговора")
+	face_rider(second)
+	await home.get_tree().physics_frame
+	home._unhandled_input(key_event(KEY_E))
+	home._unhandled_input(key_event(KEY_2))
+	expect(subway.reacting and not subway.helped.has(second), "Метро: отказ засчитан как помощь")
+	await wait(1.95)
 	# The train moves while the player is downstairs.
 	subway.clock = 0.0
 	var start_x := subway.train.position.x
