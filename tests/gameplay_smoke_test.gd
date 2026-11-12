@@ -295,17 +295,20 @@ func check_intro() -> void:
 	intro.elapsed = intro.WAKE_CALL-.08
 	await wait(.24)
 	expect(intro.fade.color.a>.95 and intro.wake_voice.playing, "Интро: Кир не слышен сквозь сон")
-	intro.elapsed = 8.55
+	intro.elapsed = intro.CLEAR_WAKE_LINE
 	await wait(.18)
 	expect(intro.cabin.visible and intro.fade.color.a<.05 and intro.voice.playing, "Интро: герой не проснулся")
 	intro.advance_line()
 	await wait(.35)
 	expect(intro.voice.playing and intro.cabin.position.z > car_start, "Интро: реплика или движение машины не начались")
 	intro.advance_line()
-	await wait(1.20)
-	expect(intro.cabin.phone.visible and intro.cabin.phone_amount>.8 and intro.ringtone.playing and intro.cabin.call_screen.visible, "Интро: входящий звонок не появился")
-	await wait(2.42)
-	expect(intro.cabin.voicemail_screen.visible and intro.voice.playing, "Интро: голосовое не началось после звонка")
+	await wait(1.28)
+	expect(intro.cabin.phone.visible and intro.cabin.phone_amount>.8 and intro.ringtone.playing and intro.cabin.phone_ui.page==intro.PhoneUI.Page.CALL, "Интро: входящий звонок не появился")
+	for step in range(intro.PHONE_TAPS.size()):
+		intro.elapsed = intro.PHONE_TAPS[step][0]+.05
+		await wait(.14)
+		expect(intro.cabin.phone_ui.page==intro.PHONE_TAPS[step][2], "Интро: не переключился экран телефона")
+	expect(intro.voice.playing, "Интро: голосовое не началось после нажатия на запись")
 	intro.advance_line()
 	await wait(.25)
 	expect(intro.line == 3, "Интро: реплики не переключаются")

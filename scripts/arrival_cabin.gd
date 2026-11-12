@@ -7,15 +7,9 @@ var passenger: GuestModel
 var column := Node3D.new()
 var wheel := Node3D.new()
 var phone := Node3D.new()
-var progress: MeshInstance3D
 var phone_amount := 0.0
-var phone_time: Label3D
-var call_screen := Node3D.new()
-var voicemail_screen := Node3D.new()
-var call_button: MeshInstance3D
-var call_title: Label3D
-var call_icon: Label3D
-enum PhoneView { OFF, CALL, DECLINED, VOICEMAIL }
+const PhoneUI = preload("res://scripts/arrival_phone_ui.gd")
+var phone_ui: PhoneUI
 var cabin_light: OmniLight3D
 var screen_light: OmniLight3D
 var driver_look := 0.0
@@ -93,7 +87,7 @@ func build(night_world: NightWorld) -> void:
 		passenger.position = Vector3(EYE.x,-.27,-.32)
 		passenger.rotation.y = PI
 		passenger.player_body = true
-		passenger.make_first_person(PackedStringArray(["LeftForeArm","LeftUpLeg","RightUpLeg"]))
+		passenger.make_first_person(PackedStringArray(["LeftForeArm","RightForeArm"]))
 	else:
 		passenger.free()
 		passenger = null
@@ -133,25 +127,24 @@ func label(parent: Node3D, value: String, at: Vector3, pixel: float, color: Colo
 
 func build_phone() -> void:
 	add_child(phone)
-	world.box(phone,Vector3.ZERO,Vector3(.084,.156,.013),Color("#17171d"))
-	world.box(phone,Vector3(0,0,.006),Vector3(.077,.149,.003),Color("#777d90"))
-	lit_box(phone,Vector3(0,0,.008),Vector3(.071,.142,.002),Color("#141d33"))
-	lit_box(phone,Vector3(0,.060,.010),Vector3(.032,.009,.002),Color("#0a0d16"))
-	phone.add_child(call_screen)
-	phone.add_child(voicemail_screen)
-	call_title = label(call_screen,"INCOMING CALL",Vector3(0,.038,.012),.00024,Color("#a3afd1"),0)
-	label(call_screen,"MAYA",Vector3(0,.013,.012),.00048,Color("#e9edfc"),0)
-	call_button = lit_box(call_screen,Vector3(0,-.030,.012),Vector3(.031,.020,.002),Color("#af3d56"))
-	call_icon = label(call_screen,"×",Vector3(0,-.028,.015),.00046,Color("#fff2f4"),0)
-	label(voicemail_screen,"VOICEMAIL",Vector3(0,.040,.012),.00030,Color("#dbe6ff"),0)
-	label(voicemail_screen,"MAYA  /  LAST MONTH",Vector3(0,.024,.012),.00020,Color("#a3afd1"),0)
-	for i in range(16):
-		var amplitude := .006 + absf(sin(i*1.37)*sin(i*.62+.3))*.014
-		lit_box(voicemail_screen,Vector3((i-7.5)*.0038,.002,.011),Vector3(.00175,amplitude,.001),Color("#849aff"))
-	lit_box(voicemail_screen,Vector3(0,-.021,.011),Vector3(.061,.002,.001),Color("#414c71"))
-	progress = lit_box(voicemail_screen,Vector3(-.0305,-.021,.012),Vector3(.061,.002,.001),Color("#e2e6ff"))
-	phone_time = label(voicemail_screen,"0:00",Vector3(0,-.038,.012),.00034,Color("#cfd7ed"),0)
-	lit_box(phone,Vector3(0,-.064,.011),Vector3(.024,.002,.001),Color("#98a4c8"))
+	world.box(phone,Vector3.ZERO,Vector3(.081,.158,.011),Color("#25272e"))
+	world.box(phone,Vector3(0,0,.005),Vector3(.077,.153,.003),Color("#101117"))
+	world.box(phone,Vector3(.041,.027,-.001),Vector3(.002,.022,.003),Color("#a2a8b5"))
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(360,720)
+	viewport.disable_3d = true
+	viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
+	phone.add_child(viewport)
+	phone_ui = PhoneUI.new()
+	viewport.add_child(phone_ui)
+	var glass := QuadMesh.new()
+	glass.size = Vector2(.074,.148)
+	var screen := world.mesh(phone,glass,Vector3(0,0,.008),Color.WHITE)
+	var material := StandardMaterial3D.new()
+	material.albedo_texture = viewport.get_texture()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	screen.material_override = material
+	screen.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	phone.hide()
 
 func sit(rig: GuestModel) -> void:
@@ -159,7 +152,7 @@ func sit(rig: GuestModel) -> void:
 		rig.rotate_local(side+"UpLeg",Vector3(-1.20,0,0))
 		rig.rotate_local(side+"Leg",Vector3(1.52,0,0))
 
-func update_pose(delta: float, clock: float, phone_view: PhoneView, duration: float, clip_time: float, talking: bool) -> void:
+func update_pose(delta: float, clock: float, phone_view: PhoneUI.Page, played: float, tap: Vector2, touch: float, talking: bool) -> void:
 	wheel.rotation.y = sin(clock*.81)*.062 + sin(clock*1.48)*.017
 	cabin_light.light_energy = .29 + .21*pow(maxf(0,sin(clock*1.20)),4)
 	var rig := driver.imported_model as GuestModel
@@ -177,42 +170,48 @@ func update_pose(delta: float, clock: float, phone_view: PhoneView, duration: fl
 			rig.point_arm(arm,rig.skeleton.to_local(wrist),Vector3(side,-.76,-.31))
 			var solved := rig.skeleton.to_global(rig.skeleton.get_bone_global_pose(arm.z).origin)
 			orient_hand(rig,arm.z,solved,rim,global_basis*Vector3(side*.34,1,0),.86)
-	var raise_phone := phone_view != PhoneView.OFF
-	phone_amount = move_toward(phone_amount,1.0 if raise_phone else 0.0,delta*(1.40 if raise_phone else 2.4))
-	call_screen.visible = phone_view in [PhoneView.CALL,PhoneView.DECLINED]
-	voicemail_screen.visible = not call_screen.visible
-	call_title.text = "CALL DECLINED" if phone_view==PhoneView.DECLINED else "INCOMING CALL"
-	call_icon.visible = phone_view==PhoneView.CALL
-	call_button.visible = call_icon.visible
-	call_button.scale = Vector3.ONE*(.96+.07*sin(clock*6))
+	var raise_phone := phone_view != PhoneUI.Page.OFF
+	phone_amount = move_toward(phone_amount,1.0 if raise_phone else 0.0,delta*(1.02 if raise_phone else 1.42))
+	if raise_phone:
+		phone_ui.show_page(phone_view,played,tap,touch,delta)
 	var ease := smoothstep(0,1,phone_amount)
 	phone.visible = phone_amount>.08
-	phone.position = Vector3(-.61,.76,.04).lerp(Vector3(-.53,1.194,.238),ease)
+	phone.position = Vector3(-.62,.72,.05).lerp(Vector3(-.49,1.105,.225),ease)
 	phone.position.y += sin(clock*2.5)*.003
-	phone.rotation = Vector3(.42*(1.0-ease)-.12*ease,PI-.045,.012)
-	phone_press = move_toward(phone_press,1.0 if phone_view==PhoneView.DECLINED else 0.0,delta*5.0)
-	phone.rotate_object_local(Vector3.RIGHT,-.09*phone_press)
-	var played := clampf(clip_time/maxf(.1,duration),.002,1.0)
-	progress.scale.x = played
-	progress.position.x = -.0305+.0305*played
-	phone_time.text = "0:%02d" % floori(clip_time)
+	phone.rotation = Vector3(-.08,PI-.035,.024)
+	var facing := phone.global_transform.looking_at(to_global(EYE+Vector3(.015,-.055,.045)),global_basis.y,true)
+	phone.global_basis = phone.global_basis.slerp(facing.basis,ease).orthonormalized()
+	phone_press = move_toward(phone_press,touch,delta*7.0)
+	phone.rotate_object_local(Vector3.RIGHT,-.033*phone_press)
 	if passenger != null:
 		passenger.visible = phone.visible
 		passenger.pose(0.0,false,1.0,false,0.0)
 		sit(passenger)
-		var contact := Vector3(-.027,-.085,-.078)
+		var contact := Vector3(-.027,-.078,-.082)
 		for index in range(passenger.arms.size()):
 			var arm := passenger.arms[index]
 			var side := 1.0 if index==0 else -1.0
-			var rest := Vector3(side*.19,.88,.23)
+			var rest := Vector3(side*.23,.71,.22)
 			var target := passenger.skeleton.to_local(phone.to_global(contact)) if index==0 and phone.visible else rest
-			passenger.point_arm(arm,target,Vector3(side,-.7,-.20))
+			passenger.point_arm(arm,target,Vector3(side*.36,-1.42,-.24))
 		if phone.visible:
 			var arm := passenger.arms[0]
 			var wrist := passenger.skeleton.to_global(passenger.skeleton.get_bone_global_pose(arm.z).origin)
 			phone.global_position = wrist - phone.global_basis*contact
-			var fingers := phone.to_global(Vector3(-.017,.025,contact.z))
+			var aligned := phone.global_transform.looking_at(to_global(EYE+Vector3(.015,-.055,.045)),global_basis.y,true)
+			phone.global_basis = phone.global_basis.slerp(aligned.basis,ease*.94).orthonormalized()
+			phone.global_position = wrist - phone.global_basis*contact
+			var fingers := phone.to_global(Vector3(-.015,.040,contact.z-.006))
 			orient_hand(passenger,arm.z,wrist,fingers,phone.global_basis.z,.94)
+			if touch>.001:
+				var tap_arm := passenger.arms[1]
+				var local := Vector3((tap.x/360.0-.5)*.074,(.5-tap.y/720.0)*.148,.013)
+				var tip := phone.to_global(local+Vector3(0,0,.040*(1.0-touch)))
+				var hand := phone.to_global(local+Vector3(.081,-.057,.022))
+				var rest := passenger.skeleton.to_global(Vector3(-.23,.71,.22))
+				passenger.point_arm(tap_arm,passenger.skeleton.to_local(rest.lerp(hand,touch)),Vector3(-1,-.9,-.15))
+				var tap_wrist := passenger.skeleton.to_global(passenger.skeleton.get_bone_global_pose(tap_arm.z).origin)
+				orient_hand(passenger,tap_arm.z,tap_wrist,tip,-phone.global_basis.z,touch*.85)
 
 func orient_hand(rig: GuestModel, bone: int, wrist: Vector3, fingers: Vector3, palm_normal: Vector3, influence: float) -> void:
 	var inverse := rig.skeleton.global_basis.inverse()

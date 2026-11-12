@@ -8,17 +8,25 @@ const ENGINE_BED = preload("res://assets/story/ambience/engine.mp3")
 const DOOR_THUD = preload("res://assets/story/ambience/door.mp3")
 const CLUB_BED = preload("res://assets/story/ambience/club_outside.mp3")
 const Cabin = preload("res://scripts/arrival_cabin.gd")
+const PhoneUI = preload("res://scripts/arrival_phone_ui.gd")
 const Highway = preload("res://scripts/arrival_highway.gd")
 const DISTANT_KIR := preload("res://assets/story/voice/cabin_wakeup_distant.mp3")
 const EXTERIOR_END := 4.55
 const WAKE_CALL := 5.40
-const CALL_END := 2.72
+const PHONE_TAPS := [
+	[2.84,Vector2(264,550),PhoneUI.Page.DECLINED],
+	[4.18,Vector2(264,530),PhoneUI.Page.INBOX],
+	[5.66,Vector2(282,258),PhoneUI.Page.THREAD],
+	[7.43,Vector2(282,413),PhoneUI.Page.PLAYBACK],
+]
+const CLEAR_WAKE_LINE := 9.16
+const VOICEMAIL_PLAY := 7.58
 const LINES := [
-	[0,12.0,"Kir","Yo. Wake up, man. We're coming into the city.","cabin_wakeup"],
+	[0,13.2,"Kir","Yo. Wake up, man. We're coming into the city.","cabin_wakeup"],
 	[0,3.1,"You","Already? Shit. How long was I out?","cabin_awake"],
 	[1,5.0,"Old voicemail","Hey. Where are you? You said ten minutes. We've been waiting forty. I put Nico on. Call me back.","cabin_maya_message"],
-	[1,3.5,"Kir","You hungry? I know a spot. Well… they still sell beer.","cabin_food"],
-	[1,2.3,"You","I said hungry.","cabin_hungry"],
+	[1,4.3,"Kir","Maya? From your old club? … You hungry? I know a spot. They still sell beer.","cabin_maya_kir"],
+	[1,2.3,"You","Food, Kir. Actual food.","cabin_maya_you"],
 	[1,2.8,"Kir","Yeah. I heard you.","cabin_heard"],
 	[2,4.2,"Kir","Yo, brother. Get out. Easy with the door, man. It's older than both of us.","line_02"],
 	[2,3.5,"You","You said somebody was waiting on me. Who?","line_03"],
@@ -411,7 +419,7 @@ func set_line() -> void:
 	voice_pending = clip != null
 	if clip == null:
 		return
-	voice_lead = 8.50 if line==0 else (3.36 if line==2 else .20)
+	voice_lead = CLEAR_WAKE_LINE if line==0 else (VOICEMAIL_PLAY if line==2 else .20)
 	voice.volume_db = -1.0 if row[2]=="Old voicemail" else 0.0
 	line_duration = clip.get_length()+voice_lead+(.85 if row[2]=="Old voicemail" else .45)
 	if line==0:
@@ -477,9 +485,8 @@ func _process(delta: float) -> void:
 	opening_fade = maxf(0,opening_fade-delta)
 	var eyelids := 0.0
 	if line==0:
-		eyelids = smoothstep(4.10,EXTERIOR_END,elapsed)*(1.0-smoothstep(6.42,7.76,elapsed))
-		eyelids = maxf(eyelids,.83*(smoothstep(7.34,7.54,elapsed)-smoothstep(7.67,7.99,elapsed)))
-		eyelids = maxf(eyelids,.47*(smoothstep(8.02,8.13,elapsed)-smoothstep(8.18,8.36,elapsed)))
+		eyelids = smoothstep(4.10,EXTERIOR_END,elapsed)*(1.0-smoothstep(6.53,8.75,elapsed))
+		eyelids += .23*(smoothstep(7.92,8.22,elapsed)-smoothstep(8.27,8.64,elapsed))
 		subtitle.visible = elapsed>=voice_lead
 		speaker.visible = subtitle.visible
 	else:
@@ -517,7 +524,8 @@ func update_shot(delta: float) -> void:
 			light.visible = true
 		var sleeping := line==0 and elapsed>=EXTERIOR_END and elapsed<7.7
 		engine.pitch_scale = lerpf(.76,1.13,speed/22.0)
-		engine.volume_db = -13.0 if exterior else (-32.0 if sleeping else (-27.0 if voice.playing else -20.0))
+		var engine_db := -13.0 if exterior else (-32.0 if sleeping else (-27.0 if voice.playing else -20.0))
+		engine.volume_db = move_toward(engine.volume_db,engine_db,delta*19.0)
 		if exterior:
 			for wheel_node in arrival_wheels:
 				wheel_node.rotate_x(delta*speed/.44)
@@ -528,19 +536,28 @@ func update_shot(delta: float) -> void:
 			return
 		var clip_length := voice.stream.get_length() if voice.stream != null else line_duration
 		var clip_time := voice.get_playback_position() if voice.playing else (clip_length if line==2 and not voice_pending else 0.0)
-		var phone_view := Cabin.PhoneView.OFF
-		if line==2 and elapsed>.35:
-			phone_view = Cabin.PhoneView.CALL if elapsed<CALL_END else (Cabin.PhoneView.DECLINED if elapsed<3.18 else Cabin.PhoneView.VOICEMAIL)
-		cabin.update_pose(delta,driving_clock,phone_view,clip_length,clip_time,LINES[line][2]=="Kir" and (voice.playing or wake_voice.playing))
+		var phone_view := PhoneUI.Page.OFF
+		var tap_position := Vector2.ZERO
+		var touch := 0.0
+		if line==2 and elapsed>.29:
+			phone_view = PhoneUI.Page.CALL
+			for tap in PHONE_TAPS:
+				var at: float = tap[0]
+				if elapsed>=at+.10:
+					phone_view = tap[2]
+				if absf(elapsed-at)<.36:
+					tap_position = tap[1]
+					touch = smoothstep(at-.36,at-.04,elapsed)*(1.0-smoothstep(at+.04,at+.36,elapsed))
+		cabin.update_pose(delta,driving_clock,phone_view,clampf(clip_time/maxf(.1,clip_length),0,1),tap_position,touch,LINES[line][2]=="Kir" and (voice.playing or wake_voice.playing))
 		var look := smoothstep(0.0,1.0,cabin.phone_amount)
-		var sleepy := 1.0-smoothstep(6.56,9.10,elapsed) if line==0 else 0.0
-		var base_eye := Cabin.EYE+Vector3(-sleepy*.11,sin(driving_clock*2.5)*.004-sleepy*.18,-sleepy*.07)
+		var sleepy := 1.0-smoothstep(6.55,10.0,elapsed) if line==0 else 0.0
+		var base_eye := Cabin.EYE+Vector3(-sleepy*.11,sin(driving_clock*2.5)*.004-sleepy*.18,-sleepy*.07)+Vector3(0,-.033,.046)*look
 		eye = cabin.to_global(base_eye)-origin
 		cabin_glance = move_toward(cabin_glance,1.0 if line in [3,4,5] else 0.0,delta*1.48)
 		var gaze := Vector3(-.31,1.34,2.9).lerp(Vector3(.46,1.36,-.19),smoothstep(0,1,cabin_glance)*.98)
 		gaze = gaze.lerp(Vector3(-.57,.87,1.55),sleepy)
-		focus = cabin.to_global(gaze.lerp(cabin.phone.position,look*.88))-origin
-		camera.fov = lerpf(68.0,58.0,look)
+		focus = cabin.to_global(gaze.lerp(cabin.phone.position,look))-origin
+		camera.fov = lerpf(68.0,48.0,look)
 		friend.hide()
 	else:
 		cabin.hide()
@@ -594,7 +611,7 @@ func update_shot(delta: float) -> void:
 	camera.global_position = origin+eye
 	camera.look_at(origin+focus)
 	if line==0:
-		camera.rotate_object_local(Vector3.BACK,-.21*(1.0-smoothstep(6.56,9.10,elapsed)))
+		camera.rotate_object_local(Vector3.BACK,-.21*(1.0-smoothstep(6.55,10.0,elapsed)))
 
 func finish() -> void:
 	if not active:
