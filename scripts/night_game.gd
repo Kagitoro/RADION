@@ -18,12 +18,14 @@ var interact_hint: Label
 var flashlight: SpotLight3D
 var light_mode := 0
 var litter: Dictionary[int, Node3D] = {}
+const KitchenFridge = preload("res://scripts/kitchen_fridge.gd")
+var fridge: KitchenFridge
 const CLEANUP_REWARD := 12
 const LITTER := [
-	["hall", Vector3(-4.85,0,-.64), "soda-can", Vector3(.13,.066,.065), .46],
-	["living", Vector3(-5.1,0,1.24), "pizza-box", Vector3(.29,.038,.29), .25],
-	["kitchen", Vector3(.67,0,-.50), "cup", Vector3(.09,.12,.09), -.56],
-	["studio", Vector3(5.12,0,-.12), "soda-can", Vector3(.13,.066,.065), -.32],
+	["hall", Vector3(-4.85,0,-.64), "soda-can", Vector3(.105,.18,.105), .46],
+	["living", Vector3(-5.1,0,1.24), "pizza-box", Vector3(.32,.064,.32), .25],
+	["kitchen", Vector3(.67,0,-.50), "cup", Vector3(.13,.16,.13), -.56],
+	["studio", Vector3(5.12,0,-.12), "soda-bottle", Vector3(.106,.23,.106), -.32],
 ]
 
 ## Conversation ends when the guest is farther than this (metres).
@@ -86,7 +88,12 @@ func setup() -> void:
 	add_child(menu)
 	menu.setup(home,self)
 	home.shop.setup()
+	if home.nodes.has(KitchenFridge.ITEM_ID) and home.game_mode:
+		fridge = KitchenFridge.new(home)
+		home.nodes[KitchenFridge.ITEM_ID].add_child(fridge)
+		fridge.build()
 	build_litter()
+	place_litter_on_floor.call_deferred()
 	intro.update_objective()
 	home.subway.setup()
 
@@ -106,7 +113,8 @@ func build_litter() -> void:
 		var piece := Node3D.new()
 		add_child(piece)
 		piece.global_position = spot + Vector3.UP * .018
-		home.night_world.place_prop(piece,"food/" + entry[2],Vector3.ZERO,entry[3],entry[4])
+		if not home.night_world.place_prop(piece,"food/" + entry[2],Vector3.ZERO,entry[3],entry[4]):
+			home.night_world.box(piece,Vector3.UP*.075,Vector3(.14,.15,.13),Color("#db8668"))
 		var marker := Label3D.new()
 		marker.text = "•"
 		marker.font_size = 36
@@ -114,10 +122,58 @@ func build_litter() -> void:
 		marker.modulate = Color("#ffd18e")
 		marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		marker.visibility_range_end = 4.0
-		marker.position.y = .20
+		marker.position.y = .33
 		piece.add_child(marker)
 		litter[index] = piece
 		piece.visible = intro.opening_completed
+
+func place_litter_on_floor() -> void:
+	await get_tree().physics_frame
+	var space := home.get_world_3d().direct_space_state
+	var sphere := SphereShape3D.new()
+	sphere.radius = .17
+	var standing := CapsuleShape3D.new()
+	standing.radius = .19
+	standing.height = 1.57
+	var volume := PhysicsShapeQueryParameters3D.new()
+	volume.shape = sphere
+	volume.collision_mask = 1
+	volume.exclude = [home.player.get_rid()]
+	for index in litter:
+		var piece := litter[index]
+		var center := piece.global_position
+		var zone: String = LITTER[index][0]
+		var original := home.rooms.room_floor(zone)
+		var floor: Dictionary = home.records.get(original.get("id",""),{})
+		for offset in [Vector3.ZERO,Vector3(.4,0,0),Vector3(-.4,0,0),Vector3(0,0,.4),Vector3(0,0,-.4),Vector3(.55,0,.4),Vector3(-.55,0,-.4)]:
+			var point: Vector3 = center + offset
+			if not floor.is_empty() and not home.rooms.inside_room(floor,Vector2(point.x,point.z),-.19):
+				continue
+			var ray := PhysicsRayQueryParameters3D.create(point+Vector3.UP*.30,point-Vector3.UP*.18,1,volume.exclude)
+			var hit := space.intersect_ray(ray)
+			if hit.is_empty() or hit.normal.y < .8 or hit.position.y > center.y+.10:
+				continue
+			volume.shape = sphere
+			volume.transform.origin = hit.position + Vector3.UP*.18
+			if not space.intersect_shape(volume,1).is_empty():
+				continue
+			volume.shape = standing
+			var reachable := false
+			for direction in [Vector3.FORWARD,Vector3.BACK,Vector3.LEFT,Vector3.RIGHT]:
+				var feet: Vector3 = hit.position + direction*.65
+				if not floor.is_empty() and not home.rooms.inside_room(floor,Vector2(feet.x,feet.z),-.12):
+					continue
+				volume.transform.origin = feet + Vector3.UP*.84
+				if not space.intersect_shape(volume,1).is_empty():
+					continue
+				var sight := PhysicsRayQueryParameters3D.create(feet+Vector3.UP*1.64,hit.position+Vector3.UP*.17,1,volume.exclude)
+				if not space.intersect_ray(sight).is_empty():
+					continue
+				reachable = true
+				break
+			if reachable:
+				piece.global_position = hit.position + Vector3.UP*.009
+				break
 
 func show_litter() -> void:
 	for piece in litter.values():
@@ -129,20 +185,22 @@ func aimed_cleanup() -> Node3D:
 	if intro.opening_completed:
 		candidates.append_array(litter.values())
 	var target: Node3D
-	var best := .93
+	var best := .85
 	for item in candidates:
-		var point: Vector3 = item.global_position + Vector3.UP * .07
-		var offset := point - camera.global_position
-		if offset.length_squared() > 2.6 * 2.6:
-			continue
-		var score := offset.normalized().dot(-camera.global_basis.z)
-		if score < best:
-			continue
-		var ray := PhysicsRayQueryParameters3D.create(camera.global_position,point,1,[home.player.get_rid()])
-		if not home.get_world_3d().direct_space_state.intersect_ray(ray).is_empty():
-			continue
-		target = item
-		best = score
+		var heights := [.10,.24,.36] if item.get_parent() == self else [.06]
+		for height in heights:
+			var point: Vector3 = item.global_position + Vector3.UP * height
+			var offset := point - camera.global_position
+			if offset.length_squared() > 3.0 * 3.0:
+				continue
+			var score := offset.normalized().dot(-camera.global_basis.z)
+			if score < best:
+				continue
+			var ray := PhysicsRayQueryParameters3D.create(camera.global_position,point,1,[home.player.get_rid()])
+			if not home.get_world_3d().direct_space_state.intersect_ray(ray).is_empty():
+				continue
+			target = item
+			best = score
 	return target
 
 func clean(target: Node3D) -> void:
@@ -177,8 +235,13 @@ func _process(delta: float) -> void:
 	if not interact_hint.visible or hint_time > 0.0:
 		return
 	hint_time = .10
+	interact_hint.offset_top = -79
 	if aimed_cleanup() != null:
 		interact_hint.text = tr("E · Убрать")
+		return
+	if is_instance_valid(fridge) and fridge.aimed():
+		interact_hint.offset_top = -101 if fridge.opened else -79
+		interact_hint.text = fridge.hint()
 		return
 	if home.shop.can_interact():
 		interact_hint.text = "E · Night Shop"
@@ -251,6 +314,14 @@ func aimed_guest() -> Node3D:
 	return result
 
 func interact() -> void:
+	if not talk_actions.visible:
+		var cleanup := aimed_cleanup()
+		if cleanup != null:
+			clean(cleanup)
+			return
+		if is_instance_valid(fridge) and fridge.aimed():
+			fridge.toggle()
+			return
 	if home.shop.can_interact():
 		home.shop.open()
 		return
@@ -264,10 +335,6 @@ func interact() -> void:
 		return
 	if talk_actions.visible:
 		close_talk()
-		return
-	var cleanup := aimed_cleanup()
-	if cleanup != null:
-		clean(cleanup)
 		return
 	var station := current_dj()
 	if station.click_controller():
@@ -412,6 +479,8 @@ func handle_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("interact"):
 		interact()
+	elif is_instance_valid(fridge) and fridge.opened and fridge.aimed() and fridge_stock_input(event):
+		return
 	elif event.is_action_pressed("start_party"):
 		var shift = home.club.shift
 		if shift.nearby():
@@ -449,3 +518,10 @@ func handle_input(event: InputEvent) -> void:
 				if home.party.near_deck():
 					home.party.switch_track(index)
 				return
+
+func fridge_stock_input(event: InputEvent) -> bool:
+	for index in range(1,5):
+		if event.is_action_pressed(TALK_OPTIONS[index]):
+			fridge.transfer(index)
+			return true
+	return false

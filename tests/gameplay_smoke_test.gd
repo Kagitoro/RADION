@@ -21,6 +21,7 @@ func run(collected: Array[String]) -> void:
 	await check_subway()
 	await check_main_menu()
 	await check_intro()
+	await check_home_interactions()
 	await check_localization()
 	await check_language_setting()
 	check_translation_coverage()
@@ -271,6 +272,45 @@ func check_localization() -> void:
 	TranslationServer.set_locale("uk")
 	expect(home.tr("Проект сохранён.") == "Проект сохранён.", "Перевод: при украинской системе должен остаться оригинал")
 	TranslationServer.set_locale(previous)
+
+func check_home_interactions() -> void:
+	var game := home.night_game
+	var fridge := game.fridge
+	var shop := home.shop
+	var player := home.player
+	player.move_to(fridge.to_global(Vector3(.22,1.64,-1.23)),fridge.to_global(Vector3(0,1.15,-.43)))
+	await home.get_tree().physics_frame
+	expect(fridge.aimed() and shop.fridge_beer == 3, "Холодильник: нет доступа или стартовых бутылок")
+	home._unhandled_input(key_event(KEY_E))
+	expect(fridge.opened, "Холодильник: E не открывает дверцу")
+	var carried := shop.beer
+	home._unhandled_input(key_event(KEY_1))
+	expect(shop.fridge_beer == 2 and shop.beer == carried+1, "Холодильник: не удалось взять бутылку")
+	home._unhandled_input(key_event(KEY_2))
+	expect(shop.fridge_beer == 3 and shop.beer == carried, "Холодильник: не удалось вернуть бутылку")
+	shop.beer += 6
+	home._unhandled_input(key_event(KEY_3))
+	shop.load_stock()
+	expect(shop.fridge_beer == 9 and shop.beer == carried, "Холодильник: упаковка не сохранилась")
+	home._unhandled_input(key_event(KEY_4))
+	expect(shop.fridge_beer == 3 and shop.beer == carried+6, "Холодильник: не удалось забрать упаковку")
+	home._unhandled_input(key_event(KEY_E))
+	expect(not fridge.opened, "Холодильник: E не закрывает дверцу")
+	game.intro.opening_completed = true
+	game.intro.update_objective()
+	var cash := home.party.cash
+	for item in game.litter.values():
+		var point: Vector3 = item.global_position
+		var reachable := false
+		for direction in [Vector3.FORWARD,Vector3.BACK,Vector3.LEFT,Vector3.RIGHT]:
+			player.move_to(point+Vector3.UP*1.64+direction*.65,point+Vector3(.20,.28,0))
+			await home.get_tree().physics_frame
+			if game.aimed_cleanup() == item:
+				home._unhandled_input(key_event(KEY_E))
+				reachable = true
+				break
+		expect(reachable, "Уборка: не подбирается мусор возле метки %s" % point)
+	expect(game.litter.is_empty() and home.party.cash == cash+game.CLEANUP_REWARD, "Уборка: квест или награда не засчитаны")
 
 ## Picks English in the pause menu, checks it is applied live and saved, then restores.
 func check_language_setting() -> void:

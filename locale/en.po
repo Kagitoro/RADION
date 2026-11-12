@@ -1317,3 +1317,21 @@ msgstr "House cleaned · earned $%d"
 
 msgid "Осталось убрать: %d"
 msgstr "Left to clean: %d"
+
+msgid "Упаковка пива"
+msgstr "Beer six-pack"
+
+msgid "6 бутылок"
+msgstr "6 bottles"
+
+msgid "E · Открыть холодильник"
+msgstr "E · Open fridge"
+
+msgid "Холодильник: %d · с собой: %d · E закрыть\n1 взять · 2 положить · 3 убрать упаковку · 4 взять упаковку"
+msgstr "Fridge: %d · carrying: %d · E close\n1 take · 2 store · 3 store six-pack · 4 take six-pack"
+
+msgid "Бутылок недостаточно"
+msgstr "Not enough bottles"
+
+msgid "Холодильник заполнен"
+msgstr "The fridge is full"

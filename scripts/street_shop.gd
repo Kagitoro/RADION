@@ -6,6 +6,7 @@ const ITEMS := [
 	["Энергетик",4,"+15% к скорости бега на 45 с · R"],
 	["Пиво",5,"1 бутылка · B"],
 	["Сигареты",6,"5 сигарет · N"],
+	["Упаковка пива",26,"6 бутылок"],
 ]
 
 var world: NightWorld
@@ -13,7 +14,8 @@ var home: Home
 const PANEL := preload("res://ui/shop_panel.tscn")
 var panel: ShopPanel
 var cashier: Node3D
-var beer := 2
+var beer := 0
+var fridge_beer := 3
 var energy := 0
 var cleaned_litter := 0
 var pose_time := 0.0
@@ -98,6 +100,7 @@ func buy(index: int) -> void:
 		0: energy += 1
 		1: beer += 1
 		2: home.party.cigarettes += 5
+		3: beer += 6
 	save_stock()
 	refresh()
 	panel.set_message(tr("Куплено · %s") % tr(ITEMS[index][0]))
@@ -118,6 +121,7 @@ func save_stock() -> void:
 	var config := ConfigFile.new()
 	config.set_value("supplies","cash",home.party.cash)
 	config.set_value("supplies","beer",beer)
+	config.set_value("supplies","fridge_beer",fridge_beer)
 	config.set_value("supplies","energy",energy)
 	config.set_value("supplies","cigarettes",home.party.cigarettes)
 	config.set_value("supplies","cleaned_litter",cleaned_litter)
@@ -131,6 +135,7 @@ func load_stock() -> void:
 	home.party.cash = maxi(0,int(config.get_value("supplies","cash",home.party.cash)))
 	home.party.cigarettes = maxi(0,int(config.get_value("supplies","cigarettes",home.party.cigarettes)))
 	beer = maxi(0,int(config.get_value("supplies","beer",beer)))
+	fridge_beer = clampi(int(config.get_value("supplies","fridge_beer",3)),0,24)
 	energy = maxi(0,int(config.get_value("supplies","energy",energy)))
 	cleaned_litter = int(config.get_value("supplies","cleaned_litter",0))
 
