@@ -93,6 +93,8 @@ func setup() -> void:
 		home.nodes[KitchenFridge.ITEM_ID].add_child(fridge)
 		fridge.build()
 	build_litter()
+	if is_instance_valid(fridge):
+		intro.attach_fridge_note(fridge.door)
 	place_litter_on_floor.call_deferred()
 	intro.update_objective()
 	home.subway.setup()
@@ -125,7 +127,7 @@ func build_litter() -> void:
 		marker.position.y = .33
 		piece.add_child(marker)
 		litter[index] = piece
-		piece.visible = intro.opening_completed
+		piece.visible = intro.note_read
 
 func place_litter_on_floor() -> void:
 	await get_tree().physics_frame
@@ -182,7 +184,7 @@ func show_litter() -> void:
 func aimed_cleanup() -> Node3D:
 	var camera := home.player.camera
 	var candidates: Array = home.party.events.puddles.duplicate()
-	if intro.opening_completed:
+	if intro.opening_completed and intro.note_read:
 		candidates.append_array(litter.values())
 	var target: Node3D
 	var best := .85
@@ -213,6 +215,7 @@ func clean(target: Node3D) -> void:
 		home.shop.cleaned_litter |= 1 << int(index)
 		if litter.is_empty():
 			home.party.cash += CLEANUP_REWARD
+			intro.cleanup_complete()
 			GameEvents.notify(tr("Дом убран · заработано $%d") % CLEANUP_REWARD)
 		else:
 			GameEvents.notify(tr("Осталось убрать: %d") % litter.size())
@@ -236,10 +239,16 @@ func _process(delta: float) -> void:
 		return
 	hint_time = .10
 	interact_hint.offset_top = -79
+	if intro.entry_aimed():
+		interact_hint.text = tr("E · Открыть дверь ключом")
+		return
 	if aimed_cleanup() != null:
 		interact_hint.text = tr("E · Убрать")
 		return
 	if is_instance_valid(fridge) and fridge.aimed():
+		if intro.entry_opened and not intro.note_read:
+			interact_hint.text = tr("E · Прочитать записку")
+			return
 		interact_hint.offset_top = -101 if fridge.opened else -79
 		interact_hint.text = fridge.hint()
 		return
@@ -315,11 +324,17 @@ func aimed_guest() -> Node3D:
 
 func interact() -> void:
 	if not talk_actions.visible:
+		if intro.entry_aimed():
+			intro.open_entrance()
+			return
 		var cleanup := aimed_cleanup()
 		if cleanup != null:
 			clean(cleanup)
 			return
 		if is_instance_valid(fridge) and fridge.aimed():
+			if intro.entry_opened and not intro.note_read:
+				intro.read_note()
+				return
 			fridge.toggle()
 			return
 	if home.shop.can_interact():

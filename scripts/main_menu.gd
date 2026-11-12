@@ -74,6 +74,8 @@ func resume() -> void:
 	leave_menu()
 	if not game.intro.opening_completed:
 		game.intro.start()
+	elif not game.intro.entry_opened:
+		game.intro.place_at_door()
 
 func save_checkpoint() -> void:
 	if not entered or game.intro.active or home.player.collapsed or home.player.vomiting:

@@ -1347,3 +1347,30 @@ msgstr "Not a cent? Then fuck off."
 
 msgid "1 / E · Дать $%d     2 / Esc · Отказать"
 msgstr "1 / E · Give $%d     2 / Esc · Refuse"
+
+msgid "Первый вечер · Открой входную дверь"
+msgstr "First night · Unlock the front door"
+
+msgid "Первый вечер · Прочитай записку на холодильнике"
+msgstr "First night · Read the note on the fridge"
+
+msgid "E · Открыть дверь ключом"
+msgstr "E · Unlock the front door"
+
+msgid "E · Прочитать записку"
+msgstr "E · Read the note"
+
+msgid "Записка · «Убери мусор. $12 под магнитом твои, когда закончишь. Пиво можешь брать сразу.»"
+msgstr "Note · “Pick up the trash. The $12 under the magnet is yours when you're done. Help yourself to the beer.”"
+
+msgid "Кир · Диджей не приехал. Разогрев твой. Скажи Самиру, что ты от меня."
+msgstr "Kir · The DJ didn't show. The opener's yours. Tell Samir I sent you."
+
+msgid "Кир · Хороший сет. Теперь скажи честно: где ты был в тот вечер?"
+msgstr "Kir · Good set. Now tell me the truth. Where were you that night?"
+
+msgid "Ты · Я дошёл до дверей. Услышал зал и струсил. Потом соврал про автобус."
+msgstr "You · I made it to the door. Heard the crowd and chickened out. Then I lied about the bus."
+
+msgid "Кир · В следующий раз позвони. Даже если ты всё ещё стоишь у дверей."
+msgstr "Kir · Next time, call me. Even if you're still standing outside."

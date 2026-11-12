@@ -11,6 +11,8 @@ func _init(target: Home) -> void:
 
 func run(collected: Array[String]) -> void:
 	errors = collected
+	await check_main_menu()
+	await check_story_entry()
 	await check_dj_station()
 	await check_house_party()
 	check_traffic_spacing()
@@ -19,7 +21,6 @@ func run(collected: Array[String]) -> void:
 	await check_music_library()
 	await check_club()
 	await check_subway()
-	await check_main_menu()
 	await check_intro()
 	await check_home_interactions()
 	await check_localization()
@@ -296,6 +297,20 @@ func check_intro() -> void:
 	expect(not intro.active and not home.modal, "Интро: не завершается")
 	expect(home.hud.root.visible, "Интро: после завершения скрыт HUD")
 
+func check_story_entry() -> void:
+	var intro := home.night_game.intro
+	var fridge := home.night_game.fridge
+	expect(intro.opening_completed and not intro.entry_opened, "История: после приезда дверь должна быть закрыта")
+	home._unhandled_input(key_event(KEY_E))
+	await wait(.62)
+	expect(intro.entry_opened and intro.entrance_shape.disabled and intro.entrance_leaf.rotation.y>1.3, "История: ключ не открывает дверь")
+	home.player.move_to(fridge.to_global(Vector3(.22,1.64,-1.23)),fridge.to_global(Vector3(0,1.15,-.43)))
+	await home.get_tree().physics_frame
+	home._unhandled_input(key_event(KEY_E))
+	expect(intro.note_read and not fridge.opened and intro.follow_up.visible, "История: записка не запускает уборку")
+	var saved := ConfigFile.new()
+	expect(saved.load(intro.SAVE)==OK and saved.get_value("story","note_read",false), "История: прочитанная записка не сохранилась")
+
 func check_localization() -> void:
 	var previous := TranslationServer.get_locale()
 	TranslationServer.set_locale("en")
@@ -333,8 +348,6 @@ func check_home_interactions() -> void:
 	expect(shop.fridge_beer == 3 and shop.beer == carried+6, "Холодильник: не удалось забрать упаковку")
 	home._unhandled_input(key_event(KEY_E))
 	expect(not fridge.opened, "Холодильник: E не закрывает дверцу")
-	game.intro.opening_completed = true
-	game.intro.update_objective()
 	var cash := home.party.cash
 	for item in game.litter.values():
 		var point: Vector3 = item.global_position
@@ -348,6 +361,9 @@ func check_home_interactions() -> void:
 				break
 		expect(reachable, "Уборка: не подбирается мусор возле метки %s" % point)
 	expect(game.litter.is_empty() and home.party.cash == cash+game.CLEANUP_REWARD, "Уборка: квест или награда не засчитаны")
+	expect(not game.intro.cash_envelope.visible, "История: конверт остался после начисления награды")
+	game.intro.first_booking_complete()
+	expect(game.intro.first_set_done and game.intro.follow_up_line == 1, "История: после первого сета нет разговора с Киром")
 
 ## Picks English in the pause menu, checks it is applied live and saved, then restores.
 func check_language_setting() -> void:
