@@ -204,7 +204,7 @@ func pose(delta: float, walking: bool, speed: float, dance: bool, beat: float) -
 		combat_stance()
 	elif psx and dance and not walking and action_time<=0:
 		dance_pose(beat)
-	elif action_time<=0.0:
+	elif action_time<=0.0 and not player_body:
 		for index in range(arms.size()):
 			pocket(arms[index],1.0 if index==0 else -1.0)
 	if is_instance_valid(service_tray) and arms.size()==2:
@@ -382,16 +382,39 @@ func make_first_person() -> void:
 	for node in find_children("*","MeshInstance3D",true,false):
 		var part := node as MeshInstance3D
 		part.layers = 4
+		if part.skin == null:
+			continue
 		var mesh := ArrayMesh.new()
 		for surface in range(part.mesh.get_surface_count()):
 			var arrays := part.mesh.surface_get_arrays(surface)
 			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 			var source: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+			if source.is_empty():
+				for vertex in range(vertices.size()):
+					source.append(vertex)
+			var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+			var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+			@warning_ignore("integer_division")
+			var stride := bones.size() / vertices.size()
+			var head_vertices := PackedByteArray()
+			head_vertices.resize(vertices.size())
+			for vertex in range(vertices.size()):
+				var head_weight := 0.0
+				for influence in range(stride):
+					var index := vertex * stride + influence
+					var bone := part.skin.get_bind_bone(bones[index])
+					if bone < 0:
+						bone = skeleton.find_bone(part.skin.get_bind_name(bones[index]))
+					while bone >= 0 and bone != head_bone:
+						bone = skeleton.get_bone_parent(bone)
+					if bone == head_bone:
+						head_weight += weights[index]
+				head_vertices[vertex] = int(head_weight > .4)
 			var indices := PackedInt32Array()
 			for triangle in range(0,source.size(),3):
 				var keep := true
 				for corner in range(3):
-					keep = keep and vertices[source[triangle+corner]].y<1.31
+					keep = keep and head_vertices[source[triangle+corner]] == 0
 				if keep:
 					indices.append_array(source.slice(triangle,triangle+3))
 			if indices.is_empty():

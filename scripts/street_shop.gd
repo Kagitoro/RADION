@@ -15,6 +15,7 @@ var panel: ShopPanel
 var cashier: Node3D
 var beer := 2
 var energy := 0
+var cleaned_litter := 0
 var pose_time := 0.0
 
 func _init(night_world: NightWorld) -> void:
@@ -119,6 +120,7 @@ func save_stock() -> void:
 	config.set_value("supplies","beer",beer)
 	config.set_value("supplies","energy",energy)
 	config.set_value("supplies","cigarettes",home.party.cigarettes)
+	config.set_value("supplies","cleaned_litter",cleaned_litter)
 	if config.save(SAVE)!=OK:
 		push_warning("Не удалось сохранить покупки Night Shop")
 
@@ -130,6 +132,7 @@ func load_stock() -> void:
 	home.party.cigarettes = maxi(0,int(config.get_value("supplies","cigarettes",home.party.cigarettes)))
 	beer = maxi(0,int(config.get_value("supplies","beer",beer)))
 	energy = maxi(0,int(config.get_value("supplies","energy",energy)))
+	cleaned_litter = int(config.get_value("supplies","cleaned_litter",0))
 
 func _process(delta: float) -> void:
 	if not is_instance_valid(cashier):

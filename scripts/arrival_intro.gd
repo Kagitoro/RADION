@@ -77,6 +77,11 @@ func setup(game_home: Home, night_game: NightGame) -> void:
 	voice.volume_db = -2.0
 
 func update_objective() -> void:
+	if opening_completed and game.cleanup_remaining() > 0:
+		game.show_litter()
+		objective.text = tr("Убрать дом · %d/%d · награда $%d") % [game.LITTER.size() - game.cleanup_remaining(),game.LITTER.size(),game.CLEANUP_REWARD]
+		objective.show()
+		return
 	objective.text = tr("Первый заказ · В RADION нажми J, чтобы начать сет")
 	objective.visible = seen and not first_set_done
 

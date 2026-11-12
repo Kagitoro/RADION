@@ -85,9 +85,11 @@ func consume(beer: bool) -> void:
 	var actor = party.home.player
 	var reflected := item.duplicate() as Node3D
 	actor.action_grip.add_child(reflected)
-	reflected.position = Vector3(-.018,0,-.015) if beer else Vector3(-.012,.0,-.017)
+	reflected.position = actor.held_item_offset(beer)
 	for part in reflected.find_children("*","GeometryInstance3D",true,false):
-		part.layers = 4
+		part.layers = 5 if is_instance_valid(actor.dj_rig) else 4
+	if is_instance_valid(actor.dj_rig):
+		prop.hide()
 	if not beer:
 		for part in item.get_children():
 			var material := part.material_override.duplicate() as StandardMaterial3D
@@ -145,6 +147,9 @@ func leave_cigarette(item: Node3D, reflected: Node3D, actor: Node3D, grip: Node3
 	reflected.reparent(actor.mouth_anchor(),false)
 	reflected.position = Vector3(0,-.018,-.009) if is_instance_valid(actor.dj_rig) else Vector3(.014,-.064,-.109)
 	reflected.rotation = Vector3.ZERO
+	if is_instance_valid(actor.dj_rig):
+		lip_view.show()
+		set_prop_layers(reflected,4)
 	ember_timer = 0.0
 
 func handle_cigarette() -> void:
@@ -154,14 +159,17 @@ func handle_cigarette() -> void:
 	var motion := party.create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	if not cigarette_held:
 		grip.position = Vector3(.060,-.125,-.24)
-		grip.show()
+		if not is_instance_valid(actor.dj_rig):
+			grip.show()
 		motion.tween_method(actor.set_action_pose,0.0,1.0,.28)
 		motion.tween_callback(func():
 			lip_view.reparent(grip,false)
 			lip_view.transform = Transform3D.IDENTITY
 			lip_cigarette.reparent(actor.action_grip,false)
-			lip_cigarette.position = Vector3(-.012,0,-.017)
+			lip_cigarette.position = actor.held_item_offset(false)
 			lip_cigarette.rotation = Vector3.ZERO
+			if is_instance_valid(actor.dj_rig):
+				set_prop_layers(lip_cigarette,5)
 			cigarette_held = true
 		)
 		motion.tween_property(grip,"position",Vector3(.24,-.26,-.44),.36)
@@ -183,6 +191,10 @@ func handle_cigarette() -> void:
 			grip.hide()
 		hand_prop = null
 	)
+
+func set_prop_layers(prop: Node3D, layers: int) -> void:
+	for part in prop.find_children("*","GeometryInstance3D",true,false):
+		part.layers = layers
 
 func update_cigarette_length() -> void:
 	var remaining := 1.0-clampf(cigarette_burn,0,1)*.86
@@ -221,8 +233,9 @@ func ember_smoke() -> void:
 	drift.chain().tween_callback(cloud.queue_free)
 
 func finish_sip() -> void:
-	var grip: Node3D = party.home.player.action_grip
-	spill_bits(grip.to_global(Vector3(-.018,.158,-.025)),true,3)
+	var actor := party.home.player
+	var grip: Node3D = actor.action_grip
+	spill_bits(grip.to_global(actor.held_item_offset(true)+Vector3(0,.158,-.01)),true,3)
 	drinks += 1
 	party.home.player.drink_beer()
 	action_audio.stream = sip_audio

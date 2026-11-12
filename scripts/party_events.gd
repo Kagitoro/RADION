@@ -260,7 +260,7 @@ func vomit_burst() -> void:
 	retching.play()
 	var emitter := CPUParticles3D.new()
 	home.player.mouth_anchor().add_child(emitter)
-	emitter.amount = 32
+	emitter.amount = 46
 	emitter.lifetime = .48
 	emitter.direction = Vector3(0,-.35,-1)
 	emitter.spread = 7
@@ -292,60 +292,95 @@ func vomit_burst() -> void:
 	)
 	var origin: Vector3 = home.player.mouth_anchor().global_position
 	var forward: Vector3 = -home.player.global_basis.z
-	var center := origin+forward*.55
-	var query := PhysicsRayQueryParameters3D.create(center,center+Vector3.DOWN*3.5,1,[home.player.get_rid()])
-	var result := get_world_3d().direct_space_state.intersect_ray(query)
-	if result.is_empty():
+	var space := get_world_3d().direct_space_state
+	var exclude := [home.player.get_rid()]
+	var center := origin + forward * .56
+	var obstruction := space.intersect_ray(PhysicsRayQueryParameters3D.create(origin,center,1,exclude))
+	if not obstruction.is_empty():
+		center = obstruction.position - forward * .09
+	var result := space.intersect_ray(PhysicsRayQueryParameters3D.create(center,center+Vector3.DOWN*3.5,1,exclude))
+	if result.is_empty() or result.normal.y < .88:
 		return
 	var stream := MeshInstance3D.new()
 	stream.mesh = ImmediateMesh.new()
 	stream.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	stream.material_override = surface
 	add_child(stream)
-	streams.append({"node":stream,"age":0.0,"floor":float(result.position.y)+.015})
+	streams.append({"node":stream,"age":0.0,"impact":result.position+Vector3.UP*.015})
 	var puddle := Node3D.new()
 	add_child(puddle)
-	puddle.global_position = result.position+Vector3.UP*.008
-	for index in range(8):
-		var patch := MeshInstance3D.new()
-		patch.mesh = drop
-		patch.scale = Vector3(22+index%3,0.35,18+index%2)
-		patch.position = Vector3(sin(index*2.4)*.15,.001*index,cos(index*2.4)*.12)
-		patch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		puddle.add_child(patch)
-	puddle.scale = Vector3.ONE*.15
-	create_tween().tween_property(puddle,"scale",Vector3.ONE,1.9)
+	puddle.global_position = result.position+Vector3.UP*.009
+	var wet := surface.duplicate() as StandardMaterial3D
+	wet.vertex_color_use_as_albedo = true
+	wet.albedo_color = Color.WHITE
+	var stain := MeshInstance3D.new()
+	var mesh := ImmediateMesh.new()
+	stain.mesh = mesh
+	stain.material_override = wet
+	stain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	puddle.add_child(stain)
+	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	stain_patch(mesh,Vector3.ZERO,.23,.32,Color("#655332"),22)
+	for index in range(20):
+		var angle := index * 2.39996
+		var radius := randf_range(.12,.43)
+		var offset := Vector3(cos(angle)*radius,.0015,sin(angle)*radius)
+		var test: Vector3 = result.position + offset + Vector3.UP * .09
+		var floor_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(test,test+Vector3.DOWN*.15,1,exclude))
+		if floor_hit.is_empty() or absf(floor_hit.position.y-result.position.y) > .02:
+			continue
+		var width := randf_range(.008,.04)
+		stain_patch(mesh,offset,width,width*.76,Color("#938056") if index%3==0 else Color("#715a32"),8)
+	mesh.surface_end()
+	puddle.scale = Vector3(.06,1,.06)
+	var spread := puddle.create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	spread.tween_interval(.23)
+	spread.tween_property(puddle,"scale",Vector3(.72,1,.72),.30)
+	spread.tween_property(puddle,"scale",Vector3.ONE,1.05)
 	puddles.append(puddle)
 	if puddles.size()>6:
 		puddles.pop_front().queue_free()
+
+func stain_patch(mesh: ImmediateMesh, center: Vector3, width: float, length: float, tint: Color, sides: int) -> void:
+	var edge := PackedVector3Array()
+	for index in range(sides):
+		var angle := TAU * index / sides
+		var ripple := randf_range(.72,1.14)
+		edge.append(center + Vector3(cos(angle)*width*ripple,0,sin(angle)*length*ripple))
+	for index in range(sides):
+		mesh.surface_set_normal(Vector3.UP)
+		mesh.surface_set_color(tint.darkened(.25))
+		mesh.surface_add_vertex(center + Vector3.UP*.001)
+		for vertex in [edge[index],edge[(index+1)%sides]]:
+			mesh.surface_set_color(tint)
+			mesh.surface_add_vertex(vertex)
 
 func update_streams(delta: float) -> void:
 	for index in range(streams.size()-1,-1,-1):
 		var entry: Dictionary = streams[index]
 		entry.age += delta
 		var stream := entry.node as MeshInstance3D
-		if entry.age>=2.1:
+		if entry.age>=1.6:
 			stream.queue_free()
 			streams.remove_at(index)
 			continue
 		retching.global_position = home.player.mouth_anchor().global_position
-		var pulse := maxf(0,sin(entry.age*8.5))
+		var pulse := maxf(0,sin(entry.age*11.5)) * (1.0-smoothstep(1.05,1.6,entry.age))
 		stream.visible = pulse>.12
 		var mesh := stream.mesh as ImmediateMesh
 		mesh.clear_surfaces()
 		if not stream.visible:
 			continue
 		var mouth: Transform3D = home.player.mouth_anchor().global_transform
-		var velocity := -mouth.basis.z*1.4+Vector3.DOWN*.2
+		var impact: Vector3 = entry.impact
+		var control := mouth.origin.lerp(impact,.42)+Vector3.UP*.13
 		var previous := PackedVector3Array()
 		var previous_normals := PackedVector3Array()
 		mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 		for ring in range(13):
-			var t := float(ring)*.040
-			var center := mouth.origin+velocity*t+Vector3.DOWN*(3*t*t)
-			if center.y<float(entry.floor):
-				center.y = entry.floor
-			var direction := (velocity+Vector3.DOWN*6*t).normalized()
+			var t := float(ring)/12.0
+			var center := mouth.origin.lerp(control,t).lerp(control.lerp(impact,t),t)
+			var direction := (control-mouth.origin).lerp(impact-control,t).normalized()
 			var right := direction.cross(Vector3.UP).normalized()
 			if right.length_squared()<.01:
 				right = Vector3.RIGHT
@@ -366,6 +401,4 @@ func update_streams(delta: float) -> void:
 						mesh.surface_add_vertex(previous[vertex] if vertex<6 else points[vertex-6])
 			previous = points
 			previous_normals = normals
-			if center.y<=float(entry.floor):
-				break
 		mesh.surface_end()

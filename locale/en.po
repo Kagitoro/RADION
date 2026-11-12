@@ -1302,3 +1302,18 @@ msgstr "Cancel"
 
 msgid "Прогресс сюжета, деньги и покупки будут сброшены, игра начнётся с начала. Настройки и музыка сохранятся."
 msgstr "Story progress, money and purchases will be reset and the game will start from the beginning. Settings and music are kept."
+
+msgid "Убрать дом · %d/%d · награда $%d"
+msgstr "Clean up the house · %d/%d · reward $%d"
+
+msgid "E · Убрать"
+msgstr "E · Clean up"
+
+msgid "След отмыт"
+msgstr "Stain cleaned"
+
+msgid "Дом убран · заработано $%d"
+msgstr "House cleaned · earned $%d"
+
+msgid "Осталось убрать: %d"
+msgstr "Left to clean: %d"

@@ -39,7 +39,7 @@ var retch_clock := 0.0
 var blackout: ColorRect
 var head_bob := 0.0
 var energy_boost := 0.0
-var camera_rest := Vector3(0,1.64,0)
+var camera_rest := Vector3(0,1.64,-.12)
 var mouse_sensitivity := .0025
 
 func drink_beer() -> void:
@@ -72,7 +72,7 @@ func fall_over() -> void:
 	motion.tween_property(blackout,"color:a",1.0,1.0)
 	motion.tween_interval(1.35)
 	motion.tween_callback(func():
-		camera.position = Vector3(0,1.64,0)
+		camera.position = camera_rest
 		camera.rotation = Vector3(pitch,0,0)
 		avatar.rotation = Vector3.ZERO
 		intoxication = .28
@@ -100,10 +100,10 @@ func _ready() -> void:
 	collider.position.y = 0.835
 	add_child(collider)
 	camera = Camera3D.new()
-	camera.position.y = 1.64
+	camera.position = camera_rest
 	camera.current = true
 	camera.fov = 70.0
-	camera.near = 0.035
+	camera.near = 0.018
 	camera.set_cull_mask_value(3,false)
 	add_child(camera)
 	make_body()
@@ -119,9 +119,9 @@ func look_motion(delta: Vector2) -> void:
 func move_to(eye: Vector3, target: Vector3) -> void:
 	if collapsed:
 		return
-	global_position = eye - Vector3(0, camera.position.y, 0)
 	var direction := (target - eye).normalized()
 	rotation.y = atan2(-direction.x, -direction.z)
+	global_position = eye - global_basis * camera.position
 	pitch = asin(clampf(direction.y, -1.0, 1.0))
 	camera.rotation.x = pitch
 	velocity = Vector3.ZERO
@@ -231,6 +231,11 @@ func set_action_pose(amount: float) -> void:
 	action_amount = amount
 	update_body(0)
 
+func held_item_offset(beer: bool) -> Vector3:
+	if is_instance_valid(dj_rig):
+		return Vector3(.049,.012,-.035) if beer else Vector3(.058,.006,-.036)
+	return Vector3(-.018,0,-.015) if beer else Vector3(-.012,0,-.017)
+
 func update_body(delta: float) -> void:
 	var moving := is_on_floor() and Vector2(velocity.x,velocity.z).length()>.14
 	if is_instance_valid(dj_rig):
@@ -277,12 +282,21 @@ func update_dj_body(delta: float, moving: bool) -> void:
 	if kneel_amount>.01:
 		return
 	var arm := dj_rig.arms[0]
-	var idle := skeleton.get_bone_global_pose(arm.z).origin
+	for index in range(dj_rig.arms.size()):
+		var side := 1.0 if index == 0 else -1.0
+		var swing := sin(head_bob + index * PI) * .07 if moving else 0.0
+		dj_rig.point_arm(dj_rig.arms[index], Vector3(side * .27, .94, .19 + swing), Vector3(side,-.6,-.45))
+	var idle := Vector3(.25,1.09,.33) if action_amount > .001 else skeleton.get_bone_global_pose(arm.z).origin
 	var tilt := Vector3(1.17*action_amount if action_beer else 0.0,0,-.10*action_amount)
-	var contact := Vector3(-.018,.158,-.015) if action_beer else Vector3(-.012,.018,-.006)
+	var contact := held_item_offset(action_beer)
+	contact += Vector3(0,.158,0) if action_beer else Vector3(0,.018,.011)
 	var mouth_target := skeleton.to_local(dj_mouth.global_position-avatar.global_basis*Basis.from_euler(tilt)*contact)
 	if action_amount>.001:
 		dj_rig.point_arm(arm,idle.lerp(mouth_target,action_amount),Vector3(.72,-1,-.28))
+		var grip_basis := skeleton.global_basis.inverse()*avatar.global_basis*Basis.from_euler(tilt)
+		var palm_y := (grip_basis*Vector3(.94,.05,-.34)).normalized()
+		var palm_x := palm_y.cross(grip_basis*Vector3.BACK).normalized()
+		dj_rig.set_joint_rotation(arm.z,Basis(palm_x,palm_y,palm_x.cross(palm_y)))
 	action_grip.global_position = skeleton.to_global(skeleton.get_bone_global_pose(arm.z).origin)
 	action_grip.rotation = tilt
 

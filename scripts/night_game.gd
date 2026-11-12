@@ -17,6 +17,14 @@ var guest: Node3D
 var interact_hint: Label
 var flashlight: SpotLight3D
 var light_mode := 0
+var litter: Dictionary[int, Node3D] = {}
+const CLEANUP_REWARD := 12
+const LITTER := [
+	["hall", Vector3(-4.85,0,-.64), "soda-can", Vector3(.13,.066,.065), .46],
+	["living", Vector3(-5.1,0,1.24), "pizza-box", Vector3(.29,.038,.29), .25],
+	["kitchen", Vector3(.67,0,-.50), "cup", Vector3(.09,.12,.09), -.56],
+	["studio", Vector3(5.12,0,-.12), "soda-can", Vector3(.13,.066,.065), -.32],
+]
 
 ## Conversation ends when the guest is farther than this (metres).
 const TALK_RANGE := 3.5
@@ -78,7 +86,82 @@ func setup() -> void:
 	add_child(menu)
 	menu.setup(home,self)
 	home.shop.setup()
+	build_litter()
+	intro.update_objective()
 	home.subway.setup()
+
+func cleanup_remaining() -> int:
+	return litter.size()
+
+func build_litter() -> void:
+	for index in range(LITTER.size()):
+		if home.shop.cleaned_litter & (1 << index):
+			continue
+		var entry: Array = LITTER[index]
+		var spot := home.rooms.room_point(entry[0],entry[1])
+		var original := home.rooms.room_floor(entry[0])
+		var floor: Dictionary = home.records.get(original.get("id",""),{})
+		if not floor.is_empty():
+			spot.y = home.rooms.floor_surface(floor)
+		var piece := Node3D.new()
+		add_child(piece)
+		piece.global_position = spot + Vector3.UP * .018
+		home.night_world.place_prop(piece,"food/" + entry[2],Vector3.ZERO,entry[3],entry[4])
+		var marker := Label3D.new()
+		marker.text = "•"
+		marker.font_size = 36
+		marker.pixel_size = .003
+		marker.modulate = Color("#ffd18e")
+		marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		marker.visibility_range_end = 4.0
+		marker.position.y = .20
+		piece.add_child(marker)
+		litter[index] = piece
+		piece.visible = intro.opening_completed
+
+func show_litter() -> void:
+	for piece in litter.values():
+		piece.show()
+
+func aimed_cleanup() -> Node3D:
+	var camera := home.player.camera
+	var candidates: Array = home.party.events.puddles.duplicate()
+	if intro.opening_completed:
+		candidates.append_array(litter.values())
+	var target: Node3D
+	var best := .93
+	for item in candidates:
+		var point: Vector3 = item.global_position + Vector3.UP * .07
+		var offset := point - camera.global_position
+		if offset.length_squared() > 2.6 * 2.6:
+			continue
+		var score := offset.normalized().dot(-camera.global_basis.z)
+		if score < best:
+			continue
+		var ray := PhysicsRayQueryParameters3D.create(camera.global_position,point,1,[home.player.get_rid()])
+		if not home.get_world_3d().direct_space_state.intersect_ray(ray).is_empty():
+			continue
+		target = item
+		best = score
+	return target
+
+func clean(target: Node3D) -> void:
+	var index: Variant = litter.find_key(target)
+	if index == null:
+		home.party.events.puddles.erase(target)
+		GameEvents.notify(tr("След отмыт"))
+	else:
+		litter.erase(index)
+		home.shop.cleaned_litter |= 1 << int(index)
+		if litter.is_empty():
+			home.party.cash += CLEANUP_REWARD
+			GameEvents.notify(tr("Дом убран · заработано $%d") % CLEANUP_REWARD)
+		else:
+			GameEvents.notify(tr("Осталось убрать: %d") % litter.size())
+		home.shop.save_stock()
+		intro.update_objective()
+	target.hide()
+	target.queue_free()
 
 func _process(delta: float) -> void:
 	if interact_hint==null:
@@ -94,6 +177,9 @@ func _process(delta: float) -> void:
 	if not interact_hint.visible or hint_time > 0.0:
 		return
 	hint_time = .10
+	if aimed_cleanup() != null:
+		interact_hint.text = tr("E · Убрать")
+		return
 	if home.shop.can_interact():
 		interact_hint.text = "E · Night Shop"
 		return
@@ -178,6 +264,10 @@ func interact() -> void:
 		return
 	if talk_actions.visible:
 		close_talk()
+		return
+	var cleanup := aimed_cleanup()
+	if cleanup != null:
+		clean(cleanup)
 		return
 	var station := current_dj()
 	if station.click_controller():
