@@ -1,0 +1,51 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Theme" path="res://ui/theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://ui/shop_panel.gd" id="2_script"]
+
+[node name="ShopPanel" type="PanelContainer"]
+z_index = 10
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -218.0
+offset_top = -143.0
+offset_right = 218.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_theme")
+script = ExtResource("2_script")
+
+[node name="List" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 9
+
+[node name="Title" type="Label" parent="List"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "NIGHT SHOP"
+auto_translate_mode = 2
+
+[node name="StockLabel" type="Label" parent="List"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+auto_translate_mode = 2
+
+[node name="Items" type="VBoxContainer" parent="List"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 9
+
+[node name="MessageLabel" type="Label" parent="List"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+auto_translate_mode = 2
+
+[node name="CloseButton" type="Button" parent="List"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Закрыть"

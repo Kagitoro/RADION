@@ -1,8 +1,7 @@
+class_name ArrivalIntro
 extends Node
 
-const Guest = preload("res://scripts/party_guest.gd")
-const District = preload("res://scripts/night_district.gd")
-const SAVE := "user://radion_story.cfg"
+static var SAVE := SavePaths.file("radion_story.cfg")
 const VOICE_PATH := "res://assets/story/voice/line_%02d.mp3"
 const STREET_BED = preload("res://assets/story/ambience/street.mp3")
 const ENGINE_BED = preload("res://assets/story/ambience/engine.mp3")
@@ -24,9 +23,10 @@ const LINES := [
 	[5,4.1,"Kir","RADION's across the street. Tell Samir you're opening. I'll be around."],
 ]
 
-var home
-var game
+var home: Home
+var game: NightGame
 var camera: Camera3D
+const OVERLAY := preload("res://ui/intro_overlay.tscn")
 var layer: CanvasLayer
 var subtitle: Label
 var speaker: Label
@@ -59,15 +59,15 @@ var old_player_visible := true
 var old_club_mute := false
 var origin := Vector3.ZERO
 
-func setup(editor, night_game) -> void:
-	home = editor
+func setup(game_home: Home, night_game: NightGame) -> void:
+	home = game_home
 	game = night_game
 	var config := ConfigFile.new()
 	if config.load(SAVE)==OK:
 		seen = config.get_value("story","intro_seen",false)
 		first_set_done = config.get_value("story","first_set_done",false)
 		opening_completed = config.get_value("story","opening_completed",first_set_done)
-	objective = home.hud.label("",15)
+	objective = UIKit.label("",15)
 	home.hud.root.add_child(objective)
 	objective.position = Vector2(20,150)
 	objective.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -77,57 +77,16 @@ func setup(editor, night_game) -> void:
 	voice.volume_db = -2.0
 
 func update_objective() -> void:
-	objective.text = "Первый заказ · В RADION нажми J, чтобы начать сет"
+	objective.text = tr("Первый заказ · В RADION нажми J, чтобы начать сет")
 	objective.visible = seen and not first_set_done
 
 func build_overlay() -> void:
-	layer = CanvasLayer.new()
-	layer.layer = 35
+	layer = OVERLAY.instantiate()
 	add_child(layer)
-	var root := Control.new()
-	layer.add_child(root)
-	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var top := ColorRect.new()
-	root.add_child(top)
-	top.color = Color("#090a0e")
-	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	top.offset_bottom = 69
-	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var bottom := ColorRect.new()
-	root.add_child(bottom)
-	bottom.color = Color("#090a0e")
-	bottom.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	bottom.offset_top = -139
-	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var group := VBoxContainer.new()
-	root.add_child(group)
-	group.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	group.offset_left = 50
-	group.offset_right = -50
-	group.offset_top = -130
-	group.offset_bottom = -16
-	group.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	speaker = home.hud.label("",15)
-	speaker.modulate = Color("#eca9c0")
-	speaker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	group.add_child(speaker)
-	subtitle = home.hud.label("",23)
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	group.add_child(subtitle)
-	var hint: Label = home.hud.label("E / Space · continue     Esc · skip",13)
-	hint.modulate = Color("#a3a5b3")
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	group.add_child(hint)
-	caption = home.hud.label("LATE SET     /     FIRST NIGHT",27)
-	root.add_child(caption)
-	caption.position = Vector2(24,17)
-	fade = ColorRect.new()
-	root.add_child(fade)
-	fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	fade.color = Color.BLACK
+	speaker = layer.get_node("%Speaker")
+	subtitle = layer.get_node("%Subtitle")
+	caption = layer.get_node("%Caption")
+	fade = layer.get_node("%Fade")
 	layer.hide()
 
 func start(is_replay: bool = false) -> void:
@@ -147,7 +106,7 @@ func start(is_replay: bool = false) -> void:
 	old_player_visible = home.player.visible
 	home.player.hide()
 	home.set_modal(true)
-	var venue_bus: int = home.night_world.nightclub.music_bus
+	var venue_bus: int = home.club.music_bus
 	old_club_mute = AudioServer.is_bus_mute(venue_bus)
 	AudioServer.set_bus_mute(venue_bus,true)
 	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
@@ -158,9 +117,9 @@ func start(is_replay: bool = false) -> void:
 	camera.near = .06
 	home.add_child(camera)
 	camera.make_current()
-	arrival_car = District.place_car(home.night_world.street,1,Vector3(-56.8,0,-17.5))
+	arrival_car = NightDistrict.place_car(home.night_world.street,1,Vector3(-56.8,0,-17.5))
 	arrival_wheels = arrival_car.find_children("Axle-*","Node3D",true,false)
-	friend = Guest.new(12,null,home.party.psx_assets)
+	friend = PartyGuest.new(12,null,home.party.psx_assets)
 	home.night_world.street.add_child(friend)
 	friend.name_tag.hide()
 	home.night_world.point_light(friend,Vector3(0,1.8,-.82),Color("#f5c7a8"),.68,2.7)
@@ -201,16 +160,16 @@ func place_audio(parent: Node3D, at: Vector3, stream: AudioStream, db: float, un
 func _input(event: InputEvent) -> void:
 	if not active:
 		return
-	if event is InputEventKey and event.pressed and not event.echo:
-		match event.physical_keycode:
-			KEY_ESCAPE: finish()
-			KEY_E,KEY_SPACE,KEY_ENTER: advance_line()
+	if event.is_action_pressed("pause"):
+		finish()
+	elif event.is_action_pressed("dialogue_advance"):
+		advance_line()
 	get_viewport().set_input_as_handled()
 
 func set_line() -> void:
 	var row: Array = LINES[line]
-	speaker.text = str(row[2]).to_upper()
-	subtitle.text = row[3]
+	speaker.text = tr(str(row[2])).to_upper()
+	subtitle.text = tr(str(row[3]))
 	caption.visible = line<2
 	line_duration = float(row[1])
 	voice.stop()
@@ -226,6 +185,9 @@ func set_line() -> void:
 	if clip == null:
 		return
 	var talking: Node = kir_voice if row[2]=="Kir" else voice
+	# Stop first: swapping the stream of a player whose playback has not started yet
+	# leaves an orphaned playback in the AudioServer.
+	talking.stop()
 	talking.stream = clip
 	line_duration = clip.get_length()+.48
 	if line==1:
@@ -329,11 +291,12 @@ func finish() -> void:
 	voice.stop()
 	voice.stream = null
 	kir_voice.stop()
+	kir_voice.stream = null
 	engine.stop()
 	door_sound.stop()
 	street_sound.stop()
 	club_sound.stop()
-	AudioServer.set_bus_mute(home.night_world.nightclub.music_bus,old_club_mute)
+	AudioServer.set_bus_mute(home.club.music_bus,old_club_mute)
 	layer.hide()
 	home.player.camera.make_current()
 	for node in [camera,arrival_car,friend,street_sound,club_sound]:
@@ -364,7 +327,7 @@ func first_booking_complete() -> void:
 	first_set_done = true
 	save_story()
 	update_objective()
-	home.hud.notice("Первый заказ закрыт · Кир обещал узнать про следующий слот")
+	GameEvents.notify(tr("Первый заказ закрыт · Кир обещал узнать про следующий слот"))
 
 func save_story() -> void:
 	var config := ConfigFile.new()

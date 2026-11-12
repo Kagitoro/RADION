@@ -1,6 +1,9 @@
+class_name SubwayStation
 extends Node3D
+## Underground 8 Avenue station behind the Night Shop: stairs, platform, a passing
+## train and three riders the player can help with a little money.
 
-const Guest = preload("res://scripts/party_guest.gd")
+## Street-level cut-out for the stairs (x, z on the district ground).
 const OPENING := Rect2(-31.5,10.47,8.45,2.66)
 const PLATFORM_Y := -4.50
 const STAIR_Z := 11.80
@@ -11,21 +14,38 @@ const REQUESTS := [
 	"Если есть пара баксов, я был бы благодарен.",
 ]
 const NAMES := ["Лео","Мара","Фрэнк"]
+## Riders' replies (translation keys).
+const THANKS := "Спасибо. Правда, выручил."
+const THANKS_AGAIN := "Спасибо ещё раз. Хорошей ночи."
+const NO_MONEY_REPLY := "Ничего, бывает. Доброй ночи."
+## How long a rider's speech bubble stays up (seconds).
+const SPEECH_TIME := 5.0
+## A rider counts as "looked at" within this distance and view-direction dot product.
+const AIM_REACH := 2.55
+const AIM_DOT := .79
+## Train cycle (seconds): arrives during [0, ARRIVE], waits, departs during [DEPART_START, DEPART_END].
+const TRAIN_CYCLE := 34.0
+const TRAIN_ARRIVE := 8.0
+const TRAIN_DEPART_START := 17.0
+const TRAIN_DEPART_END := 28.0
+const TRAIN_START_X := -74.0
+const TRAIN_STOP_X := -46.9
+const TRAIN_END_X := -18.0
 
-var world
-var home
-var people: Array[Node3D] = []
-var helped: Array[Node3D] = []
-var asked: Array[Node3D] = []
+var world: NightWorld
+var home: Home
+var people: Array[PartyGuest] = []
+var helped: Array[PartyGuest] = []
+var asked: Array[PartyGuest] = []
 var train := Node3D.new()
 var train_sound: AudioStreamPlayer3D
 var clock := 0.0
 var pose_time := 0.0
 var welcomed := false
-var speaking: Node3D
+var speaking: PartyGuest
 var speech_time := 0.0
 
-func _init(night_world) -> void:
+func _init(night_world: NightWorld) -> void:
 	world = night_world
 	home = world.home
 
@@ -213,11 +233,11 @@ func build_train() -> void:
 func setup() -> void:
 	var positions := [Vector3(-35.5,PLATFORM_Y,9.00),Vector3(-45.6,PLATFORM_Y,8.76),Vector3(-55.55,PLATFORM_Y,8.93)]
 	for index in range(positions.size()):
-		var person := Guest.new([10,15,14][index],null,home.party.psx_assets)
+		var person := PartyGuest.new([10,15,14][index],null,home.party.psx_assets)
 		add_child(person)
 		person.position = positions[index]
 		person.rotation.y = PI
-		person.name_tag.text = NAMES[index]
+		person.name_tag.text = NAMES[index]  # key; the 3D label translates it
 		people.append(person)
 	set_process(true)
 
@@ -226,18 +246,19 @@ func underground(point: Vector3) -> bool:
 	var planar := Vector2(at.x,at.z)
 	return at.y>=-5.2 and at.y<-.25 and (OPENING.grow(.28).has_point(planar) or STATION.has_point(planar))
 
-func aimed_person() -> Node3D:
+## Rider the player is looking at on the platform, or null.
+func aimed_person() -> PartyGuest:
 	var player: Node3D = home.player
 	if not underground(player.global_position):
 		return null
 	var camera: Camera3D = home.player.camera
-	var best := .79
-	var result: Node3D
+	var best := AIM_DOT
+	var result: PartyGuest
 	for person in people:
 		var head := person.global_position+Vector3.UP*1.43*float(person.body_height)
 		var direction := head-camera.global_position
 		var score := direction.normalized().dot(-camera.global_basis.z)
-		if direction.length()>2.55 or score<=best:
+		if direction.length()>AIM_REACH or score<=best:
 			continue
 		var query := PhysicsRayQueryParameters3D.create(camera.global_position,head,1,[home.player.get_rid()])
 		if not get_world_3d().direct_space_state.intersect_ray(query).is_empty():
@@ -246,29 +267,38 @@ func aimed_person() -> Node3D:
 		best = score
 	return result
 
-func give(person: Node3D) -> void:
+## E on a rider: gives Balance.SUBWAY_DONATION dollars once, then just thanks again.
+func give(person: PartyGuest) -> void:
+	var price := Balance.SUBWAY_DONATION
 	if helped.has(person):
-		say(person,"Спасибо ещё раз. Хорошей ночи.")
-	elif home.party.cash<2:
-		home.hud.notice("Для помощи нужно $2")
-		say(person,"Ничего, бывает. Доброй ночи.")
+		say(person,THANKS_AGAIN)
+	elif home.party.cash<price:
+		GameEvents.notify(tr("Для помощи нужно $%d") % price)
+		say(person,NO_MONEY_REPLY)
 	else:
-		home.party.cash -= 2
+		home.party.cash -= price
 		helped.append(person)
 		world.shop.save_stock()
-		home.hud.notice("Ты дал $2 · осталось $%d" % home.party.cash)
-		say(person,"Спасибо. Правда, выручил.")
+		GameEvents.notify(tr("Ты дал $%d · осталось $%d") % [price,home.party.cash])
+		say(person,THANKS)
 
-func say(person: Node3D, text: String) -> void:
+## Hint shown by NightGame when the player looks at a rider.
+func hint_for(person: PartyGuest) -> String:
+	if helped.has(person):
+		return tr("E · Поговорить")
+	return tr("E · Дать $%d · %s") % [Balance.SUBWAY_DONATION, tr(person.name_tag.text)]
+
+## text is a translation key; the speech label translates it (also after a language switch).
+func say(person: PartyGuest, text: String) -> void:
 	if is_instance_valid(speaking):
 		speaking.speech.hide()
 	speaking = person
 	person.speech.text = text
 	person.speech.show()
-	speech_time = 5.0
+	speech_time = SPEECH_TIME
 
 func _process(delta: float) -> void:
-	var player: Node3D = home.player
+	var player := home.player
 	if not is_instance_valid(player):
 		return
 	var downstairs := underground(player.global_position)
@@ -290,15 +320,15 @@ func _process(delta: float) -> void:
 		if train_sound.playing:
 			train_sound.stop()
 		return
-	clock = fposmod(clock+delta,34.0)
-	var approaching := clock<8.0
-	var departing := clock>17.0 and clock<28.0
+	clock = fposmod(clock+delta,TRAIN_CYCLE)
+	var approaching := clock<TRAIN_ARRIVE
+	var departing := clock>TRAIN_DEPART_START and clock<TRAIN_DEPART_END
 	if approaching:
-		train.position.x = lerpf(-74.0,-46.9,smoothstep(0.0,8.0,clock))
+		train.position.x = lerpf(TRAIN_START_X,TRAIN_STOP_X,smoothstep(0.0,TRAIN_ARRIVE,clock))
 	elif departing:
-		train.position.x = lerpf(-46.9,-18.0,smoothstep(17.0,28.0,clock))
+		train.position.x = lerpf(TRAIN_STOP_X,TRAIN_END_X,smoothstep(TRAIN_DEPART_START,TRAIN_DEPART_END,clock))
 	else:
-		train.position.x = -46.9 if clock<=17.0 else -18.0
+		train.position.x = TRAIN_STOP_X if clock<=TRAIN_DEPART_START else TRAIN_END_X
 	if approaching or departing:
 		if not train_sound.playing:
 			train_sound.play()

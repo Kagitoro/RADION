@@ -1,0 +1,143 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Theme" path="res://ui/theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://ui/pause_menu.gd" id="2_script"]
+
+[node name="PauseMenu" type="PanelContainer"]
+z_index = 10
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -185.0
+offset_top = -100.0
+offset_right = 185.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_theme")
+script = ExtResource("2_script")
+
+[node name="Content" type="VBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "НОЧЬ / HOUSE PARTY"
+
+[node name="Goal" type="Label" parent="Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Собери 12 гостей внутри и удержи атмосферу."
+
+[node name="Controls" type="Label" parent="Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "J вечеринка · E ноутбук · C контроллер · 1–3 треки · M сведение · E разговор
+B пиво · N сигарета · K потушить · R энергетик · V тошнит"
+
+[node name="MusicRow" type="HBoxContainer" parent="Content"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Content/MusicRow"]
+custom_minimum_size = Vector2(175, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Музыка"
+
+[node name="MusicSlider" type="HSlider" parent="Content/MusicRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.01
+value = 0.85
+
+[node name="StepsRow" type="HBoxContainer" parent="Content"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Content/StepsRow"]
+custom_minimum_size = Vector2(175, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Шаги"
+
+[node name="StepsSlider" type="HSlider" parent="Content/StepsRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.01
+value = 0.63
+
+[node name="MouseRow" type="HBoxContainer" parent="Content"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Content/MouseRow"]
+custom_minimum_size = Vector2(175, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Чувствительность мыши"
+
+[node name="MouseSlider" type="HSlider" parent="Content/MouseRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.01
+value = 0.45
+
+[node name="LanguageRow" type="HBoxContainer" parent="Content"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Content/LanguageRow"]
+custom_minimum_size = Vector2(175, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Язык / Language"
+auto_translate_mode = 2
+
+[node name="LanguageOption" type="OptionButton" parent="Content/LanguageRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+auto_translate_mode = 2
+
+[node name="ResumeButton" type="Button" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Продолжить"
+
+[node name="IntroButton" type="Button" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Смотреть вступление"
+
+[node name="NewPartyButton" type="Button" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Новая вечеринка"
+
+[node name="MainMenuButton" type="Button" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Главное меню"
+
+[node name="RestartButton" type="Button" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Начать заново"
+
+[node name="RestartConfirm" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Начать заново?"
+size = Vector2i(460, 150)
+ok_button_text = "Начать заново"
+cancel_button_text = "Отмена"
+dialog_text = "Прогресс сюжета, деньги и покупки будут сброшены, игра начнётся с начала. Настройки и музыка сохранятся."
+dialog_autowrap = true
