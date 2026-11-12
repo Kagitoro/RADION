@@ -7,13 +7,14 @@ const STREET_BED = preload("res://assets/story/ambience/street.mp3")
 const ENGINE_BED = preload("res://assets/story/ambience/engine.mp3")
 const DOOR_THUD = preload("res://assets/story/ambience/door.mp3")
 const CLUB_BED = preload("res://assets/story/ambience/club_outside.mp3")
+const Cabin = preload("res://scripts/arrival_cabin.gd")
 const LINES := [
-	[0,3.8,"","",""],
-	[0,4.3,"You","You sure this is the place? Even the cabbies blow through this block.","line_01"],
-	[1,4.7,"Old voicemail","You said ten minutes. We waited forty. I paid the guy from the bar to cover you, and—","arrival_voicemail"],
-	[1,4.8,"Kir","You want food? I know a place that sells beer till four. The food stopped being a sure thing in March.","arrival_food"],
-	[1,2.5,"You","It's November, man.","arrival_november"],
-	[1,2.8,"Kir","Yeah. That's why I said beer.","arrival_beer"],
+	[0,2.8,"","",""],
+	[0,3.4,"You","This the right block? We've passed the same liquor store twice.","cabin_block"],
+	[1,5.0,"Old voicemail","You said ten minutes. We waited forty. I got the guy from the bar to cover you, but—","cabin_voicemail"],
+	[1,3.5,"Kir","You hungry? I know a spot. Well… they still sell beer.","cabin_food"],
+	[1,2.3,"You","I said hungry.","cabin_hungry"],
+	[1,2.8,"Kir","Yeah. I heard you.","cabin_heard"],
 	[2,4.2,"Kir","Yo, brother. Get out. Easy with the door, man. It's older than both of us.","line_02"],
 	[2,3.5,"You","You said somebody was waiting on me. Who?","line_03"],
 	[3,6.0,"Kir","See Samir by the door? I left him your name. If their opener doesn't show, you get twenty minutes.","arrival_slot"],
@@ -39,7 +40,7 @@ var speaker: Label
 var caption: Label
 var objective: Label
 var fade: ColorRect
-var phone_card: Label
+var cabin: Cabin
 var follow_up: PanelContainer
 var follow_up_text: Label
 var follow_up_left := 0.0
@@ -54,11 +55,15 @@ var street_sound: AudioStreamPlayer
 var engine: AudioStreamPlayer3D
 var club_sound: AudioStreamPlayer3D
 var door_sound: AudioStreamPlayer3D
-var kir_voice: AudioStreamPlayer3D
 var voice := AudioStreamPlayer.new()
+var dialogue: Dictionary[String,AudioStream] = {}
+var voice_pending := false
+var voice_lead := 0.0
+var driving_clock := 0.0
+var cabin_glance := 0.0
+const CABIN_LANE_X := -56.60
 var line_duration := 0.0
 var arrival_car: Node3D
-var arrival_wheels: Array[Node] = []
 var friend: Node3D
 var key_prop: Node3D
 var active := false
@@ -99,7 +104,13 @@ func setup(game_home: Home, night_game: NightGame) -> void:
 	build_overlay()
 	build_follow_up()
 	add_child(voice)
-	voice.volume_db = -2.0
+	for row in LINES:
+		var clip_name: String = row[4]
+		if clip_name.is_empty():
+			continue
+		var clip := load(VOICE_PATH % clip_name) as AudioStream
+		if clip != null:
+			dialogue[clip_name] = clip
 
 func update_objective() -> void:
 	if opening_completed and game.cleanup_remaining() > 0:
@@ -121,10 +132,6 @@ func build_overlay() -> void:
 	subtitle = layer.get_node("%Subtitle")
 	caption = layer.get_node("%Caption")
 	fade = layer.get_node("%Fade")
-	phone_card = UIKit.label("▸  SAVED VOICEMAIL   /   LAST MONTH",19)
-	layer.get_node("Root").add_child(phone_card)
-	phone_card.position = Vector2(26,88)
-	phone_card.hide()
 	layer.hide()
 
 func build_entrance() -> void:
@@ -211,6 +218,8 @@ func start(is_replay: bool = false) -> void:
 	line = 0
 	elapsed = 0.0
 	running_time = 0.0
+	driving_clock = 0.0
+	cabin_glance = 0.0
 	opening_fade = .9
 	closing = false
 	close_time = 0.0
@@ -235,7 +244,10 @@ func start(is_replay: bool = false) -> void:
 	home.add_child(camera)
 	camera.make_current()
 	arrival_car = NightDistrict.place_car(home.night_world.street,1,Vector3(-56.8,0,-17.5))
-	arrival_wheels = arrival_car.find_children("Axle-*","Node3D",true,false)
+	cabin = Cabin.new()
+	home.night_world.street.add_child(cabin)
+	cabin.position = Vector3(CABIN_LANE_X,0,-23.2)
+	cabin.build(home.night_world)
 	friend = PartyGuest.new(12,null,home.party.psx_assets)
 	home.night_world.street.add_child(friend)
 	friend.name_tag.hide()
@@ -263,9 +275,6 @@ func start(is_replay: bool = false) -> void:
 	var club_door := home.club.to_global(Vector3(Nightclub.ENTRY_X,1.26,Nightclub.ENTRY_Z))
 	club_sound = place_audio(home.night_world.street,club_door-origin,loop_stream(CLUB_BED),-24.0,3.5,27.0)
 	club_sound.play()
-	kir_voice = place_audio(friend,Vector3(0,1.57,-.14),null,-2.0,3.9,12.0)
-	kir_voice.attenuation_filter_cutoff_hz = 5100.0
-	kir_voice.attenuation_filter_db = -5.0
 	layer.show()
 	set_line()
 	update_shot(0.0)
@@ -289,6 +298,9 @@ func place_audio(parent: Node3D, at: Vector3, stream: AudioStream, db: float, un
 func _input(event: InputEvent) -> void:
 	if not active:
 		return
+	if event.is_echo():
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("pause"):
 		finish()
 	elif event.is_action_pressed("dialogue_advance"):
@@ -300,28 +312,17 @@ func set_line() -> void:
 	speaker.text = tr(str(row[2])).to_upper()
 	subtitle.text = tr(str(row[3]))
 	caption.visible = line<2
-	phone_card.visible = row[2]=="Old voicemail"
 	key_prop.visible = line==13
 	line_duration = float(row[1])
 	voice.stop()
-	voice.stream = null
-	kir_voice.stop()
-	kir_voice.stream = null
-	if subtitle.text.is_empty():
-		return
-	var path := VOICE_PATH % row[4]
-	if not ResourceLoader.exists(path):
-		return
-	var clip := load(path) as AudioStream
+	var clip: AudioStream = dialogue.get(row[4])
+	voice.stream = clip
+	voice_pending = clip != null
 	if clip == null:
 		return
-	var talking: Node = kir_voice if row[2]=="Kir" else voice
-	# Stop first: swapping the stream of a player whose playback has not started yet
-	# leaves an orphaned playback in the AudioServer.
-	talking.stop()
-	talking.stream = clip
-	line_duration = maxf(clip.get_length()+.40,float(row[1]))
-	talking.play()
+	voice_lead = .52 if line==2 else .09
+	voice.volume_db = -1.0 if row[2]=="Old voicemail" else 0.0
+	line_duration = clip.get_length()+voice_lead+(.33 if row[2]=="Old voicemail" else .20)
 
 func advance_line() -> void:
 	if closing:
@@ -333,7 +334,7 @@ func advance_line() -> void:
 	if LINES[line][0]==1 and LINES[line+1][0]==2:
 		engine.stop()
 		door_sound.play()
-	if LINES[line][0]!=LINES[line+1][0]:
+	if LINES[line][0]!=LINES[line+1][0] and LINES[line+1][0]!=1:
 		opening_fade = .15
 	line += 1
 	elapsed = 0.0
@@ -363,13 +364,17 @@ func _process(delta: float) -> void:
 		return
 	elapsed += delta
 	running_time += delta
-	if elapsed>=line_duration:
+	if voice_pending and elapsed>=voice_lead:
+		voice_pending = false
+		voice.play()
+	if elapsed>=line_duration and (not voice.playing or elapsed>=line_duration+1.0):
 		advance_line()
 		if closing:
 			return
-	var speaking := voice.playing or kir_voice.playing
-	street_sound.volume_db = move_toward(street_sound.volume_db,-28.0 if speaking else -23.0,delta*12.0)
-	club_sound.volume_db = move_toward(club_sound.volume_db,-25.0 if speaking else -20.0,delta*12.0)
+	var speaking := voice_pending or voice.playing
+	var inside: bool = LINES[line][0]<=1
+	street_sound.volume_db = move_toward(street_sound.volume_db,-37.0 if inside else (-32.0 if speaking else -23.0),delta*25.0)
+	club_sound.volume_db = move_toward(club_sound.volume_db,-40.0 if inside else (-29.0 if speaking else -20.0),delta*25.0)
 	opening_fade = maxf(0,opening_fade-delta)
 	fade.color.a = clampf(opening_fade/.9,0,1)
 	update_shot(delta)
@@ -380,16 +385,34 @@ func update_shot(delta: float) -> void:
 	var eye := Vector3.ZERO
 	var focus := Vector3.ZERO
 	if shot<=1:
-		engine.pitch_scale = .82+.31*sin(clampf(running_time/7.8,0.0,1.0)*PI)
-		engine.volume_db = -18.0 if voice.playing else -12.0
-		arrival_car.position.z = lerpf(-17.5,-7.0,smoothstep(0.0,16.8,running_time))
-		for wheel in arrival_wheels:
-			if arrival_car.position.z< -7.03:
-				wheel.rotate_x(delta*3.0)
-		eye = Vector3(-52.0+motion*.38,2.42,-10.5+motion*1.3) if shot==0 else arrival_car.position+Vector3(4.0,3.55,-2.8)
-		focus = arrival_car.position+Vector3(-.8,.93,.70)
+		driving_clock += delta
+		var speed := lerpf(2.55,.65,smoothstep(0.0,line_duration,elapsed)) if line==5 else 2.55
+		cabin.position.z += speed*delta
+		if cabin.position.z>17.9:
+			cabin.position.z = 17.9
+		cabin.position.x = CABIN_LANE_X+sin(driving_clock*.64)*.13
+		cabin.position.y = sin(driving_clock*8.3)*.006
+		cabin.rotation.y = cos(driving_clock*.64)*.025
+		arrival_car.position = cabin.position
+		arrival_car.hide()
+		cabin.show()
+		engine.pitch_scale = .87+.08*sin(driving_clock*.78)
+		engine.volume_db = -27.0 if voice_pending or voice.playing else -20.0
+		var clip_length := voice.stream.get_length() if voice.stream != null else line_duration
+		var clip_time := voice.get_playback_position() if voice.playing else (clip_length if line==2 and not voice_pending else 0.0)
+		cabin.update_pose(delta,driving_clock,line,clip_length,clip_time,LINES[line][2]=="Kir" and voice.playing)
+		var look := smoothstep(0.0,1.0,cabin.phone_amount)
+		var base_eye := Cabin.EYE+Vector3(sin(driving_clock*2.2)*.006,sin(driving_clock*3.3)*.009,0)
+		eye = cabin.to_global(base_eye)-origin
+		cabin_glance = move_toward(cabin_glance,1.0 if line in [3,4,5] else 0.0,delta*1.48)
+		var gaze := Vector3(-.31,1.34,2.9).lerp(Vector3(.46,1.36,-.19),smoothstep(0,1,cabin_glance)*.98)
+		focus = cabin.to_global(gaze.lerp(cabin.phone.position,look*.88))-origin
+		camera.fov = lerpf(68.0,58.0,look)
 		friend.hide()
 	else:
+		cabin.hide()
+		arrival_car.show()
+		camera.fov = 55.0
 		arrival_car.position = Vector3(-11.55,0,.55)
 		friend.show()
 		if shot==2:
@@ -442,8 +465,7 @@ func finish() -> void:
 	active = false
 	voice.stop()
 	voice.stream = null
-	kir_voice.stop()
-	kir_voice.stream = null
+	voice_pending = false
 	engine.stop()
 	door_sound.stop()
 	street_sound.stop()
@@ -454,19 +476,18 @@ func finish() -> void:
 	guard.name_tag.visible = guard_tag_visible
 	layer.hide()
 	home.player.camera.make_current()
-	for node in [camera,arrival_car,friend,street_sound,club_sound]:
+	for node in [camera,arrival_car,cabin,friend,street_sound,club_sound]:
 		if is_instance_valid(node):
 			node.queue_free()
 	camera = null
 	arrival_car = null
-	arrival_wheels.clear()
+	cabin = null
 	friend = null
 	key_prop = null
 	street_sound = null
 	club_sound = null
 	engine = null
 	door_sound = null
-	kir_voice = null
 	if not replay:
 		seen = true
 		opening_completed = true

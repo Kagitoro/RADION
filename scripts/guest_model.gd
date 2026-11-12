@@ -399,7 +399,12 @@ func play_action(animation: StringName, duration: float) -> void:
 	action_time = duration
 	clip = &""
 
-func make_first_person() -> void:
+func make_first_person(visible_bones := PackedStringArray()) -> void:
+	var roots: Array[int] = [head_bone]
+	if not visible_bones.is_empty():
+		roots.clear()
+		for name in visible_bones:
+			roots.append(skeleton.find_bone(name))
 	for node in find_children("*","MeshInstance3D",true,false):
 		var part := node as MeshInstance3D
 		part.layers = 4
@@ -417,25 +422,25 @@ func make_first_person() -> void:
 			var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
 			@warning_ignore("integer_division")
 			var stride := bones.size() / vertices.size()
-			var head_vertices := PackedByteArray()
-			head_vertices.resize(vertices.size())
+			var visible_vertices := PackedByteArray()
+			visible_vertices.resize(vertices.size())
 			for vertex in range(vertices.size()):
-				var head_weight := 0.0
+				var weight := 0.0
 				for influence in range(stride):
 					var index := vertex * stride + influence
 					var bone := part.skin.get_bind_bone(bones[index])
 					if bone < 0:
 						bone = skeleton.find_bone(part.skin.get_bind_name(bones[index]))
-					while bone >= 0 and bone != head_bone:
+					while bone >= 0 and not roots.has(bone):
 						bone = skeleton.get_bone_parent(bone)
-					if bone == head_bone:
-						head_weight += weights[index]
-				head_vertices[vertex] = int(head_weight > .4)
+					if bone >= 0:
+						weight += weights[index]
+				visible_vertices[vertex] = int(weight <= .4 if visible_bones.is_empty() else weight > .22)
 			var indices := PackedInt32Array()
 			for triangle in range(0,source.size(),3):
 				var keep := true
 				for corner in range(3):
-					keep = keep and head_vertices[source[triangle+corner]] == 0
+					keep = keep and visible_vertices[source[triangle+corner]] != 0
 				if keep:
 					indices.append_array(source.slice(triangle,triangle+3))
 			if indices.is_empty():
