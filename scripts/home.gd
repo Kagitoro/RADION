@@ -29,6 +29,7 @@ var aim_timer := 0.0
 var next_id := 1
 var headless := false
 var ground_root := Node3D.new()
+var landscape_surface: ShaderMaterial
 var scene_lighting := Node3D.new()
 var ghost_materials: Array = []
 var openings := Openings.new(self)
@@ -163,9 +164,9 @@ func setup_lighting() -> void:
 	var site := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(180,180)
-	var surface := StandardMaterial3D.new()
-	surface.albedo_color = Color("#647650")
-	surface.roughness = 1.0
+	landscape_surface = ShaderMaterial.new()
+	landscape_surface.shader = preload("res://assets/city/landscape_ground.gdshader")
+	landscape_surface.set_shader_parameter("grass_color",Color("#647650"))
 	var grass_texture := NoiseTexture2D.new()
 	grass_texture.seamless = true
 	var grass_noise := FastNoiseLite.new()
@@ -174,10 +175,9 @@ func setup_lighting() -> void:
 	var grass_ramp := Gradient.new()
 	grass_ramp.colors = PackedColorArray([Color("#a7b7a1"),Color("#f5f6e5")])
 	grass_texture.color_ramp = grass_ramp
-	surface.albedo_texture = grass_texture
-	surface.uv1_scale = Vector3(7,7,1)
+	landscape_surface.set_shader_parameter("grass",grass_texture)
 	site.mesh = plane
-	site.material_override = surface
+	site.material_override = landscape_surface
 	site.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	site.position.y = -.055
 	add_child(site)

@@ -47,6 +47,9 @@ func refresh() -> void:
 	var old_door: Dictionary = home.records["base-73"]
 	door_center = Vector3(float(wall.x),float(wall.y),float(old_door.z))
 	street.position = door_center
+	var opening_at := SubwayStation.OPENING.position+Vector2(door_center.x,door_center.z)
+	var opening_end := opening_at+SubwayStation.OPENING.size
+	home.landscape_surface.set_shader_parameter("subway_opening",Vector4(opening_at.x,opening_at.y,opening_end.x,opening_end.y))
 	smoking_spot = door_center+Vector3(-3.7,0,3.5)
 	var floor_row: Dictionary = home.records.get(floor_id,{})
 	if not floor_row.is_empty():
