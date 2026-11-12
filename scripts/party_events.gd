@@ -1,6 +1,7 @@
+class_name PartyEvents
 extends Node3D
 
-var home
+var home: Home
 var lights: Array[OmniLight3D] = []
 var fighters: Array[Node3D] = []
 var fight_time := 0.0
@@ -24,20 +25,20 @@ var fight_ending := 0.0
 var streams: Array[Dictionary] = []
 const SHOUTS := ["Ты охуел? Руки убрал!","Какого хуя ты толкаешься?!","Пошёл нахуй со своими понтами!","Не трогай меня, блядь!","Сейчас получишь, сука!"]
 
-func _init(editor) -> void:
-	home = editor
+func _init(game_home: Home) -> void:
+	home = game_home
 
 func setup() -> void:
 	add_child(sounds)
 	add_child(grunt)
 	grunt.volume_db = -18
 	grunt.max_distance = 9
-	grunt.stream = AudioStreamMP3.load_from_file("res://assets/sfx/hurt.mp3")
+	grunt.stream = load("res://assets/sfx/hurt.mp3")
 	add_child(retching)
 	retching.volume_db = -16
 	retching.max_distance = 7
 	for filename in ["gagging","retching"]:
-		retch_variants.append(AudioStreamMP3.load_from_file("res://assets/sfx/"+filename+".mp3"))
+		retch_variants.append(load("res://assets/sfx/"+filename+".mp3"))
 	for light in home.scene_lighting.get_children():
 		if light is Light3D:
 			room_lights.append({"node":light,"energy":light.light_energy})
@@ -62,13 +63,13 @@ func setup() -> void:
 	for row in home.records.values():
 		if str(row.kind)!="floor" or str(row.id)==home.night_world.floor_id or bool(row.deleted) or lights.size()>=6:
 			continue
-		var area: Rect2 = home.room_world_bounds(row)
+		var area: Rect2 = home.rooms.room_world_bounds(row)
 		if area.get_area()<4.0:
 			continue
 		if lights.any(func(other): return Vector2(other.position.x,other.position.z).distance_to(area.get_center())<1.5):
 			continue
 		var light := OmniLight3D.new()
-		light.position = Vector3(area.get_center().x,home.floor_surface(row)+2.15,area.get_center().y)
+		light.position = Vector3(area.get_center().x,home.rooms.floor_surface(row)+2.15,area.get_center().y)
 		light.omni_range = clampf(maxf(area.size.x,area.size.y)*.8,2.4,5.2)
 		light.omni_attenuation = 1.6
 		light.light_energy = 0
@@ -157,9 +158,9 @@ func start_fight(preferred: Node3D = null) -> bool:
 				person.fighting = true
 				person.imported_model.combat = true
 				person.dancing = false
-				person.speech.text = SHOUTS[0] if person==first else SHOUTS[3]
+				person.speech.text = tr(SHOUTS[0] if person==first else SHOUTS[3])
 				person.speech.show()
-			home.hud.notice("Гости сцепились! Подойди и нажми E, чтобы разнять.")
+			GameEvents.notify(tr("Гости сцепились! Подойди и нажми E, чтобы разнять."))
 			return true
 	return false
 
@@ -185,7 +186,7 @@ func update_fight(delta: float) -> void:
 		person.rotation.y = lerp_angle(person.rotation.y,atan2(-direction.x,-direction.z),minf(1,delta*10))
 		if direction.length()>.84:
 			var next: Vector3 = person.position+direction.normalized()*minf(delta*.65,(direction.length()-.84)*.5)
-			if is_finite(home.ground_height(Vector2(next.x,next.z))):
+			if is_finite(home.rooms.ground_height(Vector2(next.x,next.z))):
 				person.position = next
 	home.party.bonus = maxf(-18,home.party.bonus-delta*1.1)
 	if next_hit<=0:
@@ -198,7 +199,7 @@ func update_fight(delta: float) -> void:
 		impact_attacker = attacker
 		impact_target = defender
 		impact_wait = .20
-		attacker.speech.text = SHOUTS[hit_index%SHOUTS.size()]
+		attacker.speech.text = tr(SHOUTS[hit_index%SHOUTS.size()])
 		hit_index += 1
 	if fight_time<=0:
 		end_fight(false)
@@ -219,11 +220,11 @@ func land_punch() -> void:
 	grunt.pitch_scale = 1.10 if impact_target.female else .91
 	grunt.play()
 	hit_counts[impact_target] = int(hit_counts.get(impact_target,0))+1
-	impact_target.speech.text = SHOUTS[(hit_index+2)%SHOUTS.size()]
+	impact_target.speech.text = tr(SHOUTS[(hit_index+2)%SHOUTS.size()])
 	if int(hit_counts[impact_target])>=3:
 		impact_target.imported_model.knockdown_time = 2.3
 		impact_target.imported_model.combat = false
-		impact_target.speech.text = "Всё, блядь, хватит!"
+		impact_target.speech.text = tr("Всё, блядь, хватит!")
 		fight_ending = 1.6
 
 func near_fight() -> bool:
@@ -238,7 +239,7 @@ func end_fight(intervened: bool) -> void:
 		person.imported_model.action_time = 0
 		person.imported_model.combat = false
 		person.rest = 0.0
-		if home.party.active and not home.party.connected.is_empty():
+		if home.party.active and home.party.has_walkable_area():
 			home.party.find_destination(person)
 	fighters.clear()
 	impact_wait = 0
@@ -249,7 +250,7 @@ func end_fight(intervened: bool) -> void:
 	event_wait = 50.0
 	if intervened:
 		home.party.bonus = minf(20,home.party.bonus+8)
-		home.hud.notice("Разнял гостей. Атмосфера восстанавливается.")
+		GameEvents.notify(tr("Разнял гостей. Атмосфера восстанавливается."))
 
 func vomit_burst() -> void:
 	vomit_count += 1

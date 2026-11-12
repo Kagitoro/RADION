@@ -1,0 +1,71 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Theme" path="res://ui/theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://ui/inventory_window.gd" id="2_script"]
+
+[node name="InventoryWindow" type="PanelContainer"]
+z_index = 10
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -310.0
+offset_top = -267.0
+offset_right = 310.0
+offset_bottom = 267.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_theme")
+script = ExtResource("2_script")
+
+[node name="Column" type="VBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="Top" type="HBoxContainer" parent="Column"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Column/Top"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+text = "Инвентарь дома"
+
+[node name="CloseButton" type="Button" parent="Column/Top"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Закрыть"
+
+[node name="Search" type="LineEdit" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Поиск по названию"
+
+[node name="AssetList" type="ItemList" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+auto_translate_mode = 2
+
+[node name="Actions" type="HBoxContainer" parent="Column"]
+layout_mode = 2
+
+[node name="TakeButton" type="Button" parent="Column/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Взять выбранное"
+
+[node name="OpenButton" type="Button" parent="Column/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Открыть JSON"
+
+[node name="SaveButton" type="Button" parent="Column/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Сохранить"
+
+[node name="ExportButton" type="Button" parent="Column/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Экспорт JSON"

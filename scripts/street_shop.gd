@@ -1,24 +1,23 @@
+class_name StreetShop
 extends Node3D
 
-const Guest = preload("res://scripts/party_guest.gd")
-const SAVE := "user://late_set_supplies.cfg"
+static var SAVE := SavePaths.file("late_set_supplies.cfg")
 const ITEMS := [
 	["Энергетик",4,"+15% к скорости бега на 45 с · R"],
 	["Пиво",5,"1 бутылка · B"],
 	["Сигареты",6,"5 сигарет · N"],
 ]
 
-var world
-var home
-var panel: PanelContainer
-var stock_label: Label
-var message: Label
+var world: NightWorld
+var home: Home
+const PANEL := preload("res://ui/shop_panel.tscn")
+var panel: ShopPanel
 var cashier: Node3D
 var beer := 2
 var energy := 0
 var pose_time := 0.0
 
-func _init(night_world) -> void:
+func _init(night_world: NightWorld) -> void:
 	world = night_world
 	home = world.home
 
@@ -52,29 +51,16 @@ func build() -> void:
 
 func setup() -> void:
 	load_stock()
-	cashier = Guest.new(9,null,home.party.psx_assets)
+	cashier = PartyGuest.new(9,null,home.party.psx_assets)
 	add_child(cashier)
 	cashier.position = Vector3(0,.12,.28)
 	cashier.rotation.y = PI
 	cashier.name_tag.hide()
-	panel = home.hud.panel()
+	panel = PANEL.instantiate()
 	home.hud.root.add_child(panel)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	panel.offset_left = -218
-	panel.offset_right = 218
-	panel.offset_top = -143
-	var list := VBoxContainer.new()
-	list.add_theme_constant_override("separation",9)
-	panel.add_child(list)
-	list.add_child(home.hud.label("NIGHT SHOP",24))
-	stock_label = home.hud.label("",16)
-	list.add_child(stock_label)
-	for index in range(ITEMS.size()):
-		var item: Array = ITEMS[index]
-		list.add_child(home.hud.button("%s   $%d   ·   %s" % [item[0],item[1],item[2]],buy.bind(index)))
-	message = home.hud.label("",14)
-	list.add_child(message)
-	list.add_child(home.hud.button("Закрыть",close))
+	panel.set_items(ITEMS)
+	panel.buy_requested.connect(buy)
+	panel.close_requested.connect(close)
 	panel.hide()
 
 func is_open() -> bool:
@@ -87,7 +73,7 @@ func can_interact() -> bool:
 func open() -> void:
 	if not can_interact():
 		return
-	message.text = ""
+	panel.set_message("")
 	refresh()
 	panel.show()
 	home.set_modal(true)
@@ -97,14 +83,14 @@ func close() -> void:
 	home.set_modal(false)
 
 func refresh() -> void:
-	stock_label.text = "$%d   ·   Пиво %d   ·   Энергетики %d   ·   Сигареты %d" % [home.party.cash,beer,energy,home.party.cigarettes]
+	panel.set_stock(tr("$%d   ·   Пиво %d   ·   Энергетики %d   ·   Сигареты %d") % [home.party.cash,beer,energy,home.party.cigarettes])
 
 func buy(index: int) -> void:
 	if not is_open() or not can_interact():
 		return
 	var price: int = ITEMS[index][1]
 	if home.party.cash<price:
-		message.text = "Не хватает денег."
+		panel.set_message(tr("Не хватает денег."))
 		return
 	home.party.cash -= price
 	match index:
@@ -113,19 +99,19 @@ func buy(index: int) -> void:
 		2: home.party.cigarettes += 5
 	save_stock()
 	refresh()
-	message.text = "Куплено · "+ITEMS[index][0]
+	panel.set_message(tr("Куплено · %s") % tr(ITEMS[index][0]))
 
 func drink_energy() -> void:
 	if energy<=0:
-		home.hud.notice("Энергетиков нет · купи в Night Shop")
+		GameEvents.notify(tr("Энергетиков нет · купи в Night Shop"))
 		return
 	if home.player.energy_boost>0.0:
-		home.hud.notice("Энергетик ещё действует · %d с" % ceili(home.player.energy_boost))
+		GameEvents.notify(tr("Энергетик ещё действует · %d с") % ceili(home.player.energy_boost))
 		return
 	energy -= 1
-	home.player.energy_boost = 45.0
+	home.player.energy_boost = Balance.ENERGY_DRINK_DURATION
 	save_stock()
-	home.hud.notice("Энергетик · бег быстрее на 45 с")
+	GameEvents.notify(tr("Энергетик · бег быстрее на 45 с"))
 
 func save_stock() -> void:
 	var config := ConfigFile.new()

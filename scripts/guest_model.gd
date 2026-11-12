@@ -1,3 +1,4 @@
+class_name GuestModel
 extends Node3D
 
 var skeleton: Skeleton3D

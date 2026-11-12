@@ -1,13 +1,14 @@
+class_name Seams
 extends RefCounted
 
 const MAX_FLOOR_GAP := .24
 const MAX_WALL_GAP := .26
 const MIN_WALL_GAP := .075
 
-var home
+var home: Home
 
-func _init(editor) -> void:
-	home = editor
+func _init(game_home: Home) -> void:
+	home = game_home
 
 func collect() -> Array[Dictionary]:
 	var floors: Array[Dictionary] = []
@@ -15,9 +16,9 @@ func collect() -> Array[Dictionary]:
 	for row in home.records.values():
 		if bool(row.deleted):
 			continue
-		if str(row.kind)=="floor" and home.resizable_room(str(row.id)):
+		if str(row.kind)=="floor" and home.rooms.resizable_room(str(row.id)):
 			floors.append(row)
-		elif home.structural_wall(row):
+		elif home.rooms.structural_wall(row):
 			walls.append(row)
 	var pieces: Array[Dictionary] = []
 	for first in range(floors.size()):
@@ -59,11 +60,11 @@ func collect() -> Array[Dictionary]:
 	return pieces
 
 func floor_seam(a: Dictionary, b: Dictionary, pieces: Array[Dictionary]) -> void:
-	var level: float = home.floor_surface(a)
-	if absf(level-float(home.floor_surface(b)))>.025:
+	var level: float = home.rooms.floor_surface(a)
+	if absf(level-float(home.rooms.floor_surface(b)))>.025:
 		return
-	var first: Rect2 = home.room_world_bounds(a)
-	var last: Rect2 = home.room_world_bounds(b)
+	var first: Rect2 = home.rooms.room_world_bounds(a)
+	var last: Rect2 = home.rooms.room_world_bounds(b)
 	for axis in range(2):
 		var across := 1-axis
 		var lower := minf(first.end[axis],last.end[axis])
@@ -81,7 +82,7 @@ func floor_seam(a: Dictionary, b: Dictionary, pieces: Array[Dictionary]) -> void
 			var sample := center
 			sample[across] = lerpf(start,end,(float(i)+.5)/5.0)
 			for floor_row in home.records.values():
-				if str(floor_row.kind)=="floor" and not bool(floor_row.deleted) and home.inside_room(floor_row,sample):
+				if str(floor_row.kind)=="floor" and not bool(floor_row.deleted) and home.rooms.inside_room(floor_row,sample):
 					covered += 1
 					break
 		if covered==5:
@@ -91,7 +92,7 @@ func floor_seam(a: Dictionary, b: Dictionary, pieces: Array[Dictionary]) -> void
 		size[across] = end-start
 		var thickness := float(home.data.templates.floor.h)
 		pieces.append({"template":"floor","label":"Заделка пола","x":center.x,"z":center.y,
-			"y":minf(level,float(home.floor_surface(b)))-thickness-.001,"w":size.x,"d":size.y})
+			"y":minf(level,float(home.rooms.floor_surface(b)))-thickness-.001,"w":size.x,"d":size.y})
 
 func wall_segment(row: Dictionary) -> PackedVector2Array:
 	var frame: Transform3D = home.openings.wall_frame(row)

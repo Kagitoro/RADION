@@ -1,7 +1,6 @@
+class_name NightDistrict
 extends Node3D
 
-const Subway = preload("res://scripts/subway_station.gd")
-const Nightclub = preload("res://scripts/nightclub.gd")
 const GROUND_SHADER = preload("res://assets/city/district_ground.gdshader")
 const FACADE_DETAILS = preload("res://assets/city/facade_details.glb")
 const BRICK = preload("res://assets/city/brick.jpg")
@@ -15,11 +14,10 @@ const WALKS := [
 ]
 const VEHICLES := [preload("res://assets/city/street_compact.glb"),preload("res://assets/city/street_pickup.glb")]
 const CAR_SIZES := [Vector3(1.84,1.68,3.87),Vector3(2.10,1.89,4.91)]
-const Guest = preload("res://scripts/party_guest.gd")
 const BOUNDS := Rect2(-77,-35,63.1,69)
 const TRAFFIC_ROUTE := [Vector3(-17.5,0,-22),Vector3(-17.5,0,20),Vector3(-54,0,20),Vector3(-54,0,-22)]
 
-var world
+var world: NightWorld
 var traffic: Array[Dictionary] = []
 var walkers: Array[Dictionary] = []
 var elapsed := 0.0
@@ -28,7 +26,7 @@ var warm_glass := StandardMaterial3D.new()
 var walk_material: StandardMaterial3D
 var wall_materials: Array[StandardMaterial3D] = []
 
-func _init(night_world) -> void:
+func _init(night_world: NightWorld) -> void:
 	world = night_world
 
 func build() -> void:
@@ -71,7 +69,7 @@ static func place_car(parent: Node3D, index: int, at: Vector3, moving: bool = fa
 	return car
 
 func build_ground_collision() -> void:
-	var cut := Subway.OPENING
+	var cut := SubwayStation.OPENING
 	for section in [
 		Rect2(BOUNDS.position,Vector2(cut.position.x-BOUNDS.position.x,BOUNDS.size.y)),
 		Rect2(Vector2(cut.end.x,BOUNDS.position.y),Vector2(BOUNDS.end.x-cut.end.x,BOUNDS.size.y)),
@@ -89,7 +87,7 @@ func build_roads() -> void:
 	var material := ShaderMaterial.new()
 	material.shader = GROUND_SHADER
 	material.set_shader_parameter("club_half_width",Nightclub.FLOOR_WIDTH*.5)
-	var opening := Subway.OPENING
+	var opening := SubwayStation.OPENING
 	material.set_shader_parameter("subway_opening",Vector4(opening.position.x,opening.position.y,opening.end.x,opening.end.y))
 	material.set_shader_parameter("asphalt",ASPHALT_TEXTURE)
 	material.set_shader_parameter("pavers",PAVERS)
@@ -244,7 +242,7 @@ func populate() -> void:
 		var midpoint := Vector3(center.x,CURB_HEIGHT,center.y)
 		routes.append(PackedVector3Array([midpoint-along,midpoint+along]))
 	for index in range(routes.size()):
-		var person := Guest.new(index+9,null,world.home.party.psx_assets)
+		var person := PartyGuest.new(index+9,null,world.home.party.psx_assets)
 		add_child(person)
 		person.name_tag.hide()
 		person.position = routes[index][0].lerp(routes[index][1],.17+.11*(index%4))

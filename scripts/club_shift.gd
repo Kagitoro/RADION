@@ -1,3 +1,4 @@
+class_name ClubShift
 extends Node
 
 const SHIFT_SECONDS := 180.0
@@ -9,9 +10,10 @@ const EVENT_STAFF := [1,0,2]
 const ENTRY := Vector3(-4.2,.015,5.4)
 const AISLE := Vector3(-4.2,.015,2.35)
 
-var club
-var dj
-var home
+var club: Nightclub
+var dj: DJStation
+var home: Home
+const PANEL := preload("res://ui/club_shift_panel.tscn")
 var panel: PanelContainer
 var summary: Label
 var detail: Label
@@ -42,7 +44,7 @@ var destinations: Array[Vector3] = []
 var on_floor := 0
 var incident_guests: Array[Node3D] = []
 
-func setup(venue) -> void:
+func setup(venue: Nightclub) -> void:
 	club = venue
 	home = club.world.home
 	dj = club.dj
@@ -50,22 +52,10 @@ func setup(venue) -> void:
 		slots.append(guest.position)
 		paths.append(PackedVector3Array())
 		destinations.append(guest.position)
-	panel = PanelContainer.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_theme_stylebox_override("panel",dj.panel_style(Color("#e6141926"),Color("#545873"),10))
+	panel = PANEL.instantiate()
 	home.hud.root.add_child(panel)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	panel.offset_left = -357
-	panel.offset_right = -15
-	panel.offset_top = 14
-	var content := VBoxContainer.new()
-	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_child(content)
-	summary = home.hud.label("",16)
-	content.add_child(summary)
-	detail = home.hud.label("",14)
-	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	content.add_child(detail)
+	summary = panel.get_node("%Summary")
+	detail = panel.get_node("%Detail")
 	panel.hide()
 
 func nearby() -> bool:
@@ -77,9 +67,9 @@ func start() -> void:
 	finished = false
 	won = false
 	time = 0.0
-	energy = 54.0
+	energy = Balance.CLUB_START_ENERGY
 	held = 0.0
-	admitted = 4
+	admitted = Balance.CLUB_START_GUESTS
 	on_floor = 4
 	clear_incident()
 	crowd_timer = 0.0
@@ -154,7 +144,7 @@ func evaluate_mix(delta: float) -> void:
 	if event>=0 and not delegated:
 		target -= 4.0
 	var old_energy := energy
-	energy = move_toward(energy,target,delta*(2.7 if target<energy else 1.45))
+	energy = move_toward(energy,target,delta*(Balance.CLUB_ENERGY_FALL_RATE if target<energy else Balance.CLUB_ENERGY_RISE_RATE))
 	if not playing:
 		overlap = 0.0
 		aligned = 0.0
@@ -175,33 +165,33 @@ func evaluate_mix(delta: float) -> void:
 	if current!=last_track:
 		if not last_track.is_empty():
 			if overlap>=.6 and aligned>=.25:
-				energy = minf(100,energy+9.0)
-				note("Ровный переход · публика прибавляет")
+				energy = minf(100,energy+Balance.CLUB_SMOOTH_TRANSITION_BONUS)
+				note(tr("Ровный переход · публика прибавляет"))
 			elif overlap<.40:
-				energy = maxf(0,energy-8.0)
-				note("Резкая смена трека · часть гостей отходит")
+				energy = maxf(0,energy-Balance.CLUB_HARD_CUT_PENALTY)
+				note(tr("Резкая смена трека · часть гостей отходит"))
 			else:
-				note("Переход услышали · выровняй темп и фазы")
+				note(tr("Переход услышали · выровняй темп и фазы"))
 		last_track = current
 		overlap = 0.0
 		aligned = 0.0
 	if level> -3.0 and last_level> -60.0 and level-last_level>9.0:
-		energy = minf(energy,maxf(0,old_energy-7.0))
-		note("Скачок громкости · убавь Gain или Master")
+		energy = minf(energy,maxf(0,old_energy-Balance.CLUB_VOLUME_JUMP_PENALTY))
+		note(tr("Скачок громкости · убавь Gain или Master"))
 	last_level = level
 
 func update_crowd(delta: float) -> void:
 	crowd_timer += delta
-	if crowd_timer>=4.8:
+	if crowd_timer>=Balance.CLUB_CROWD_TICK:
 		crowd_timer = 0.0
-		if energy>=58.0 and admitted<club.dancers.size():
+		if energy>=Balance.CLUB_ADMIT_ENERGY and admitted<club.dancers.size():
 			var newcomer: Node3D = club.dancers[admitted]
 			newcomer.position = ENTRY
 			newcomer.show()
 			destinations[admitted] = ENTRY
 			paths[admitted] = PackedVector3Array()
 			admitted += 1
-		elif energy<37.0 and admitted>2:
+		elif energy<Balance.CLUB_DISMISS_ENERGY and admitted>Balance.CLUB_MIN_GUESTS:
 			admitted -= 1
 	on_floor = 0
 	var dancing_limit := admitted if energy>=59.0 else maxi(1,admitted-3)
@@ -243,7 +233,7 @@ func update_crowd(delta: float) -> void:
 
 func begin_event(index: int) -> void:
 	event = index
-	event_deadline = time+28.0
+	event_deadline = time+Balance.CLUB_EVENT_TIME
 	delegated = false
 	request_played = 0.0
 	requested_track = track_key(dj.audible_deck())
@@ -251,9 +241,9 @@ func begin_event(index: int) -> void:
 		club.responding.speech.hide()
 	club.response_time = 0.0
 	club.staff[EVENT_STAFF[index]].speech.text = [
-		"Гость просит новый трек от 124 BPM.",
-		"У бара очередь. Помоги раздать воду.",
-		"У входа спорят. Подойди к охране.",
+		tr("Гость просит новый трек от 124 BPM."),
+		tr("У бара очередь. Помоги раздать воду."),
+		tr("У входа спорят. Подойди к охране."),
 	][index]
 	club.staff[EVENT_STAFF[index]].speech.show()
 	spawn_incident(index)
@@ -280,14 +270,14 @@ func update_events(delta: float) -> void:
 func assign_staff() -> void:
 	if active and event>=0 and not delegated and nearby():
 		delegated = true
-		event_deadline = time+7.0
-		note("Персонал занялся ситуацией")
+		event_deadline = time+Balance.CLUB_STAFF_EVENT_TIME
+		note(tr("Персонал занялся ситуацией"))
 
 func handle_staff(worker: Node3D) -> bool:
 	if not active or event<0 or worker!=club.staff[EVENT_STAFF[event]]:
 		return false
 	if event==0:
-		note("Поставь новый трек от 124 BPM или поручи ответ официанту через H")
+		note(tr("Поставь новый трек от 124 BPM или поручи ответ официанту через H"))
 	elif not delegated:
 		resolve(true,false)
 	return true
@@ -300,13 +290,13 @@ func spawn_incident(index: int) -> void:
 	if index==2:
 		locations = [Vector3(-3.22,0,6.28),Vector3(-2.52,0,6.44)]
 	for slot in range(locations.size()):
-		var person = club.Guest.new(12+slot,null,home.party.psx_assets)
+		var person = PartyGuest.new(12+slot,null,home.party.psx_assets)
 		club.add_child(person)
 		person.position = locations[slot]
 		person.rotation.y = PI*.5 if index==1 or slot==1 else -PI*.5
 		person.name_tag.hide()
 		if index==2:
-			person.speech.text = ["Я тут уже жду.","Давай спокойно, разберёмся."][slot]
+			person.speech.text = [tr("Я тут уже жду."),tr("Давай спокойно, разберёмся.")][slot]
 			person.speech.show()
 		incident_guests.append(person)
 
@@ -319,11 +309,11 @@ func resolve(success: bool, by_staff: bool) -> void:
 	clear_incident()
 	club.staff[EVENT_STAFF[event]].speech.hide()
 	if success:
-		energy = minf(100,energy+(4.0 if by_staff else 9.0))
-		note("Персонал всё уладил" if by_staff else ["Гость услышал новый трек","Очередь у бара рассосалась","У входа снова спокойно"][event])
+		energy = minf(100,energy+(Balance.CLUB_EVENT_STAFF_BONUS if by_staff else Balance.CLUB_EVENT_SOLVED_BONUS))
+		note(tr("Персонал всё уладил") if by_staff else [tr("Гость услышал новый трек"),tr("Очередь у бара рассосалась"),tr("У входа снова спокойно")][event])
 	else:
-		energy = maxf(0,energy-10.0)
-		note("Ситуацию не решили · энергия упала")
+		energy = maxf(0,energy-Balance.CLUB_EVENT_FAILED_PENALTY)
+		note(tr("Ситуацию не решили · энергия упала"))
 	event = -1
 	delegated = false
 
@@ -335,16 +325,16 @@ func refresh() -> void:
 	if not panel.visible:
 		return
 	if not active:
-		summary.text = ("Смена удалась" if won else "Смена окончена") if finished else "RADION · Клубная смена"
-		detail.text = ("Финал: %d на танцполе · энергия %d%%. " % [on_floor,roundi(energy)] if finished else "")+"J · Начать смену"
+		summary.text = (tr("Смена удалась") if won else tr("Смена окончена")) if finished else tr("RADION · Клубная смена")
+		detail.text = tr("Финал: %d на танцполе · энергия %d%%. J · Начать смену") % [on_floor,roundi(energy)] if finished else tr("J · Начать смену")
 		return
 	var remaining := maxi(0,ceili(SHIFT_SECONDS-time))
-	summary.text = "%d:%02d   •   Танцпол %d   •   Энергия %d%%" % [remaining/60,remaining%60,on_floor,roundi(energy)]
-	var objective := "Финал: %d гостей, 65%% энергии · %d/%d с" % [GOAL,mini(int(held),int(HOLD_SECONDS)),int(HOLD_SECONDS)]
+	summary.text = tr("%d:%02d   •   Танцпол %d   •   Энергия %d%%") % [remaining/60,remaining%60,on_floor,roundi(energy)]
+	var objective := tr("Финал: %d гостей, 65%% энергии · %d/%d с") % [GOAL,mini(int(held),int(HOLD_SECONDS)),int(HOLD_SECONDS)]
 	if event>=0:
-		var action: String = ["Новый трек от 124 BPM","E у бармена · помочь с очередью","E у охраны · уладить спор"][event]
-		var status := "Персонал уже занимается" if delegated else action+"  /  H · поручить"
-		detail.text = objective+"\n"+EVENT_NAMES[event]+" · "+str(maxi(0,ceili(event_deadline-time)))+" с\n"+status
+		var action: String = [tr("Новый трек от 124 BPM"),tr("E у бармена · помочь с очередью"),tr("E у охраны · уладить спор")][event]
+		var status := tr("Персонал уже занимается") if delegated else tr("%s  /  H · поручить") % action
+		detail.text = tr("%s\n%s · %d с\n%s") % [objective,tr(EVENT_NAMES[event]),maxi(0,ceili(event_deadline-time)),status]
 	elif feedback_time>0.0:
 		detail.text = objective+"\n"+feedback
 	else:

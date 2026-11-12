@@ -1,3 +1,4 @@
+class_name Openings
 extends RefCounted
 
 const WALL_COLOR := Color("#b7ad9d")
@@ -13,7 +14,7 @@ const STOCK_WINDOWS := [
 	["living","Окно комнаты с ковром",Vector3(-5.895,1.58,-2.02),Vector2(1.582,1.661)],
 ]
 
-var home
+var home: Home
 var wall_meshes := {}
 var wall_finish := StandardMaterial3D.new()
 var door_finish := StandardMaterial3D.new()
@@ -21,8 +22,8 @@ var brass := StandardMaterial3D.new()
 var studio_rod: Node3D
 var glazing := StandardMaterial3D.new()
 
-func _init(editor) -> void:
-	home = editor
+func _init(game_home: Home) -> void:
+	home = game_home
 	wall_finish.albedo_color = WALL_COLOR
 	wall_finish.roughness = .86
 	door_finish.albedo_color = Color("#e2dace")
@@ -136,7 +137,7 @@ func draft(type: String) -> Dictionary:
 	return row
 
 func place(row: Dictionary) -> void:
-	var prior: String = home.snapshot()
+	var prior: String = home.storage.snapshot()
 	var id := str(row.get("id",""))
 	var old: Dictionary = home.records.get(id,{})
 	var old_wall := str(old.get("wall_id",""))
@@ -150,8 +151,8 @@ func place(row: Dictionary) -> void:
 	if old_wall!=str(row.wall_id):
 		refresh(old_wall)
 	home.apply_item(id)
-	home.record_change(prior)
-	home.hud.refresh()
+	home.storage.record_change(prior)
+	GameEvents.refresh_hud()
 
 func insert(row: Dictionary, id: String = "") -> String:
 	var model: Node3D = home.duplicate_model(str(row.template))
@@ -333,7 +334,7 @@ func prepare_studio_windows() -> bool:
 	studio_rod = rod.duplicate(0) as Node3D
 	home.add_child(studio_rod)
 	studio_rod.global_transform = rod.global_transform
-	home.register_room_attachment(studio_rod,rod.global_position)
+	home.rooms.register_room_attachment(studio_rod,rod.global_position)
 	return true
 
 func copy_window_part(source: Node3D, model: Node3D, inverse: Transform3D) -> Node3D:

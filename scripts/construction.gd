@@ -1,32 +1,33 @@
+class_name Construction
 extends RefCounted
 
 const EDGE_TOLERANCE := .02
 const MIN_ROOM := 1.10
 
-var home
+var home: Home
 
-func _init(editor) -> void:
-	home = editor
+func _init(game_home: Home) -> void:
+	home = game_home
 
 func draft(mode: String, start: Vector2, end: Vector2) -> Dictionary:
 	if absf(start.x)>70 or absf(start.y)>70 or absf(end.x)>70 or absf(end.y)>70:
-		return {"error":"Строй в пределах плана."}
+		return {"error":tr("Строй в пределах плана.")}
 	if mode=="room":
 		return draft_room(Rect2(start,end-start).abs())
 	return draft_wall(start,end)
 
 func draft_room(rect: Rect2) -> Dictionary:
 	if minf(rect.size.x,rect.size.y)<MIN_ROOM:
-		return {"error":"Минимальный размер комнаты — 1,1 × 1,1 м."}
+		return {"error":tr("Минимальный размер комнаты — 1,1 × 1,1 м.")}
 	if maxf(rect.size.x,rect.size.y)>70:
-		return {"error":"Сторона комнаты должна быть не длиннее 70 м."}
+		return {"error":tr("Сторона комнаты должна быть не длиннее 70 м.")}
 	for row in home.records.values():
 		if bool(row.deleted) or str(row.kind)!="floor":
 			continue
-		var bounds: Rect2 = home.room_world_bounds(row)
+		var bounds: Rect2 = home.rooms.room_world_bounds(row)
 		var overlap := bounds.intersection(rect)
 		if overlap.size.x>.002 and overlap.size.y>.002:
-			return {"error":"Здесь уже есть пол. Состыкуй комнаты по краю."}
+			return {"error":tr("Здесь уже есть пол. Состыкуй комнаты по краю.")}
 	var middle := rect.get_center()
 	var pieces: Array[Dictionary] = [{"template":"floor","x":middle.x,"z":middle.y,
 		"y":-float(home.data.templates.floor.h),"w":rect.size.x,"d":rect.size.y}]
@@ -38,21 +39,21 @@ func draft_room(rect: Rect2) -> Dictionary:
 func draft_wall(start: Vector2, end: Vector2) -> Dictionary:
 	var length := start.distance_to(end)
 	if length<.20 or length>70:
-		return {"error":"Длина стены должна быть от 0,2 до 70 м."}
+		return {"error":tr("Длина стены должна быть от 0,2 до 70 м.")}
 	var floors: Array[Dictionary] = []
 	for row in home.records.values():
 		if str(row.kind)=="floor" and not bool(row.deleted):
 			floors.append(row)
-	var level: float = home.ground_height(start)
+	var level: float = home.rooms.ground_height(start)
 	var steps := ceili(length/.20)
 	for i in range(steps+1):
 		var point := start.lerp(end,float(i)/steps)
 		if not is_finite(level) or not floors.any(func(floor_row):
-			return home.inside_room(floor_row,point,.085) and absf(float(home.floor_surface(floor_row))-level)<.025):
-			return {"error":"Под всей стеной нужен пол одного уровня. Можно сначала нарисовать комнату."}
+			return home.rooms.inside_room(floor_row,point,.085) and absf(float(home.rooms.floor_surface(floor_row))-level)<.025):
+			return {"error":tr("Под всей стеной нужен пол одного уровня. Можно сначала нарисовать комнату.")}
 	var pieces := uncovered_wall(start,end,level)
 	if pieces.is_empty():
-		return {"error":"На этом отрезке уже есть стена."}
+		return {"error":tr("На этом отрезке уже есть стена.")}
 	return {"pieces":pieces}
 
 func uncovered_wall(start: Vector2, end: Vector2, level: float) -> Array[Dictionary]:
@@ -60,7 +61,7 @@ func uncovered_wall(start: Vector2, end: Vector2, level: float) -> Array[Diction
 	var length := start.distance_to(end)
 	var covered: Array[Vector2] = []
 	for row in home.records.values():
-		if not home.structural_wall(row) or absf(float(row.y)-level)>.025:
+		if not home.rooms.structural_wall(row) or absf(float(row.y)-level)>.025:
 			continue
 		var frame: Transform3D = home.openings.wall_frame(row)
 		var run := Vector2(frame.basis.x.x,frame.basis.x.z)
@@ -100,8 +101,8 @@ func serves_neighbor(wall: Dictionary, excluded_room: String) -> bool:
 	for row in home.records.values():
 		if str(row.id)==excluded_room or str(row.kind)!="floor" or bool(row.deleted):
 			continue
-		var bounds: Rect2 = home.room_world_bounds(row)
-		if absf(float(home.floor_surface(row))-float(wall.y))>.025:
+		var bounds: Rect2 = home.rooms.room_world_bounds(row)
+		if absf(float(home.rooms.floor_surface(row))-float(wall.y))>.025:
 			continue
 		if minf(absf(center[across]-bounds.position[across]),absf(center[across]-bounds.end[across]))>EDGE_TOLERANCE:
 			continue
@@ -112,12 +113,12 @@ func serves_neighbor(wall: Dictionary, excluded_room: String) -> bool:
 func commit(result: Dictionary, make_room: bool = true, remember: bool = true) -> bool:
 	if result.has("error"):
 		if home.hud!=null:
-			home.hud.notice(str(result.error))
+			GameEvents.notify(str(result.error))
 		return false
 	var pieces: Array = result.pieces
 	if home.records.size()+pieces.size()>700:
 		if home.hud!=null:
-			home.hud.notice("Достигнут предел в 700 элементов.")
+			GameEvents.notify(tr("Достигнут предел в 700 элементов."))
 		return false
 	var models: Array[Node3D] = []
 	for piece in pieces:
@@ -127,7 +128,7 @@ func commit(result: Dictionary, make_room: bool = true, remember: bool = true) -
 				pending.free()
 			return false
 		models.append(model)
-	var before: String = home.snapshot() if remember else ""
+	var before: String = home.storage.snapshot() if remember else ""
 	var room_id := ""
 	for index in range(pieces.size()):
 		var piece: Dictionary = pieces[index]
@@ -149,8 +150,8 @@ func commit(result: Dictionary, make_room: bool = true, remember: bool = true) -
 		if index==0 and make_room:
 			home.selected = id
 	if remember:
-		home.record_change(before)
+		home.storage.record_change(before)
 	home.scene_finish.sync_ceilings()
 	if home.hud!=null:
-		home.hud.refresh()
+		GameEvents.refresh_hud()
 	return true

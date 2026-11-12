@@ -1,0 +1,1304 @@
+# English translation of Late Set.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: en\n"
+
+msgid "Первый заказ · В RADION нажми J, чтобы начать сет"
+msgstr "First booking · Press J in RADION to start your set"
+
+msgid "Первый заказ закрыт · Кир обещал узнать про следующий слот"
+msgstr "First booking done · Kir promised to ask about the next slot"
+
+msgid "Просьба о треке"
+msgstr "Track request"
+
+msgid "Очередь у бара"
+msgstr "Queue at the bar"
+
+msgid "Спор у входа"
+msgstr "Argument at the door"
+
+msgid "Ровный переход · публика прибавляет"
+msgstr "Smooth transition · the crowd is growing"
+
+msgid "Резкая смена трека · часть гостей отходит"
+msgstr "Hard cut · some guests step away"
+
+msgid "Переход услышали · выровняй темп и фазы"
+msgstr "They heard the transition · match tempo and phase"
+
+msgid "Скачок громкости · убавь Gain или Master"
+msgstr "Volume jump · turn down Gain or Master"
+
+msgid "Гость просит новый трек от 124 BPM."
+msgstr "A guest wants a new track at 124 BPM or faster."
+
+msgid "У бара очередь. Помоги раздать воду."
+msgstr "There's a queue at the bar. Help hand out water."
+
+msgid "У входа спорят. Подойди к охране."
+msgstr "An argument at the door. Go to security."
+
+msgid "Персонал занялся ситуацией"
+msgstr "Staff are handling it"
+
+msgid "Поставь новый трек от 124 BPM или поручи ответ официанту через H"
+msgstr "Play a new track at 124+ BPM or hand it to the waiter with H"
+
+msgid "Я тут уже жду."
+msgstr "I've been waiting here."
+
+msgid "Давай спокойно, разберёмся."
+msgstr "Easy, let's sort this out."
+
+msgid "Персонал всё уладил"
+msgstr "Staff sorted it out"
+
+msgid "Гость услышал новый трек"
+msgstr "The guest heard the new track"
+
+msgid "Очередь у бара рассосалась"
+msgstr "The bar queue cleared"
+
+msgid "У входа снова спокойно"
+msgstr "The door is calm again"
+
+msgid "Ситуацию не решили · энергия упала"
+msgstr "Not resolved · energy dropped"
+
+msgid "Смена удалась"
+msgstr "Great shift"
+
+msgid "Смена окончена"
+msgstr "Shift over"
+
+msgid "RADION · Клубная смена"
+msgstr "RADION · Club shift"
+
+msgid "Финал: %d на танцполе · энергия %d%%. J · Начать смену"
+msgstr "Final: %d on the floor · energy %d%%. J · Start shift"
+
+msgid "J · Начать смену"
+msgstr "J · Start shift"
+
+msgid "%d:%02d   •   Танцпол %d   •   Энергия %d%%"
+msgstr "%d:%02d   •   Dance floor %d   •   Energy %d%%"
+
+msgid "Финал: %d гостей, 65%% энергии · %d/%d с"
+msgstr "Goal: %d guests, 65%% energy · %d/%d s"
+
+msgid "Новый трек от 124 BPM"
+msgstr "New track at 124+ BPM"
+
+msgid "E у бармена · помочь с очередью"
+msgstr "E at the bartender · help with the queue"
+
+msgid "E у охраны · уладить спор"
+msgstr "E at security · settle the argument"
+
+msgid "Персонал уже занимается"
+msgstr "Staff are on it"
+
+msgid "%s  /  H · поручить"
+msgstr "%s  /  H · delegate"
+
+msgid "%s\n%s · %d с\n%s"
+msgstr "%s\n%s · %d s\n%s"
+
+msgid "Строй в пределах плана."
+msgstr "Build inside the plan."
+
+msgid "Минимальный размер комнаты — 1,1 × 1,1 м."
+msgstr "Minimum room size is 1.1 × 1.1 m."
+
+msgid "Сторона комнаты должна быть не длиннее 70 м."
+msgstr "A room side can't be longer than 70 m."
+
+msgid "Здесь уже есть пол. Состыкуй комнаты по краю."
+msgstr "There's already a floor here. Join rooms at their edges."
+
+msgid "Длина стены должна быть от 0,2 до 70 м."
+msgstr "A wall must be between 0.2 and 70 m long."
+
+msgid "Под всей стеной нужен пол одного уровня. Можно сначала нарисовать комнату."
+msgstr "The whole wall needs a level floor under it. Draw a room first."
+
+msgid "На этом отрезке уже есть стена."
+msgstr "There's already a wall on this segment."
+
+msgid "Достигнут предел в 700 элементов."
+msgstr "Limit of 700 objects reached."
+
+msgid "Ноутбук / Музыка"
+msgstr "Laptop / Music"
+
+msgid "К контроллеру"
+msgstr "To controller"
+
+msgid "Закрыть · Esc"
+msgstr "Close · Esc"
+
+msgid "LOAD %s · двойной щелчок загружает трек"
+msgstr "LOAD %s · double-click loads a track"
+
+msgid " · Короткий файл"
+msgstr " · Short file"
+
+msgid "Загрузи трек из ноутбука в деку %s."
+msgstr "Load a track from the laptop into deck %s."
+
+msgid "Дека пуста"
+msgstr "Deck empty"
+
+msgid "Двери, окна и их стены можно перемещать на плане по Tab."
+msgstr "Doors, windows and their walls can be moved on the plan (Tab)."
+
+msgid "Пол"
+msgstr "Floor"
+
+msgid "Поверхность"
+msgstr "Surface"
+
+msgid "Потолок / нижняя сторона"
+msgstr "Ceiling / underside"
+
+msgid "Нет опоры"
+msgstr "No support"
+
+msgid "Наведи на пол или на поверхность, куда хочешь поставить предмет."
+msgstr "Aim at the floor or a surface to place the item."
+
+msgid "Сначала вынеси мебель из комнаты."
+msgstr "Move the furniture out of the room first."
+
+msgid "Возврат на пол"
+msgstr "Back to the floor"
+
+msgid "Под точкой установки нет пола."
+msgstr "There's no floor under this spot."
+
+msgid "Под выбранным объектом нет пола."
+msgstr "There's no floor under the selected object."
+
+msgid "Размер выходит за границы стены или пересекает соседний проём."
+msgstr "The size goes past the wall or overlaps a neighbouring opening."
+
+msgid "Стена слишком мала для установленных дверей или окон."
+msgstr "The wall is too small for its doors or windows."
+
+msgid "Открыть сохранённую расстановку"
+msgstr "Open saved layout"
+
+msgid "*.json ; Проект RADION"
+msgstr "*.json ; RADION project"
+
+msgid "Экспорт проекта RADION"
+msgstr "Export RADION project"
+
+msgid "Инвентарь дома"
+msgstr "House inventory"
+
+msgid "Закрыть"
+msgstr "Close"
+
+msgid "Поиск по названию"
+msgstr "Search by name"
+
+msgid "Взять выбранное"
+msgstr "Take selected"
+
+msgid "Открыть JSON"
+msgstr "Open JSON"
+
+msgid "Сохранить"
+msgstr "Save"
+
+msgid "Экспорт JSON"
+msgstr "Export JSON"
+
+msgid "В руках · %s"
+msgstr "Holding · %s"
+
+msgid "Всё"
+msgstr "All"
+
+msgid "Комнаты"
+msgstr "Rooms"
+
+msgid "Стены"
+msgstr "Walls"
+
+msgid "Двери и окна"
+msgstr "Doors & windows"
+
+msgid "Мебель"
+msgstr "Furniture"
+
+msgid "Инвентарь"
+msgstr "Inventory"
+
+msgid "Моя схема"
+msgstr "My layout"
+
+msgid "Заделать щели"
+msgstr "Seal gaps"
+
+msgid "Весь дом"
+msgstr "Whole house"
+
+msgid "Отменить"
+msgstr "Cancel"
+
+msgid "В комнату  [Tab]"
+msgstr "Back to room  [Tab]"
+
+msgid "Выбери объект"
+msgstr "Pick an object"
+
+msgid "Магнит"
+msgstr "Magnet"
+
+msgid "Привязка стен и комнат. Удерживай Shift, чтобы временно отключить."
+msgstr "Snaps walls and rooms. Hold Shift to turn it off temporarily."
+
+msgid "На пол"
+msgstr "To floor"
+
+msgid "Рисовать стену"
+msgstr "Draw wall"
+
+msgid "+ Комната"
+msgstr "+ Room"
+
+msgid "Дверь"
+msgstr "Door"
+
+msgid "Проём"
+msgstr "Opening"
+
+msgid "Окно"
+msgstr "Window"
+
+msgid "Удалить"
+msgstr "Delete"
+
+msgid "От пола"
+msgstr "From floor"
+
+msgid "Ширина"
+msgstr "Width"
+
+msgid "Высота"
+msgstr "Height"
+
+msgid "Глубина"
+msgstr "Depth"
+
+msgid "Поворот"
+msgstr "Rotation"
+
+msgid "НОЧЬ / HOUSE PARTY"
+msgstr "NIGHT / HOUSE PARTY"
+
+msgid "WASD идти · Shift быстрее · E общаться · F фонарь · Esc пауза"
+msgstr "WASD walk · Shift run · E talk · F flashlight · Esc pause"
+
+msgid "RADION · Дом"
+msgstr "RADION · Home"
+
+msgid "Выбрано"
+msgstr "Selected"
+
+msgid "В руках"
+msgstr "Holding"
+
+msgid "%s · %s · %.2f × %.2f × %.2f м"
+msgstr "%s · %s · %.2f × %.2f × %.2f m"
+
+msgid "поворот"
+msgstr "rotate"
+
+msgid "размер %s"
+msgstr "size %s"
+
+msgid "высота"
+msgstr "height"
+
+msgid "E инвентарь · Tab план · ЛКМ взять / поставить · R/T/X/H режим · колесо — %s · Ctrl+S сохранить"
+msgstr "E inventory · Tab plan · LMB take / place · R/T/X/H mode · wheel — %s · Ctrl+S save"
+
+msgid "Жёлтые — двери и проходы   ·   Голубые — окна   ·   Перетаскивание — переместить   ·   Колесо — масштаб   ·   Средняя кнопка — панорама"
+msgstr "Yellow — doors and passages   ·   Blue — windows   ·   Drag — move   ·   Wheel — zoom   ·   Middle button — pan"
+
+msgid "Строительство · Комната"
+msgstr "Build · Room"
+
+msgid "Строительство · Стена"
+msgstr "Build · Wall"
+
+msgid "Зажми ЛКМ и протяни до второй точки · Отпусти для постройки · ПКМ — выйти · Shift — без магнита"
+msgstr "Hold LMB and drag to the second point · Release to build · RMB — exit · Shift — no magnet"
+
+msgid "Установка · %s"
+msgstr "Placing · %s"
+
+msgid "Щелчок по стене — установить · ПКМ — отменить"
+msgstr "Click a wall to place · RMB to cancel"
+
+msgid "Середина — перенос · Зелёный угол — размер · Магнит совмещает края комнат · Shift — свободное движение"
+msgstr "Middle — move · Green corner — resize · Magnet aligns room edges · Shift — free move"
+
+msgid "Перетащи стену или потяни за голубой конец · R — повернуть стену в руках · Shift — без магнита"
+msgstr "Drag the wall or pull its blue end · R — rotate the held wall · Shift — no magnet"
+
+msgid "%s · ЛКМ поставить · ПКМ отменить"
+msgstr "%s · LMB place · RMB cancel"
+
+msgid "Нет опоры · Наведи на пол или поверхность"
+msgstr "No support · Aim at the floor or a surface"
+
+msgid "Выбрано · %s"
+msgstr "Selected · %s"
+
+msgid "Прицел · %s"
+msgstr "Aiming · %s"
+
+msgid "Редактирование на плане · Tab"
+msgstr "Edit on the plan · Tab"
+
+msgid "ЛКМ взять · ПКМ выделить"
+msgstr "LMB take · RMB select"
+
+msgid "ПКМ выделить"
+msgstr "RMB select"
+
+msgid "Продолжить"
+msgstr "Continue"
+
+msgid "Выход"
+msgstr "Quit"
+
+msgid "Начать игру"
+msgstr "Start game"
+
+msgid "синий"
+msgstr "blue"
+
+msgid "фиолетовый"
+msgstr "purple"
+
+msgid "тёплый"
+msgstr "warm"
+
+msgid "1  Запросить трек     2  На танцпол     3  В курилку\n4  Как ты сюда попал?     5  Позови друзей     6  Затеять спор     E  Закончить"
+msgstr "1  Request a track     2  To the dance floor     3  To the smoking area\n4  How did you get here?     5  Invite friends     6  Start a fight     E  End"
+
+msgid "E · Разнять гостей"
+msgstr "E · Break up the fight"
+
+msgid "E / ЛКМ · Подойти к пульту"
+msgstr "E / LMB · Step up to the deck"
+
+msgid "E · Ноутбук     C · FLX4"
+msgstr "E · Laptop     C · FLX4"
+
+msgid "E · Ноутбук     ЛКМ по контроллеру     J · Вечеринка"
+msgstr "E · Laptop     LMB on controller     J · Party"
+
+msgid "E · Поговорить · %s"
+msgstr "E · Talk · %s"
+
+msgid "Курилка · N сигарета · K потушить · R энергетик"
+msgstr "Smoking area · N cigarette · K put out · R energy drink"
+
+msgid "Я %s. Мой родной город — %s (%s)."
+msgstr "I'm %s. My home town is %s (%s)."
+
+msgid "Давай спокойно. Здесь все отдыхают."
+msgstr "Take it easy. Everyone's here to have fun."
+
+msgid "Поставишь «%s»? Под него хочется двигаться."
+msgstr "Can you play “%s”? It makes me want to move."
+
+msgid "Танцпол пока закрыт. Увидимся, когда включишь музыку."
+msgstr "The dance floor isn't open yet. See you when the music starts."
+
+msgid "Я к колонкам. Увидимся на танцполе!"
+msgstr "I'm heading to the speakers. See you on the dance floor!"
+
+msgid "Давай чуть позже."
+msgstr "Maybe a bit later."
+
+msgid "Я выхожу. Встретимся под навесом."
+msgstr "I'm stepping out. Meet you under the awning."
+
+msgid "Я уже написал. Дай им немного времени."
+msgstr "I already texted them. Give them a little time."
+
+msgid "Сначала раскачаем танцпол. Тогда будет кого звать."
+msgstr "Let's get the floor moving first. Then there'll be something to invite them to."
+
+msgid "Скинул друзьям адрес. Скоро подтянутся."
+msgstr "Sent my friends the address. They'll be here soon."
+
+msgid "Свет · %s"
+msgstr "Lights · %s"
+
+msgid "КУРИЛКА"
+msgstr "SMOKING AREA"
+
+msgid "ВХОД"
+msgstr "ENTRANCE"
+
+msgid "Бармен · Лина"
+msgstr "Bartender · Lina"
+
+msgid "Официант · Макс"
+msgstr "Waiter · Max"
+
+msgid "Охрана · Самир"
+msgstr "Security · Samir"
+
+msgid "Привет! Если надо освежиться, у бара есть вода."
+msgstr "Hi! If you need to cool down, there's water at the bar."
+
+msgid "Сейчас разнесу напитки. У диванов есть свободные места."
+msgstr "Bringing drinks round now. There are free seats by the sofas."
+
+msgid "Заходи. DJ на сцене, ступени справа."
+msgstr "Come in. The DJ is on stage, steps on the right."
+
+msgid "Окно кухни"
+msgstr "Kitchen window"
+
+msgid "Окно ванной"
+msgstr "Bathroom window"
+
+msgid "Окно комнаты с ковром"
+msgstr "Rug room window"
+
+msgid "Привет! Ты давно здесь?"
+msgstr "Hi! Been here long?"
+
+msgid "Недавно. Что сейчас играет?"
+msgstr "Not long. What's playing?"
+
+msgid "Пойдём ближе к пульту, там лучше слышно."
+msgstr "Let's get closer to the deck, it sounds better there."
+
+msgid "Слышишь, как поменялся бас?"
+msgstr "Hear how the bass changed?"
+
+msgid "Да. Вот этот трек я бы оставил подольше."
+msgstr "Yeah. I'd keep this one on longer."
+
+msgid "Согласен. Пусть пока играет."
+msgstr "Agreed. Let it play."
+
+msgid "Ты уже видел комнату с мониторами?"
+msgstr "Have you seen the room with the monitors?"
+
+msgid "Да, там сейчас все танцуют."
+msgstr "Yeah, everyone's dancing in there."
+
+msgid "Давай тоже заглянем."
+msgstr "Let's go check it out too."
+
+msgid "Здесь уже почти полный дом."
+msgstr "The place is almost full."
+
+msgid "Ага, я даже в коридоре встретил знакомых."
+msgstr "Yeah, I even ran into friends in the hallway."
+
+msgid "Пойдём поздороваемся."
+msgstr "Let's go say hi."
+
+msgid "Открываем двери гостям…"
+msgstr "Opening the doors to guests…"
+
+msgid "Подойди к DJ-пульту на рабочем столе в спальне-студии."
+msgstr "Go to the DJ deck on the desk in the bedroom studio."
+
+msgid "Рядом с пультом мало проходов. Освободи место и попробуй снова."
+msgstr "Not enough walkways near the deck. Clear some space and try again."
+
+msgid "Сведение в бит · атмосфера растёт"
+msgstr "Mixed on the beat · the vibe is rising"
+
+msgid "Нажимай M, когда в индикаторе загорается БИТ."
+msgstr "Press M when the indicator shows BEAT."
+
+msgid "Аншлаг! Ты удержал полный дом и атмосферу."
+msgstr "Sold out! You kept a full house and the vibe."
+
+msgid "J · Начать вечеринку    B · Пиво    N · Сигарета"
+msgstr "J · Start party    B · Beer    N · Cigarette"
+
+msgid "Найди DJ-пульт в спальне-студии    B · Пиво    N · Сигарета"
+msgstr "Find the DJ deck in the bedroom studio    B · Beer    N · Cigarette"
+
+msgid "БИТ"
+msgstr "BEAT"
+
+msgid "Выбери трек на ноутбуке"
+msgstr "Pick a track on the laptop"
+
+msgid "%s   %d/%d внутри   %d%%"
+msgstr "%s   %d/%d inside   %d%%"
+
+msgid "Аншлаг!"
+msgstr "Sold out!"
+
+msgid "Вечеринка"
+msgstr "Party"
+
+msgid "%s%s · запрос %s · %s\n%s\nB пиво · N сигарета · K потушить · R энергетик · V тошнит"
+msgstr "%s%s · request %s · %s\n%s\nB beer · N cigarette · K put out · R energy drink · V throw up"
+
+msgid "E ноутбук · C контроллер · 1–3 хаус"
+msgstr "E laptop · C controller · 1–3 house"
+
+msgid "Вернись к пульту, чтобы сменить трек."
+msgstr "Go back to the deck to change the track."
+
+msgid "\nНа улице %d · $%d · сигарет %d"
+msgstr "\nOutside %d · $%d · cigarettes %d"
+
+msgid "\nУдержи аншлаг ещё %d с"
+msgstr "\nKeep the full house for %d more s"
+
+msgid "Сначала потуши сигарету · K"
+msgstr "Put out the cigarette first · K"
+
+msgid "Пива нет · купи в Night Shop"
+msgstr "No beer · buy some at the Night Shop"
+
+msgid "Сигареты закончились · купи в Night Shop"
+msgstr "Out of cigarettes · buy some at the Night Shop"
+
+msgid "Сигарета потушена · осталось %d"
+msgstr "Cigarette out · %d left"
+
+msgid "Опьянение · %d%%"
+msgstr "Drunk · %d%%"
+
+msgid "Ты охуел? Руки убрал!"
+msgstr "Are you fucking kidding? Hands off!"
+
+msgid "Какого хуя ты толкаешься?!"
+msgstr "Why the fuck are you shoving?!"
+
+msgid "Пошёл нахуй со своими понтами!"
+msgstr "Fuck off with your attitude!"
+
+msgid "Не трогай меня, блядь!"
+msgstr "Don't fucking touch me!"
+
+msgid "Сейчас получишь, сука!"
+msgstr "You're gonna get it, bitch!"
+
+msgid "Гости сцепились! Подойди и нажми E, чтобы разнять."
+msgstr "Guests are fighting! Go over and press E to break it up."
+
+msgid "Всё, блядь, хватит!"
+msgstr "That's fucking enough!"
+
+msgid "Разнял гостей. Атмосфера восстанавливается."
+msgstr "Broke up the fight. The vibe is recovering."
+
+msgid "Артём"
+msgstr "Artem"
+
+msgid "Киев"
+msgstr "Kyiv"
+
+msgid "Амина"
+msgstr "Amina"
+
+msgid "Касабланка"
+msgstr "Casablanca"
+
+msgid "Матеус"
+msgstr "Mateus"
+
+msgid "Сан-Паулу"
+msgstr "São Paulo"
+
+msgid "Хана"
+msgstr "Hana"
+
+msgid "Сеул"
+msgstr "Seoul"
+
+msgid "Омар"
+msgstr "Omar"
+
+msgid "Александрия"
+msgstr "Alexandria"
+
+msgid "Валентина"
+msgstr "Valentina"
+
+msgid "Богота"
+msgstr "Bogotá"
+
+msgid "Кэндзи"
+msgstr "Kenji"
+
+msgid "Осака"
+msgstr "Osaka"
+
+msgid "Зара"
+msgstr "Zara"
+
+msgid "Лондон"
+msgstr "London"
+
+msgid "Даниэль"
+msgstr "Daniel"
+
+msgid "Торонто"
+msgstr "Toronto"
+
+msgid "Лейла"
+msgstr "Leyla"
+
+msgid "Стамбул"
+msgstr "Istanbul"
+
+msgid "Амар"
+msgstr "Amar"
+
+msgid "Мумбаи"
+msgstr "Mumbai"
+
+msgid "Мэй"
+msgstr "Mei"
+
+msgid "Тайбэй"
+msgstr "Taipei"
+
+msgid "Лукас"
+msgstr "Lucas"
+
+msgid "Лиссабон"
+msgstr "Lisbon"
+
+msgid "Ниа"
+msgstr "Nia"
+
+msgid "Лагос"
+msgstr "Lagos"
+
+msgid "Идрис"
+msgstr "Idris"
+
+msgid "Париж"
+msgstr "Paris"
+
+msgid "София"
+msgstr "Sofia"
+
+msgid "Варшава"
+msgstr "Warsaw"
+
+msgid "Украина"
+msgstr "Ukraine"
+
+msgid "Марокко"
+msgstr "Morocco"
+
+msgid "Бразилия"
+msgstr "Brazil"
+
+msgid "Южная Корея"
+msgstr "South Korea"
+
+msgid "Египет"
+msgstr "Egypt"
+
+msgid "Колумбия"
+msgstr "Colombia"
+
+msgid "Япония"
+msgstr "Japan"
+
+msgid "Великобритания"
+msgstr "United Kingdom"
+
+msgid "Канада"
+msgstr "Canada"
+
+msgid "Турция"
+msgstr "Turkey"
+
+msgid "Индия"
+msgstr "India"
+
+msgid "Тайвань"
+msgstr "Taiwan"
+
+msgid "Португалия"
+msgstr "Portugal"
+
+msgid "Нигерия"
+msgstr "Nigeria"
+
+msgid "Франция"
+msgstr "France"
+
+msgid "Польша"
+msgstr "Poland"
+
+msgid "Промоутер"
+msgstr "Promoter"
+
+msgid "Знакомый диджей из Киева посоветовал послушать твой сет."
+msgstr "A DJ friend from Kyiv told me to come hear your set."
+
+msgid "Подруга хозяина"
+msgstr "Host's friend"
+
+msgid "Мы познакомились на вечеринке в Касабланке. Сегодня привела друзей."
+msgstr "We met at a party in Casablanca. I brought friends tonight."
+
+msgid "Танцор"
+msgstr "Dancer"
+
+msgid "Выступал с друзьями из Сан-Паулу. Они прислали мне адрес этой вечеринки."
+msgstr "I performed with friends from São Paulo. They sent me this party's address."
+
+msgid "Фотограф"
+msgstr "Photographer"
+
+msgid "Снимала клубы в Сеуле. Друг попросил сделать пару кадров твоего сета."
+msgstr "I shot clubs in Seoul. A friend asked me to get a few shots of your set."
+
+msgid "Сосед"
+msgstr "Neighbour"
+
+msgid "Переехал из Александрии и теперь живу рядом. Услышал басы и заглянул."
+msgstr "Moved here from Alexandria and live next door. Heard the bass and dropped in."
+
+msgid "Мои друзья из Боготы уже у колонок. Я к ним."
+msgstr "My friends from Bogotá are already by the speakers. Joining them."
+
+msgid "Друг хозяина"
+msgstr "Host's friend"
+
+msgid "Мы вместе слушали пластинки в Осаке. Помнишь, какой хаус тогда играли?"
+msgstr "We listened to records together in Osaka. Remember the house they played back then?"
+
+msgid "Организую ночи в Лондоне. Один из гостей сказал, что здесь стоит послушать диджея."
+msgstr "I run nights in London. A guest said the DJ here is worth hearing."
+
+msgid "Гость"
+msgstr "Guest"
+
+msgid "Друзья из города %s скинули мне адрес. Я зашёл познакомиться."
+msgstr "Friends from %s sent me the address. I came by to say hi."
+
+msgid "любит хаус"
+msgstr "loves house"
+
+msgid "любит общение"
+msgstr "loves to chat"
+
+msgid "танцует всю ночь"
+msgstr "dances all night"
+
+msgid "ценит спокойные треки"
+msgstr "likes mellow tracks"
+
+msgid "Наведи на стену и щёлкни для установки. ПКМ отменяет."
+msgstr "Aim at a wall and click to place. RMB cancels."
+
+msgid "%.2f м"
+msgstr "%.2f m"
+
+msgid "%.2f × %.2f м"
+msgstr "%.2f × %.2f m"
+
+msgid "Нужна стена с достаточным свободным местом."
+msgstr "You need a wall with enough free space."
+
+msgid "Перетащи на подходящую стену. Старый проём сохранён."
+msgstr "Drag onto a suitable wall. The old opening was kept."
+
+msgid "Стена должна опираться на пол."
+msgstr "The wall must stand on a floor."
+
+msgid "Тошнит…"
+msgstr "Feeling sick…"
+
+msgid "Планировка изменилась. Вечеринку можно запустить заново у пульта."
+msgstr "The layout changed. Restart the party at the deck."
+
+msgid "Сначала поставь предмет из рук."
+msgstr "Put down the item you're holding first."
+
+msgid "Узких щелей для заделки не найдено."
+msgstr "No narrow gaps to seal."
+
+msgid "Заделано стыков: %d"
+msgstr "Gaps sealed: %d"
+
+msgid "Сначала поставь предмет."
+msgstr "Put the item down first."
+
+msgid "Не удалось сохранить проект."
+msgstr "Couldn't save the project."
+
+msgid "Проект сохранён."
+msgstr "Project saved."
+
+msgid "Этот файл проекта не удалось открыть."
+msgstr "Couldn't open this project file."
+
+msgid "Энергетик"
+msgstr "Energy drink"
+
+msgid "+15% к скорости бега на 45 с · R"
+msgstr "+15% running speed for 45 s · R"
+
+msgid "Пиво"
+msgstr "Beer"
+
+msgid "1 бутылка · B"
+msgstr "1 bottle · B"
+
+msgid "Сигареты"
+msgstr "Cigarettes"
+
+msgid "5 сигарет · N"
+msgstr "5 cigarettes · N"
+
+msgid "$%d   ·   Пиво %d   ·   Энергетики %d   ·   Сигареты %d"
+msgstr "$%d   ·   Beer %d   ·   Energy drinks %d   ·   Cigarettes %d"
+
+msgid "Не хватает денег."
+msgstr "Not enough money."
+
+msgid "Куплено · %s"
+msgstr "Bought · %s"
+
+msgid "Энергетиков нет · купи в Night Shop"
+msgstr "No energy drinks · buy some at the Night Shop"
+
+msgid "Энергетик ещё действует · %d с"
+msgstr "Energy drink still active · %d s"
+
+msgid "Энергетик · бег быстрее на 45 с"
+msgstr "Energy drink · faster running for 45 s"
+
+msgid "Собери 12 гостей внутри и удержи атмосферу."
+msgstr "Get 12 guests inside and keep the vibe going."
+
+msgid "J вечеринка · E ноутбук · C контроллер · 1–3 треки · M сведение · E разговор\nB пиво · N сигарета · K потушить · R энергетик · V тошнит"
+msgstr "J party · E laptop · C controller · 1–3 tracks · M beat mix · E talk\nB beer · N cigarette · K put out · R energy drink · V throw up"
+
+msgid "Музыка"
+msgstr "Music"
+
+msgid "Шаги"
+msgstr "Footsteps"
+
+msgid "Чувствительность мыши"
+msgstr "Mouse sensitivity"
+
+msgid "Смотреть вступление"
+msgstr "Watch intro"
+
+msgid "Новая вечеринка"
+msgstr "New party"
+
+msgid "Главное меню"
+msgstr "Main menu"
+
+msgid "Основной монитор"
+msgstr "Main monitor"
+
+msgid "Верхний монитор"
+msgstr "Top monitor"
+
+msgid "Клавиатура"
+msgstr "Keyboard"
+
+msgid "Мышь"
+msgstr "Mouse"
+
+msgid "Панель A · за креслом"
+msgstr "Panel A · behind the chair"
+
+msgid "Панель B · за креслом"
+msgstr "Panel B · behind the chair"
+
+msgid "Передвижная панель · у шкафа"
+msgstr "Mobile panel · by the wardrobe"
+
+msgid "Потолочное облако"
+msgstr "Ceiling cloud"
+
+msgid "Бас-ловушка L1"
+msgstr "Bass trap L1"
+
+msgid "Бас-ловушка L2"
+msgstr "Bass trap L2"
+
+msgid "Бас-ловушка L3"
+msgstr "Bass trap L3"
+
+msgid "Бас-ловушка R1"
+msgstr "Bass trap R1"
+
+msgid "Бас-ловушка R2"
+msgstr "Bass trap R2"
+
+msgid "Бас-ловушка R3"
+msgstr "Bass trap R3"
+
+msgid "Кухонные шкафы и фартук"
+msgstr "Kitchen cabinets and backsplash"
+
+msgid "Плита и духовой шкаф"
+msgstr "Stove and oven"
+
+msgid "Холодильник"
+msgstr "Fridge"
+
+msgid "Посуда на кухне"
+msgstr "Kitchen dishes"
+
+msgid "Обеденный стол"
+msgstr "Dining table"
+
+msgid "Стулья у стола"
+msgstr "Dining chairs"
+
+msgid "Микроволновка"
+msgstr "Microwave"
+
+msgid "Кухня · деталь"
+msgstr "Kitchen · detail"
+
+msgid "Жалюзийный шкаф"
+msgstr "Louvred cabinet"
+
+msgid "Входная дверь"
+msgstr "Front door"
+
+msgid "Зеркало в коридоре"
+msgstr "Hallway mirror"
+
+msgid "Красный гриль"
+msgstr "Red grill"
+
+msgid "Коридор · деталь"
+msgstr "Hallway · detail"
+
+msgid "Плитка на стенах ванной"
+msgstr "Bathroom wall tiles"
+
+msgid "Ванна"
+msgstr "Bathtub"
+
+msgid "Душевая перегородка"
+msgstr "Shower screen"
+
+msgid "Унитаз"
+msgstr "Toilet"
+
+msgid "Тумба и раковина"
+msgstr "Vanity and sink"
+
+msgid "Корпус зеркального шкафа"
+msgstr "Mirror cabinet"
+
+msgid "Ванная · деталь"
+msgstr "Bathroom · detail"
+
+msgid "Круглый ковёр"
+msgstr "Round rug"
+
+msgid "Шторы и карниз"
+msgstr "Curtains and rail"
+
+msgid "Люстра"
+msgstr "Chandelier"
+
+msgid "Вешалка с одеждой"
+msgstr "Clothes rack"
+
+msgid "Тренировочная скамья"
+msgstr "Workout bench"
+
+msgid "Тумба с ящиками"
+msgstr "Chest of drawers"
+
+msgid "Комната с ковром · деталь"
+msgstr "Rug room · detail"
+
+msgid "Пол и потолок — спальня"
+msgstr "Floor and ceiling — bedroom"
+
+msgid "Ковёр студии"
+msgstr "Studio rug"
+
+msgid "Рабочий стол"
+msgstr "Desk"
+
+msgid "Компьютер"
+msgstr "Computer"
+
+msgid "Кровать"
+msgstr "Bed"
+
+msgid "Комод"
+msgstr "Dresser"
+
+msgid "Кресло"
+msgstr "Armchair"
+
+msgid "Встроенный шкаф"
+msgstr "Built-in wardrobe"
+
+msgid "Полка над столом"
+msgstr "Shelf above the desk"
+
+msgid "Окна и шторы спальни"
+msgstr "Bedroom windows and curtains"
+
+msgid "Гитара"
+msgstr "Guitar"
+
+msgid "Колонка KRK"
+msgstr "KRK speaker"
+
+msgid "Студия · деталь"
+msgstr "Studio · detail"
+
+msgid "Кухонная техника над столешницей"
+msgstr "Kitchen appliances above the counter"
+
+msgid "Стена"
+msgstr "Wall"
+
+msgid "Перемычка"
+msgstr "Lintel"
+
+msgid "Косяк"
+msgstr "Door frame"
+
+msgid "Кухонная арка"
+msgstr "Kitchen arch"
+
+msgid "Пол и потолок — Комната с ковром"
+msgstr "Floor and ceiling — Rug room"
+
+msgid "Пол и потолок — Коридор"
+msgstr "Floor and ceiling — Hallway"
+
+msgid "Пол и потолок — Ванная"
+msgstr "Floor and ceiling — Bathroom"
+
+msgid "Пол и потолок — Кухня"
+msgstr "Floor and ceiling — Kitchen"
+
+msgid "Кухонный светильник"
+msgstr "Kitchen light"
+
+msgid "Акустическая панель"
+msgstr "Acoustic panel"
+
+msgid "Диван"
+msgstr "Sofa"
+
+msgid "Ковёр"
+msgstr "Rug"
+
+msgid "Открытый дверной проём"
+msgstr "Open doorway"
+
+msgid "Стол"
+msgstr "Table"
+
+msgid "Стул"
+msgstr "Chair"
+
+msgid "Универсальный блок"
+msgstr "Generic block"
+
+msgid "Участок пола"
+msgstr "Floor patch"
+
+msgid "Шкаф"
+msgstr "Wardrobe"
+
+msgid "Бас-ловушка"
+msgstr "Bass trap"
+
+msgid "Панель за креслом"
+msgstr "Panel behind the chair"
+
+msgid "Комната с ковром"
+msgstr "Rug room"
+
+msgid "Коридор"
+msgstr "Hallway"
+
+msgid "Ванная"
+msgstr "Bathroom"
+
+msgid "Кухня"
+msgstr "Kitchen"
+
+msgid "Спальня-студия"
+msgstr "Bedroom studio"
+
+msgid "E / Space · дальше     Esc · пропустить"
+msgstr "E / Space · continue     Esc · skip"
+
+msgid "Esc / ПКМ · отойти от контроллера"
+msgstr "Esc / RMB · step away from the controller"
+
+msgid "Browse · локальная музыка"
+msgstr "Browse · local music"
+
+msgid "Load A · открыть библиотеку"
+msgstr "Load A · open library"
+
+msgid "Load B · открыть библиотеку"
+msgstr "Load B · open library"
+
+msgid "Укоротить Echo"
+msgstr "Shorter echo"
+
+msgid "Удлинить Echo"
+msgstr "Longer echo"
+
+msgid "Уровень Echo"
+msgstr "Echo level"
+
+msgid "Jog · перемотка"
+msgstr "Jog · seek"
+
+msgid "CUE · к точке"
+msgstr "CUE · jump to cue"
+
+msgid "IN · начало лупа"
+msgstr "IN · loop start"
+
+msgid "OUT · конец лупа"
+msgstr "OUT · loop end"
+
+msgid "Назад на бит"
+msgstr "Back one beat"
+
+msgid "Вперёд на бит"
+msgstr "Forward one beat"
+
+msgid "Пэд %d"
+msgstr "Pad %d"
+
+msgid "Выбрать папку"
+msgstr "Choose folder"
+
+msgid "Обновить"
+msgstr "Refresh"
+
+msgid "Поиск по названию и подпапке"
+msgstr "Search by name or subfolder"
+
+msgid "Включить"
+msgstr "Play"
+
+msgid "Загрузить в %s"
+msgstr "Load into %s"
+
+msgid "Папка с музыкой"
+msgstr "Music folder"
+
+msgid "Поиск файлов…"
+msgstr "Scanning files…"
+
+msgid "%d треков"
+msgstr "%d tracks"
+
+msgid "Выбери трек в списке."
+msgstr "Pick a track in the list."
+
+msgid "Не удалось открыть %s"
+msgstr "Couldn't open %s"
+
+msgid "Системный / System"
+msgstr "Системный / System"
+
+msgid "Русский"
+msgstr "Русский"
+
+msgid "LATE SET     /     FIRST NIGHT"
+msgstr "LATE SET     /     FIRST NIGHT"
+
+msgid "Late Set"
+msgstr "Late Set"
+
+msgid "DJ Simulator"
+msgstr "DJ Simulator"
+
+msgid "Язык / Language"
+msgstr "Язык / Language"
+
+msgid "NIGHT SHOP"
+msgstr "NIGHT SHOP"
+
+msgid "Эй, дружище. Есть пару долларов на кофе?"
+msgstr "Hey, buddy. Got a couple bucks for coffee?"
+
+msgid "Привет. Не найдётся мелочи на что-нибудь поесть?"
+msgstr "Hi. Got any change for something to eat?"
+
+msgid "Если есть пара баксов, я был бы благодарен."
+msgstr "If you've got a couple of dollars, I'd be grateful."
+
+msgid "Лео"
+msgstr "Leo"
+
+msgid "Мара"
+msgstr "Mara"
+
+msgid "Фрэнк"
+msgstr "Frank"
+
+msgid "Спасибо. Правда, выручил."
+msgstr "Thanks. You really helped me out."
+
+msgid "Спасибо ещё раз. Хорошей ночи."
+msgstr "Thanks again. Have a good night."
+
+msgid "Ничего, бывает. Доброй ночи."
+msgstr "No worries, it happens. Good night."
+
+msgid "Для помощи нужно $%d"
+msgstr "You need $%d to help"
+
+msgid "Ты дал $%d · осталось $%d"
+msgstr "You gave $%d · $%d left"
+
+msgid "E · Поговорить"
+msgstr "E · Talk"
+
+msgid "E · Дать $%d · %s"
+msgstr "E · Give $%d · %s"
+
+msgid "Начать заново"
+msgstr "Start over"
+
+msgid "Начать заново?"
+msgstr "Start over?"
+
+msgid "Отмена"
+msgstr "Cancel"
+
+msgid "Прогресс сюжета, деньги и покупки будут сброшены, игра начнётся с начала. Настройки и музыка сохранятся."
+msgstr "Story progress, money and purchases will be reset and the game will start from the beginning. Settings and music are kept."

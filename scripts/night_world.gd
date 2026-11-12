@@ -1,11 +1,8 @@
+class_name NightWorld
 extends Node3D
 
-const StreetShop = preload("res://scripts/street_shop.gd")
-const Subway = preload("res://scripts/subway_station.gd")
-const Nightclub = preload("res://scripts/nightclub.gd")
-const District = preload("res://scripts/night_district.gd")
 
-var home
+var home: Home
 var initialized := false
 var street := Node3D.new()
 var smoking_spot := Vector3.ZERO
@@ -13,13 +10,13 @@ var door_center := Vector3.ZERO
 var floor_id := "night-courtyard"
 var materials := {}
 var prop_models := {}
-var nightclub: Node3D
-var shop: Node3D
-var subway: Node3D
-var district: Node3D
+var nightclub: Nightclub
+var shop: StreetShop
+var subway: SubwayStation
+var district: NightDistrict
 
-func _init(editor) -> void:
-	home = editor
+func _init(game_home: Home) -> void:
+	home = game_home
 
 func setup() -> void:
 	add_child(street)
@@ -125,18 +122,18 @@ func build_street() -> void:
 		lamp(Vector3(-6.5,0,z))
 	build_shelter()
 	add_sign(street,"NOCH / HOUSE PARTY",Vector3(-.16,2.52,0),Vector3(0,-PI*.5,0),Color("#df8aaf"),.0024)
-	add_sign(street,"КУРИЛКА",Vector3(-4.4,2.20,3.5),Vector3(0,PI*.5,0),Color("#81bdc7"),.0021)
+	add_sign(street,tr("КУРИЛКА"),Vector3(-4.4,2.20,3.5),Vector3(0,PI*.5,0),Color("#81bdc7"),.0021)
 	for side in [-1,1]:
 		var planter := Vector3(-1.2,0,side*2.9)
 		var plant := place_prop(street,"furniture/pottedPlant",planter,Vector3(.63,.98,.63))
 		box(street,planter+Vector3.UP*.24,Vector3(.62,.48,.62),Color("#414955"),true,plant)
 	place_prop(street,"furniture/trashcan",Vector3(-5.95,0,4.35),Vector3(.39,.64,.39))
 	box(street,Vector3(-5.95,.32,4.35),Vector3(.39,.64,.39),Color.TRANSPARENT,true,true)
-	District.place_car(street,0,Vector3(-9,0,-4.6))
-	District.place_car(street,1,Vector3(-9,0,4.7))
+	NightDistrict.place_car(street,0,Vector3(-9,0,-4.6))
+	NightDistrict.place_car(street,1,Vector3(-9,0,4.7))
 
 func build_club_access() -> void:
-	district = District.new(self)
+	district = NightDistrict.new(self)
 	street.add_child(district)
 	district.build()
 	for index in range(6):
@@ -150,7 +147,7 @@ func build_club_access() -> void:
 	shop = StreetShop.new(self)
 	street.add_child(shop)
 	shop.build()
-	subway = Subway.new(self)
+	subway = SubwayStation.new(self)
 	street.add_child(subway)
 	subway.build()
 
@@ -158,7 +155,7 @@ func club_ground_at(point: Vector2) -> float:
 	if not is_instance_valid(nightclub):
 		return -INF
 	var local := point-Vector2(door_center.x,door_center.z)
-	return door_center.y if District.BOUNDS.has_point(local) else -INF
+	return door_center.y if NightDistrict.BOUNDS.has_point(local) else -INF
 
 func build_shelter() -> void:
 	for x in [-5.5,-2.2]:
@@ -181,14 +178,14 @@ func build_shelter() -> void:
 
 func build_lounge() -> void:
 	for row in home.records.values():
-		if not home.built_room(row) or bool(row.deleted):
+		if not home.rooms.built_room(row) or bool(row.deleted):
 			continue
-		var bounds: Rect2 = home.room_world_bounds(row)
+		var bounds: Rect2 = home.rooms.room_world_bounds(row)
 		if bounds.size.x<3.5 or bounds.size.y<3.5:
 			continue
 		var lounge := Node3D.new()
 		home.add_child(lounge)
-		var bar_at := Vector3(bounds.end.x-.70,float(home.floor_surface(row)),bounds.get_center().y)
+		var bar_at := Vector3(bounds.end.x-.70,float(home.rooms.floor_surface(row)),bounds.get_center().y)
 		# Bar, shelves and a bench occupy the edge of the room, leaving the center open.
 		var bar := place_prop(lounge,"furniture/kitchenBar",bar_at,Vector3(1.78,.99,.68),-PI*.5)
 		box(lounge,bar_at+Vector3(0,.495,0),Vector3(.68,.99,1.78),Color("#252b36"),true,bar)
@@ -196,7 +193,7 @@ func build_lounge() -> void:
 			var stool_at := bar_at+Vector3(-.70,0,z)
 			var stool := place_prop(lounge,"furniture/stoolBar",stool_at,Vector3(.36,.76,.36))
 			box(lounge,stool_at+Vector3.UP*.38,Vector3(.35,.76,.35),Color("#55405f"),true,stool)
-		var sofa_at := Vector3(bounds.get_center().x,float(home.floor_surface(row)),bounds.end.y-.45)
+		var sofa_at := Vector3(bounds.get_center().x,float(home.rooms.floor_surface(row)),bounds.end.y-.45)
 		var sofa := place_prop(lounge,"furniture/loungeSofa",sofa_at,Vector3(1.85,.86,.70),PI)
 		box(lounge,sofa_at+Vector3.UP*.30,Vector3(1.85,.60,.70),Color("#34424c"),true,sofa)
 		place_prop(lounge,"furniture/speaker",sofa_at+Vector3(-1.18,0,0),Vector3(.29,.76,.28),PI)
@@ -256,10 +253,10 @@ func place_prop(parent: Node3D, asset: String, at: Vector3, size: Vector3, yaw: 
 func dress_bar() -> void:
 	nightclub.open_venue()
 	district.populate()
-	if not is_instance_valid(home.party.bottle_model):
+	if not is_instance_valid(home.party.bottle_template()):
 		return
 	for index in range(4):
-		var bottle := home.party.bottle_model.duplicate() as Node3D
+		var bottle := home.party.bottle_template().duplicate() as Node3D
 		street.add_child(bottle)
 		bottle.show()
 		bottle.position = Vector3(-3.55+index*.105,.89,3.65)

@@ -1,7 +1,19 @@
+class_name Player
 extends CharacterBody3D
 
-const Character = preload("res://scripts/party_guest.gd")
-const GuestModel = preload("res://scripts/guest_model.gd")
+const WALK_SPEED := 1.75
+const RUN_SPEED := 3.30
+## Extra run speed while an energy drink is active.
+const ENERGY_RUN_MULTIPLIER := 1.15
+const GRAVITY := 13.0
+const JUMP_VELOCITY := 3.5
+## Highest ledge the player steps onto automatically (metres).
+const STEP_HEIGHT := .16
+const ACCELERATION := 10.0
+const DECELERATION := 14.0
+const WALK_STRIDE := .57
+const RUN_STRIDE := .75
+
 var dj_rig: GuestModel
 var dj_mouth: Node3D
 var avatar: Node3D
@@ -132,17 +144,16 @@ func _physics_process(delta: float) -> void:
 	if collapsed or vomiting:
 		retch_clock += delta
 		update_body(delta)
-		velocity.y = 0.0 if is_on_floor() else velocity.y-13.0*delta
+		velocity.y = 0.0 if is_on_floor() else velocity.y-GRAVITY*delta
 		move_and_slide()
 		return
-	var sideways := float(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT)) - float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT))
-	var forward := float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)) - float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN))
-	var direction := global_transform.basis * Vector3(sideways, 0.0, -forward).limit_length(1.0)
-	var running := Input.is_physical_key_pressed(KEY_SHIFT)
+	var stick := Input.get_vector("move_left", "move_right", "move_back", "move_forward")
+	var direction := global_transform.basis * Vector3(stick.x, 0.0, -stick.y).limit_length(1.0)
+	var running := Input.is_action_pressed("run")
 	energy_boost = maxf(0.0,energy_boost-delta)
-	var speed := 3.30 if running else 1.75
+	var speed := RUN_SPEED if running else WALK_SPEED
 	if running and energy_boost>0.0:
-		speed *= 1.15
+		speed *= ENERGY_RUN_MULTIPLIER
 	intoxication = move_toward(intoxication,0.0,delta*.004)
 	alcohol_motion += delta
 	var sway := sin(alcohol_motion*2.9)*intoxication
@@ -151,21 +162,21 @@ func _physics_process(delta: float) -> void:
 		direction = direction.rotated(Vector3.UP,sway*.17)
 		speed *= 1.0-intoxication*.16
 	var desired := direction*speed
-	var acceleration := 10.0 if direction.length_squared()>.01 else 14.0
+	var acceleration := ACCELERATION if direction.length_squared()>.01 else DECELERATION
 	velocity.x = move_toward(velocity.x,desired.x,acceleration*delta)
 	velocity.z = move_toward(velocity.z,desired.z,acceleration*delta)
 	if airborne:
-		velocity.y = (float(Input.is_physical_key_pressed(KEY_SPACE)) - float(Input.is_physical_key_pressed(KEY_Q))) * speed
+		velocity.y = Input.get_axis("fly_down", "jump") * speed
 	else:
-		velocity.y = 0.0 if is_on_floor() else velocity.y - 13.0 * delta
-		if is_on_floor() and Input.is_physical_key_pressed(KEY_SPACE):
-			velocity.y = 3.5
+		velocity.y = 0.0 if is_on_floor() else velocity.y - GRAVITY * delta
+		if is_on_floor() and Input.is_action_pressed("jump"):
+			velocity.y = JUMP_VELOCITY
 	var horizontal := Vector3(velocity.x,0,velocity.z)*delta
 	if is_on_floor() and horizontal.length_squared()>.00001 and test_move(global_transform,horizontal):
 		var raised := global_transform
-		raised.origin.y += .16
-		if not test_move(global_transform,Vector3.UP*.16) and not test_move(raised,horizontal):
-			global_position.y += .16
+		raised.origin.y += STEP_HEIGHT
+		if not test_move(global_transform,Vector3.UP*STEP_HEIGHT) and not test_move(raised,horizontal):
+			global_position.y += STEP_HEIGHT
 	move_and_slide()
 	var pace := Vector2(velocity.x,velocity.z).length()
 	if is_on_floor():
@@ -202,7 +213,7 @@ func make_body() -> void:
 		update_body(0)
 		return
 	rig.free()
-	avatar = Character.new(5)
+	avatar = PartyGuest.new(5)
 	add_child(avatar)
 	avatar.position.z = .11
 	avatar.name_tag.hide()
@@ -279,7 +290,7 @@ func vomit() -> void:
 	if vomiting or collapsed or intoxication<.65 or nausea_cooldown>0:
 		return
 	var party = get_parent().party
-	if is_instance_valid(party.hand_prop):
+	if party.hands_busy():
 		nausea_time = .4
 		return
 	party.extinguish()
@@ -287,7 +298,7 @@ func vomit() -> void:
 	nausea_time = 0
 	nausea_cooldown = 35.0
 	velocity = Vector3.ZERO
-	get_parent().hud.notice("Тошнит…")
+	GameEvents.notify(tr("Тошнит…"))
 	retch_clock = 0.0
 	var motion := create_tween().set_trans(Tween.TRANS_SINE)
 	motion.tween_property(self,"kneel_amount",1.0,.65)
@@ -352,7 +363,7 @@ func update_steps(direction: Vector3) -> void:
 		return
 	var displacement := get_position_delta()
 	step_distance += Vector2(displacement.x,displacement.z).length()
-	var stride := .75 if Input.is_physical_key_pressed(KEY_SHIFT) else .57
+	var stride := RUN_STRIDE if Input.is_action_pressed("run") else WALK_STRIDE
 	if step_distance<stride:
 		return
 	step_distance -= stride
