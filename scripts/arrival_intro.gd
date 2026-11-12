@@ -9,8 +9,8 @@ const DOOR_THUD = preload("res://assets/story/ambience/door.mp3")
 const CLUB_BED = preload("res://assets/story/ambience/club_outside.mp3")
 const Cabin = preload("res://scripts/arrival_cabin.gd")
 const LINES := [
-	[0,2.8,"","",""],
-	[0,3.4,"You","This the right block? We've passed the same liquor store twice.","cabin_block"],
+	[0,4.85,"Kir","Yo. Wake up, man. We're coming into the city.","cabin_wakeup"],
+	[0,3.1,"You","Already? Shit. How long was I out?","cabin_awake"],
 	[1,5.0,"Old voicemail","You said ten minutes. We waited forty. I got the guy from the bar to cover you, but—","cabin_voicemail"],
 	[1,3.5,"Kir","You hungry? I know a spot. Well… they still sell beer.","cabin_food"],
 	[1,2.3,"You","I said hungry.","cabin_hungry"],
@@ -41,6 +41,7 @@ var caption: Label
 var objective: Label
 var fade: ColorRect
 var cabin: Cabin
+var city_entry: Node3D
 var follow_up: PanelContainer
 var follow_up_text: Label
 var follow_up_left := 0.0
@@ -246,8 +247,9 @@ func start(is_replay: bool = false) -> void:
 	arrival_car = NightDistrict.place_car(home.night_world.street,1,Vector3(-56.8,0,-17.5))
 	cabin = Cabin.new()
 	home.night_world.street.add_child(cabin)
-	cabin.position = Vector3(CABIN_LANE_X,0,-23.2)
+	cabin.position = Vector3(CABIN_LANE_X,0,-27.35)
 	cabin.build(home.night_world)
+	build_city_entry()
 	friend = PartyGuest.new(12,null,home.party.psx_assets)
 	home.night_world.street.add_child(friend)
 	friend.name_tag.hide()
@@ -283,6 +285,22 @@ func loop_stream(source: AudioStreamMP3) -> AudioStreamMP3:
 	var stream := source.duplicate() as AudioStreamMP3
 	stream.loop = true
 	return stream
+
+func build_city_entry() -> void:
+	var world := home.night_world
+	city_entry = Node3D.new()
+	world.street.add_child(city_entry)
+	city_entry.position = Vector3(-55.30,0,-15.0)
+	var metal := Color("#4a525c")
+	world.box(city_entry,Vector3(-3.27,1.36,0),Vector3(.085,2.72,.085),metal)
+	world.box(city_entry,Vector3(3.27,1.36,0),Vector3(.085,2.72,.085),metal)
+	world.box(city_entry,Vector3(0,2.71,0),Vector3(6.60,.085,.085),metal)
+	world.box(city_entry,Vector3(0,2.34,0),Vector3(1.57,.63,.062),Color("#294740"))
+	world.box(city_entry,Vector3(0,2.62,-.035),Vector3(1.51,.016,.009),Color("#a4b4a1"))
+	world.box(city_entry,Vector3(0,2.07,-.035),Vector3(1.51,.016,.009),Color("#a4b4a1"))
+	world.add_sign(city_entry,"NIGHT DISTRICT",Vector3(0,2.43,-.039),Vector3(0,PI,0),Color("#ecf0d6"),.0034)
+	world.add_sign(city_entry,"8 AVE  ↑",Vector3(0,2.23,-.039),Vector3(0,PI,0),Color("#d0e4cf"),.0024)
+	world.point_light(city_entry,Vector3(.12,2.61,-.44),Color("#e0ecd6"),.53,3.8)
 
 func place_audio(parent: Node3D, at: Vector3, stream: AudioStream, db: float, unit: float, reach: float) -> AudioStreamPlayer3D:
 	var source := AudioStreamPlayer3D.new()
@@ -320,9 +338,11 @@ func set_line() -> void:
 	voice_pending = clip != null
 	if clip == null:
 		return
-	voice_lead = .52 if line==2 else .09
+	voice_lead = .58 if line==0 else (1.10 if line==2 else .09)
 	voice.volume_db = -1.0 if row[2]=="Old voicemail" else 0.0
 	line_duration = clip.get_length()+voice_lead+(.33 if row[2]=="Old voicemail" else .20)
+	if line==0:
+		line_duration = maxf(line_duration,float(row[1]))
 
 func advance_line() -> void:
 	if closing:
@@ -376,7 +396,11 @@ func _process(delta: float) -> void:
 	street_sound.volume_db = move_toward(street_sound.volume_db,-37.0 if inside else (-32.0 if speaking else -23.0),delta*25.0)
 	club_sound.volume_db = move_toward(club_sound.volume_db,-40.0 if inside else (-29.0 if speaking else -20.0),delta*25.0)
 	opening_fade = maxf(0,opening_fade-delta)
-	fade.color.a = clampf(opening_fade/.9,0,1)
+	var eyelids := 0.0
+	if line==0:
+		eyelids = 1.0-smoothstep(.80,1.75,elapsed)
+		eyelids = maxf(eyelids,.64*(smoothstep(1.91,2.04,elapsed)-smoothstep(2.08,2.31,elapsed)))
+	fade.color.a = maxf(eyelids,clampf(opening_fade/.9,0,1))
 	update_shot(delta)
 
 func update_shot(delta: float) -> void:
@@ -386,13 +410,13 @@ func update_shot(delta: float) -> void:
 	var focus := Vector3.ZERO
 	if shot<=1:
 		driving_clock += delta
-		var speed := lerpf(2.55,.65,smoothstep(0.0,line_duration,elapsed)) if line==5 else 2.55
+		var speed := lerpf(2.32,.65,smoothstep(0.0,line_duration,elapsed)) if line==5 else 2.32
 		cabin.position.z += speed*delta
 		if cabin.position.z>17.9:
 			cabin.position.z = 17.9
-		cabin.position.x = CABIN_LANE_X+sin(driving_clock*.64)*.13
-		cabin.position.y = sin(driving_clock*8.3)*.006
-		cabin.rotation.y = cos(driving_clock*.64)*.025
+		cabin.position.x = CABIN_LANE_X+sin(driving_clock*.56)*.072
+		cabin.position.y = sin(driving_clock*5.6)*.002
+		cabin.rotation.y = cos(driving_clock*.56)*.013
 		arrival_car.position = cabin.position
 		arrival_car.hide()
 		cabin.show()
@@ -400,12 +424,14 @@ func update_shot(delta: float) -> void:
 		engine.volume_db = -27.0 if voice_pending or voice.playing else -20.0
 		var clip_length := voice.stream.get_length() if voice.stream != null else line_duration
 		var clip_time := voice.get_playback_position() if voice.playing else (clip_length if line==2 and not voice_pending else 0.0)
-		cabin.update_pose(delta,driving_clock,line,clip_length,clip_time,LINES[line][2]=="Kir" and voice.playing)
+		cabin.update_pose(delta,driving_clock,line==2 and elapsed>.34,clip_length,clip_time,LINES[line][2]=="Kir" and voice.playing)
 		var look := smoothstep(0.0,1.0,cabin.phone_amount)
-		var base_eye := Cabin.EYE+Vector3(sin(driving_clock*2.2)*.006,sin(driving_clock*3.3)*.009,0)
+		var sleepy := 1.0-smoothstep(1.05,3.22,elapsed) if line==0 else 0.0
+		var base_eye := Cabin.EYE+Vector3(-sleepy*.11,sin(driving_clock*2.5)*.004-sleepy*.18,-sleepy*.07)
 		eye = cabin.to_global(base_eye)-origin
 		cabin_glance = move_toward(cabin_glance,1.0 if line in [3,4,5] else 0.0,delta*1.48)
 		var gaze := Vector3(-.31,1.34,2.9).lerp(Vector3(.46,1.36,-.19),smoothstep(0,1,cabin_glance)*.98)
+		gaze = gaze.lerp(Vector3(-.57,.87,1.55),sleepy)
 		focus = cabin.to_global(gaze.lerp(cabin.phone.position,look*.88))-origin
 		camera.fov = lerpf(68.0,58.0,look)
 		friend.hide()
@@ -458,6 +484,8 @@ func update_shot(delta: float) -> void:
 					key_prop.rotation.y = -.23
 	camera.global_position = origin+eye
 	camera.look_at(origin+focus)
+	if line==0:
+		camera.rotate_object_local(Vector3.BACK,-.17*(1.0-smoothstep(1.05,3.22,elapsed)))
 
 func finish() -> void:
 	if not active:
@@ -476,12 +504,13 @@ func finish() -> void:
 	guard.name_tag.visible = guard_tag_visible
 	layer.hide()
 	home.player.camera.make_current()
-	for node in [camera,arrival_car,cabin,friend,street_sound,club_sound]:
+	for node in [camera,arrival_car,cabin,city_entry,friend,street_sound,club_sound]:
 		if is_instance_valid(node):
 			node.queue_free()
 	camera = null
 	arrival_car = null
 	cabin = null
+	city_entry = null
 	friend = null
 	key_prop = null
 	street_sound = null

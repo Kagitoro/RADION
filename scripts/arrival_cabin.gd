@@ -4,6 +4,7 @@ extends Node3D
 var world: NightWorld
 var driver: PartyGuest
 var passenger: GuestModel
+var column := Node3D.new()
 var wheel := Node3D.new()
 var phone := Node3D.new()
 var progress: MeshInstance3D
@@ -11,6 +12,7 @@ var phone_amount := 0.0
 var phone_time: Label3D
 var cabin_light: OmniLight3D
 var screen_light: OmniLight3D
+var driver_look := 0.0
 const EYE := Vector3(-.43,1.36,-.33)
 
 func build(night_world: NightWorld) -> void:
@@ -60,9 +62,10 @@ func build(night_world: NightWorld) -> void:
 	label(self," FM  98.3 ",Vector3(0,.836,.417),.00063,Color("#a5e1bc"))
 	world.box(self,Vector3(.41,1.09,.622),Vector3(.36,.106,.18),rubber)
 	label(self,"0    20    40    60",Vector3(.41,1.092,.527),.0008,Color("#b3cfbf"))
-	add_child(wheel)
-	wheel.position = Vector3(.43,1.016,.272)
-	wheel.rotation.x = PI*.42
+	add_child(column)
+	column.position = Vector3(.43,1.03,.225)
+	column.rotation.x = PI*.42
+	column.add_child(wheel)
 	var rim := TorusMesh.new()
 	rim.inner_radius = .147
 	rim.outer_radius = .179
@@ -143,34 +146,39 @@ func sit(rig: GuestModel) -> void:
 		rig.rotate_local(side+"UpLeg",Vector3(-1.20,0,0))
 		rig.rotate_local(side+"Leg",Vector3(1.52,0,0))
 
-func update_pose(delta: float, clock: float, line: int, duration: float, clip_time: float, talking: bool) -> void:
-	wheel.rotation.y = sin(clock*.93)*.10 + sin(clock*1.84)*.03
-	cabin_light.light_energy = .23 + .31*pow(maxf(0,sin(clock*1.70)),4)
-	driver.pose(delta,0,false)
+func update_pose(delta: float, clock: float, raise_phone: bool, duration: float, clip_time: float, talking: bool) -> void:
+	wheel.rotation.y = sin(clock*.81)*.062 + sin(clock*1.48)*.017
+	cabin_light.light_energy = .29 + .21*pow(maxf(0,sin(clock*1.20)),4)
 	var rig := driver.imported_model as GuestModel
 	if rig != null:
+		# Reset to the same seated base on every frame before applying IK.
+		rig.pose(0.0,false,1.0,false,0.0)
 		sit(rig)
-		rig.rotate_local("Head",Vector3(.03*sin(clock*2),.19 if talking else .06*sin(clock*.8),0))
+		driver_look = move_toward(driver_look,.16 if talking else 0.0,delta*.48)
+		rig.rotate_local("Head",Vector3(.018*sin(clock*1.15),driver_look,.008*sin(clock*.8)))
 		for index in range(rig.arms.size()):
 			var side := 1.0 if index==0 else -1.0
-			var hand := wheel.to_global(Vector3(side*.145,.015,-side*.038))
-			rig.point_arm(rig.arms[index],rig.skeleton.to_local(hand),Vector3(side,-.65,-.22))
-	var raised := line==2
-	phone_amount = move_toward(phone_amount,1.0 if raised else 0.0,delta*(2.0 if raised else 2.6))
+			var arm := rig.arms[index]
+			var rim := wheel.to_global(Vector3(side*.145,.0,-.075))
+			var wrist := rim+global_basis*Vector3(side*.027,-.025,-.074)
+			rig.point_arm(arm,rig.skeleton.to_local(wrist),Vector3(side,-.76,-.31))
+			var solved := rig.skeleton.to_global(rig.skeleton.get_bone_global_pose(arm.z).origin)
+			orient_hand(rig,arm.z,solved,rim,global_basis*Vector3(side*.34,1,0),.86)
+	phone_amount = move_toward(phone_amount,1.0 if raise_phone else 0.0,delta*(1.75 if raise_phone else 2.4))
 	var ease := smoothstep(0,1,phone_amount)
 	phone.visible = phone_amount>.08
-	phone.position = Vector3(-.61,.76,.04).lerp(Vector3(-.50,1.175,.21),ease)
+	phone.position = Vector3(-.61,.76,.04).lerp(Vector3(-.53,1.194,.238),ease)
 	phone.position.y += sin(clock*2.5)*.003
-	phone.rotation = Vector3(.32*(1.0-ease)-.21*ease,PI-.10,-.06)
+	phone.rotation = Vector3(.42*(1.0-ease)-.12*ease,PI-.045,.012)
 	var played := clampf(clip_time/maxf(.1,duration),.002,1.0)
 	progress.scale.x = played
 	progress.position.x = -.0305+.0305*played
 	phone_time.text = "0:%02d" % floori(clip_time)
 	if passenger != null:
 		passenger.visible = phone.visible
-		passenger.pose(delta,false,1.0,false,0.0)
+		passenger.pose(0.0,false,1.0,false,0.0)
 		sit(passenger)
-		var contact := Vector3(-.041,-.071,-.052)
+		var contact := Vector3(-.027,-.085,-.078)
 		for index in range(passenger.arms.size()):
 			var arm := passenger.arms[index]
 			var side := 1.0 if index==0 else -1.0
@@ -178,5 +186,16 @@ func update_pose(delta: float, clock: float, line: int, duration: float, clip_ti
 			var target := passenger.skeleton.to_local(phone.to_global(contact)) if index==0 and phone.visible else rest
 			passenger.point_arm(arm,target,Vector3(side,-.7,-.20))
 		if phone.visible:
-			var wrist := passenger.skeleton.get_bone_global_pose(passenger.arms[0].z)
-			phone.global_position = passenger.skeleton.to_global(wrist.origin) - phone.global_basis*contact
+			var arm := passenger.arms[0]
+			var wrist := passenger.skeleton.to_global(passenger.skeleton.get_bone_global_pose(arm.z).origin)
+			phone.global_position = wrist - phone.global_basis*contact
+			var fingers := phone.to_global(Vector3(-.017,.025,contact.z))
+			orient_hand(passenger,arm.z,wrist,fingers,phone.global_basis.z,.94)
+
+func orient_hand(rig: GuestModel, bone: int, wrist: Vector3, fingers: Vector3, palm_normal: Vector3, influence: float) -> void:
+	var inverse := rig.skeleton.global_basis.inverse()
+	var up := (inverse*(fingers-wrist)).normalized()
+	var side := up.cross(inverse*palm_normal).normalized()
+	var current := rig.skeleton.get_bone_global_pose(bone).basis.orthonormalized()
+	var grip := Basis(side,up,side.cross(up))
+	rig.set_joint_rotation(bone,current.slerp(grip,influence))
