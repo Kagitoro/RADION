@@ -10,9 +10,16 @@ var phone := Node3D.new()
 var progress: MeshInstance3D
 var phone_amount := 0.0
 var phone_time: Label3D
+var call_screen := Node3D.new()
+var voicemail_screen := Node3D.new()
+var call_button: MeshInstance3D
+var call_title: Label3D
+var call_icon: Label3D
+enum PhoneView { OFF, CALL, DECLINED, VOICEMAIL }
 var cabin_light: OmniLight3D
 var screen_light: OmniLight3D
 var driver_look := 0.0
+var phone_press := 0.0
 const EYE := Vector3(-.43,1.36,-.33)
 
 func build(night_world: NightWorld) -> void:
@@ -130,14 +137,20 @@ func build_phone() -> void:
 	world.box(phone,Vector3(0,0,.006),Vector3(.077,.149,.003),Color("#777d90"))
 	lit_box(phone,Vector3(0,0,.008),Vector3(.071,.142,.002),Color("#141d33"))
 	lit_box(phone,Vector3(0,.060,.010),Vector3(.032,.009,.002),Color("#0a0d16"))
-	label(phone,"VOICEMAIL",Vector3(0,.040,.012),.00030,Color("#dbe6ff"),0)
-	label(phone,"LAST MONTH",Vector3(0,.024,.012),.00022,Color("#a3afd1"),0)
+	phone.add_child(call_screen)
+	phone.add_child(voicemail_screen)
+	call_title = label(call_screen,"INCOMING CALL",Vector3(0,.038,.012),.00024,Color("#a3afd1"),0)
+	label(call_screen,"MAYA",Vector3(0,.013,.012),.00048,Color("#e9edfc"),0)
+	call_button = lit_box(call_screen,Vector3(0,-.030,.012),Vector3(.031,.020,.002),Color("#af3d56"))
+	call_icon = label(call_screen,"×",Vector3(0,-.028,.015),.00046,Color("#fff2f4"),0)
+	label(voicemail_screen,"VOICEMAIL",Vector3(0,.040,.012),.00030,Color("#dbe6ff"),0)
+	label(voicemail_screen,"MAYA  /  LAST MONTH",Vector3(0,.024,.012),.00020,Color("#a3afd1"),0)
 	for i in range(16):
 		var amplitude := .006 + absf(sin(i*1.37)*sin(i*.62+.3))*.014
-		lit_box(phone,Vector3((i-7.5)*.0038,.002,.011),Vector3(.00175,amplitude,.001),Color("#849aff"))
-	lit_box(phone,Vector3(0,-.021,.011),Vector3(.061,.002,.001),Color("#414c71"))
-	progress = lit_box(phone,Vector3(-.0305,-.021,.012),Vector3(.061,.002,.001),Color("#e2e6ff"))
-	phone_time = label(phone,"0:00",Vector3(0,-.038,.012),.00034,Color("#cfd7ed"),0)
+		lit_box(voicemail_screen,Vector3((i-7.5)*.0038,.002,.011),Vector3(.00175,amplitude,.001),Color("#849aff"))
+	lit_box(voicemail_screen,Vector3(0,-.021,.011),Vector3(.061,.002,.001),Color("#414c71"))
+	progress = lit_box(voicemail_screen,Vector3(-.0305,-.021,.012),Vector3(.061,.002,.001),Color("#e2e6ff"))
+	phone_time = label(voicemail_screen,"0:00",Vector3(0,-.038,.012),.00034,Color("#cfd7ed"),0)
 	lit_box(phone,Vector3(0,-.064,.011),Vector3(.024,.002,.001),Color("#98a4c8"))
 	phone.hide()
 
@@ -146,7 +159,7 @@ func sit(rig: GuestModel) -> void:
 		rig.rotate_local(side+"UpLeg",Vector3(-1.20,0,0))
 		rig.rotate_local(side+"Leg",Vector3(1.52,0,0))
 
-func update_pose(delta: float, clock: float, raise_phone: bool, duration: float, clip_time: float, talking: bool) -> void:
+func update_pose(delta: float, clock: float, phone_view: PhoneView, duration: float, clip_time: float, talking: bool) -> void:
 	wheel.rotation.y = sin(clock*.81)*.062 + sin(clock*1.48)*.017
 	cabin_light.light_energy = .29 + .21*pow(maxf(0,sin(clock*1.20)),4)
 	var rig := driver.imported_model as GuestModel
@@ -164,12 +177,21 @@ func update_pose(delta: float, clock: float, raise_phone: bool, duration: float,
 			rig.point_arm(arm,rig.skeleton.to_local(wrist),Vector3(side,-.76,-.31))
 			var solved := rig.skeleton.to_global(rig.skeleton.get_bone_global_pose(arm.z).origin)
 			orient_hand(rig,arm.z,solved,rim,global_basis*Vector3(side*.34,1,0),.86)
-	phone_amount = move_toward(phone_amount,1.0 if raise_phone else 0.0,delta*(1.75 if raise_phone else 2.4))
+	var raise_phone := phone_view != PhoneView.OFF
+	phone_amount = move_toward(phone_amount,1.0 if raise_phone else 0.0,delta*(1.40 if raise_phone else 2.4))
+	call_screen.visible = phone_view in [PhoneView.CALL,PhoneView.DECLINED]
+	voicemail_screen.visible = not call_screen.visible
+	call_title.text = "CALL DECLINED" if phone_view==PhoneView.DECLINED else "INCOMING CALL"
+	call_icon.visible = phone_view==PhoneView.CALL
+	call_button.visible = call_icon.visible
+	call_button.scale = Vector3.ONE*(.96+.07*sin(clock*6))
 	var ease := smoothstep(0,1,phone_amount)
 	phone.visible = phone_amount>.08
 	phone.position = Vector3(-.61,.76,.04).lerp(Vector3(-.53,1.194,.238),ease)
 	phone.position.y += sin(clock*2.5)*.003
 	phone.rotation = Vector3(.42*(1.0-ease)-.12*ease,PI-.045,.012)
+	phone_press = move_toward(phone_press,1.0 if phone_view==PhoneView.DECLINED else 0.0,delta*5.0)
+	phone.rotate_object_local(Vector3.RIGHT,-.09*phone_press)
 	var played := clampf(clip_time/maxf(.1,duration),.002,1.0)
 	progress.scale.x = played
 	progress.position.x = -.0305+.0305*played

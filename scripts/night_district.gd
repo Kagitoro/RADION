@@ -28,6 +28,7 @@ var facade_meshes := {}
 var warm_glass := StandardMaterial3D.new()
 var walk_material: StandardMaterial3D
 var wall_materials: Array[StandardMaterial3D] = []
+var highway_gate: MeshInstance3D
 
 func _init(night_world: NightWorld) -> void:
 	world = night_world
@@ -35,8 +36,15 @@ func _init(night_world: NightWorld) -> void:
 func build() -> void:
 	var center := BOUNDS.get_center()
 	build_ground_collision()
-	for z in [-34.9,33.9]:
-		world.box(self,Vector3(center.x,.65,z),Vector3(63.1,1.3,.22),Color("#383d4c"),true)
+	var barrier := Color("#383d4c")
+	world.box(self,Vector3(center.x,.65,33.9),Vector3(63.1,1.3,.22),barrier,true)
+	for span in [Vector2(BOUNDS.position.x,-59.26),Vector2(-51.34,BOUNDS.end.x)]:
+		world.box(self,Vector3((span.x+span.y)*.5,.65,-34.9),Vector3(span.y-span.x,1.3,.22),barrier,true)
+	var gate_shape := BoxMesh.new()
+	gate_shape.size = Vector3(7.92,1.3,.22)
+	var gate_at := Vector3(-55.30,.65,-34.9)
+	highway_gate = world.mesh(self,gate_shape,gate_at,barrier)
+	world.box(self,gate_at,gate_shape.size,Color.TRANSPARENT,true,true)
 	world.box(self,Vector3(-76.9,.65,center.y),Vector3(.22,1.3,69),Color("#383d4c"),true)
 	for interval in [Vector2(-35,-1.7),Vector2(1.7,34)]:
 		world.box(self,Vector3(-13.91,.65,(interval.x+interval.y)*.5),Vector3(.11,1.3,interval.y-interval.x),Color("#353e4e"),true)
