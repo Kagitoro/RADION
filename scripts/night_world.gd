@@ -1,5 +1,6 @@
 extends Node3D
 
+const StreetShop = preload("res://scripts/street_shop.gd")
 const Nightclub = preload("res://scripts/nightclub.gd")
 const District = preload("res://scripts/night_district.gd")
 
@@ -12,6 +13,7 @@ var floor_id := "night-courtyard"
 var materials := {}
 var prop_models := {}
 var nightclub: Node3D
+var shop: Node3D
 var district: Node3D
 
 func _init(editor) -> void:
@@ -143,6 +145,9 @@ func build_club_access() -> void:
 	nightclub = Nightclub.new(self)
 	street.add_child(nightclub)
 	nightclub.build()
+	shop = StreetShop.new(self)
+	street.add_child(shop)
+	shop.build()
 
 func club_ground_at(point: Vector2) -> float:
 	if not is_instance_valid(nightclub):

@@ -26,6 +26,7 @@ var kneel_amount := 0.0
 var retch_clock := 0.0
 var blackout: ColorRect
 var head_bob := 0.0
+var energy_boost := 0.0
 var camera_rest := Vector3(0,1.64,0)
 var mouse_sensitivity := .0025
 
@@ -138,7 +139,10 @@ func _physics_process(delta: float) -> void:
 	var forward := float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)) - float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN))
 	var direction := global_transform.basis * Vector3(sideways, 0.0, -forward).limit_length(1.0)
 	var running := Input.is_physical_key_pressed(KEY_SHIFT)
+	energy_boost = maxf(0.0,energy_boost-delta)
 	var speed := 3.30 if running else 1.75
+	if running and energy_boost>0.0:
+		speed *= 1.15
 	intoxication = move_toward(intoxication,0.0,delta*.004)
 	alcohol_motion += delta
 	var sway := sin(alcohol_motion*2.9)*intoxication

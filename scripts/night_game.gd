@@ -47,7 +47,7 @@ func setup() -> void:
 	pause_panel.add_child(pause_content)
 	pause_content.add_child(home.hud.label("НОЧЬ / HOUSE PARTY",24))
 	pause_content.add_child(home.hud.label("Собери 12 гостей внутри и удержи атмосферу.",14))
-	pause_content.add_child(home.hud.label("J вечеринка · E ноутбук · C контроллер · 1–3 треки · M сведение · E разговор\nB пиво · N сигарета · K потушить · P купить · V тошнит",13))
+	pause_content.add_child(home.hud.label("J вечеринка · E ноутбук · C контроллер · 1–3 треки · M сведение · E разговор\nB пиво · N сигарета · K потушить · R энергетик · V тошнит",13))
 	add_slider(pause_content,"Музыка",.85,func(value): home.party.music_gain = value)
 	add_slider(pause_content,"Шаги",.63,func(value): home.player.step_audio.volume_db = -16.0+linear_to_db(maxf(.0001,value)))
 	add_slider(pause_content,"Чувствительность мыши",.45,func(value): home.player.mouse_sensitivity = .0008+value*.0038)
@@ -85,6 +85,7 @@ func setup() -> void:
 	menu = MainMenu.new()
 	add_child(menu)
 	menu.setup(home,self)
+	home.night_world.shop.setup()
 
 func add_slider(parent: VBoxContainer, text: String, value: float, changed: Callable) -> void:
 	var row := HBoxContainer.new()
@@ -116,6 +117,9 @@ func _process(delta: float) -> void:
 	if not interact_hint.visible or hint_time > 0.0:
 		return
 	hint_time = .10
+	if home.night_world.shop.can_interact():
+		interact_hint.text = "E · Night Shop"
+		return
 	if home.party.events.near_fight():
 		interact_hint.text = "E · Разнять гостей"
 		return
@@ -139,7 +143,7 @@ func _process(delta: float) -> void:
 	elif home.party.near_deck():
 		interact_hint.text = "E · Ноутбук     ЛКМ по контроллеру     J · Вечеринка"
 	elif home.player.global_position.distance_to(home.night_world.smoking_spot)<2.2:
-		interact_hint.text = "Курилка · N сигарета · K потушить · P купить"
+		interact_hint.text = "Курилка · N сигарета · K потушить · R энергетик"
 	else:
 		interact_hint.text = ""
 
@@ -180,6 +184,9 @@ func aimed_guest() -> Node3D:
 	return result
 
 func interact() -> void:
+	if home.night_world.shop.can_interact():
+		home.night_world.shop.open()
+		return
 	if home.party.events.near_fight():
 		close_talk()
 		home.party.events.end_fight(true)
@@ -298,6 +305,10 @@ func toggle_pause() -> void:
 	home.set_modal(pause_panel.visible)
 
 func key(code: int) -> void:
+	if home.night_world.shop.is_open():
+		if code==KEY_ESCAPE:
+			home.night_world.shop.close()
+		return
 	var station := current_dj()
 	if station.panel.visible:
 		if code==KEY_ESCAPE and not station.chooser.visible:
@@ -335,7 +346,7 @@ func key(code: int) -> void:
 		KEY_N: home.party.consume(false)
 		KEY_K: home.party.extinguish()
 		KEY_V: home.player.vomit()
-		KEY_P: home.party.buy_cigarettes()
+		KEY_R: home.night_world.shop.drink_energy()
 		KEY_F: flashlight.visible = not flashlight.visible
 		KEY_M:
 			if home.party.near_deck():

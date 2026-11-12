@@ -482,6 +482,7 @@ func invite() -> void:
 	var guest := Guest.new(guest_serial,model,psx_assets)
 	guest_serial += 1
 	cash += 1
+	home.night_world.shop.save_stock()
 	guest.position = cells[entrance]
 	crowd.add_child(guest)
 	guests.append(guest)
@@ -550,7 +551,7 @@ func refresh_hud() -> void:
 	if now_playing.is_empty():
 		now_playing = "Выбери трек на ноутбуке"
 	status.text = "%s   %d/%d внутри   %d%%" % ["Аншлаг!" if won else "Вечеринка",indoor_count(),GOAL,roundi(atmosphere)]
-	message.text = "%s%s · запрос %s · %s\n%s\nB пиво · N сигарета · K потушить · P купить · V тошнит" % [
+	message.text = "%s%s · запрос %s · %s\n%s\nB пиво · N сигарета · K потушить · R энергетик · V тошнит" % [
 		now_playing,(" %d BPM" % roundi(BPM[song])) if song>=0 else "",TRACKS[requested],signal_text,
 		"E ноутбук · C контроллер · 1–3 хаус" if near_deck() else "Вернись к пульту, чтобы сменить трек."]
 	message.text += "\nНа улице %d · $%d · сигарет %d" % [guests.size()-indoor_count(),cash,cigarettes]
@@ -586,12 +587,19 @@ func consume(beer: bool) -> void:
 		else:
 			handle_cigarette()
 		return
-	if not beer:
+	var shop = home.night_world.shop
+	if beer:
+		if shop.beer<=0:
+			home.hud.notice("Пива нет · купи в Night Shop")
+			return
+		shop.beer -= 1
+	else:
 		if cigarettes<=0:
-			home.hud.notice("Сигареты закончились · P купить пачку")
+			home.hud.notice("Сигареты закончились · купи в Night Shop")
 			return
 		cigarettes -= 1
 		cigarette_burn = 0.0
+	shop.save_stock()
 	var prop := Node3D.new()
 	home.player.camera.add_child(prop)
 	hand_prop = prop
@@ -755,14 +763,6 @@ func extinguish() -> void:
 	cigarette_held = false
 	home.player.set_action_pose(0)
 	home.hud.notice("Сигарета потушена · осталось %d" % cigarettes)
-
-func buy_cigarettes() -> void:
-	if cash<6:
-		home.hud.notice("Пачка стоит $6 игровых денег. Гости оставляют чаевые.")
-		return
-	cash -= 6
-	cigarettes += 5
-	home.hud.notice("Куплено 5 сигарет · запас %d · $%d" % [cigarettes,cash])
 
 func ember_smoke() -> void:
 	var tip := lip_cigarette.get_node("Ember") as Node3D
