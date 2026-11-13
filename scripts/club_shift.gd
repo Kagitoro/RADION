@@ -9,6 +9,7 @@ const EVENT_NAMES := ["Просьба о треке","Очередь у бара
 const EVENT_STAFF := [1,0,2]
 const ENTRY := Vector3(-4.2,.015,5.4)
 const AISLE := Vector3(-4.2,.015,2.35)
+const FAVORITE_BPMS := [116.0,126.0,136.0]
 
 var club: Nightclub
 var dj: DJStation
@@ -42,6 +43,9 @@ var slots: Array[Vector3] = []
 var paths: Array[PackedVector3Array] = []
 var destinations: Array[Vector3] = []
 var on_floor := 0
+var guest_fatigue := PackedFloat32Array()
+var guest_wants_dance := PackedByteArray()
+var crowd_tempo := 0.0
 var incident_guests: Array[Node3D] = []
 
 func setup(venue: Nightclub) -> void:
@@ -52,6 +56,8 @@ func setup(venue: Nightclub) -> void:
 		slots.append(guest.position)
 		paths.append(PackedVector3Array())
 		destinations.append(guest.position)
+	guest_fatigue.resize(slots.size())
+	guest_wants_dance.resize(slots.size())
 	panel = PANEL.instantiate()
 	home.hud.root.add_child(panel)
 	summary = panel.get_node("%Summary")
@@ -71,6 +77,9 @@ func start() -> void:
 	held = 0.0
 	admitted = Balance.CLUB_START_GUESTS
 	on_floor = 4
+	crowd_tempo = 0.0
+	guest_fatigue.fill(0.0)
+	guest_wants_dance.fill(0)
 	clear_incident()
 	crowd_timer = 0.0
 	next_event = 0
@@ -112,6 +121,8 @@ func _process(delta: float) -> void:
 		won = held>=HOLD_SECONDS
 		if won:
 			home.night_game.intro.first_booking_complete()
+		elif home.night_game.intro.samir_confirmed and not home.night_game.intro.first_set_done:
+			home.night_game.intro.show_message(tr("Самир · К финалу зал поредел. Давай ещё раз, когда будешь готов."),7.5)
 		if event>=0:
 			club.staff[EVENT_STAFF[event]].speech.hide()
 		event = -1
@@ -133,6 +144,10 @@ func evaluate_mix(delta: float) -> void:
 	var weights: Vector2 = dj.mix_weights()
 	var level := maxf(level_for(0),level_for(1))
 	var playing: bool = dj.has_playback() and club.music_gain>.08 and (not dj.manual or weights[deck]>.075)
+	crowd_tempo = 0.0
+	if playing:
+		var bpm: float = dj.bpm_fields[deck].value if dj.manual else club.track_bpm()[club.track]
+		crowd_tempo = bpm*club.music[deck].pitch_scale
 	var target := 20.0
 	if playing:
 		target = 64.0 if not dj.manual else 75.0
@@ -194,16 +209,16 @@ func update_crowd(delta: float) -> void:
 		elif energy<Balance.CLUB_DISMISS_ENERGY and admitted>Balance.CLUB_MIN_GUESTS:
 			admitted -= 1
 	on_floor = 0
-	var dancing_limit := admitted if energy>=59.0 else maxi(1,admitted-3)
 	for index in range(club.dancers.size()):
 		var guest: Node3D = club.dancers[index]
 		if not guest.visible:
 			continue
+		var wants_dance := index<admitted and update_guest_interest(index,guest.dancing,delta)
 		var destination := slots[index]
 		if index>=admitted:
 			destination = ENTRY
-		elif index>=dancing_limit:
-			destination = Vector3(5.9,.015,2.45-float(index%3)*.72) if index%2==0 else Vector3(-4.62,.015,1.38+float(index%3)*.58)
+		elif not wants_dance:
+			destination = Vector3(5.85+float(index%3)*.52,.015,1.65-float(index/6)*.61) if index%2==0 else Vector3(-4.70-float(index%3)*.54,.015,1.58-float(index/6)*.61)
 		if destinations[index]!=destination:
 			var route := PackedVector3Array()
 			if guest.position.z>4.8:
@@ -221,7 +236,7 @@ func update_crowd(delta: float) -> void:
 		if not route.is_empty() and guest.position.distance_to(route[0])<.065:
 			route.remove_at(0)
 			paths[index] = route
-		guest.dancing = route.is_empty() and index<dancing_limit
+		guest.dancing = route.is_empty() and wants_dance
 		if guest.dancing:
 			on_floor += 1
 		elif not route.is_empty():
@@ -230,6 +245,22 @@ func update_crowd(delta: float) -> void:
 			guest.position = guest.position.move_toward(route[0],delta*1.23)
 		elif index>=admitted:
 			guest.hide()
+
+func update_guest_interest(index: int, dancing: bool, delta: float) -> bool:
+	var fatigue := guest_fatigue[index]
+	var tolerance := 0.8+float(index%5)*.11
+	if dancing and crowd_tempo>0.0:
+		fatigue = minf(1.0,fatigue+delta*(.011+maxf(0.0,energy-64.0)*.00055)/tolerance)
+	else:
+		fatigue = maxf(0.0,fatigue-delta*.065)
+	guest_fatigue[index] = fatigue
+	var preferred: float = FAVORITE_BPMS[index%FAVORITE_BPMS.size()]
+	var tempo_fit := clampf(13.0-absf(crowd_tempo-preferred)*.65,-16.0,13.0)
+	var interest := energy+tempo_fit-fatigue*35.0
+	var threshold := 48.0 if guest_wants_dance[index]!=0 else 59.0
+	var wants_dance := crowd_tempo>0.0 and interest>=threshold
+	guest_wants_dance[index] = int(wants_dance)
+	return wants_dance
 
 func begin_event(index: int) -> void:
 	event = index
@@ -331,6 +362,7 @@ func refresh() -> void:
 	var remaining := maxi(0,ceili(SHIFT_SECONDS-time))
 	summary.text = tr("%d:%02d   •   Танцпол %d   •   Энергия %d%%") % [remaining/60,remaining%60,on_floor,roundi(energy)]
 	var objective := tr("Финал: %d гостей, 65%% энергии · %d/%d с") % [GOAL,mini(int(held),int(HOLD_SECONDS)),int(HOLD_SECONDS)]
+	objective += "\n"+tr("У бара и по краям: %d") % maxi(0,admitted-on_floor)
 	if event>=0:
 		var action: String = [tr("Новый трек от 124 BPM"),tr("E у бармена · помочь с очередью"),tr("E у охраны · уладить спор")][event]
 		var status := tr("Персонал уже занимается") if delegated else tr("%s  /  H · поручить") % action

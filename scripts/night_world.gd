@@ -12,6 +12,8 @@ var materials := {}
 var prop_models := {}
 var nightclub: Nightclub
 var shop: StreetShop
+const CityRetail := preload("res://scripts/city_retail.gd")
+var retail: Array[Node3D] = []
 var subway: SubwayStation
 var district: NightDistrict
 
@@ -150,6 +152,11 @@ func build_club_access() -> void:
 	shop = StreetShop.new(self)
 	street.add_child(shop)
 	shop.build()
+	for is_dj_store in [false,true]:
+		var store := CityRetail.new(self,is_dj_store)
+		street.add_child(store)
+		store.build()
+		retail.append(store)
 	subway = SubwayStation.new(self)
 	street.add_child(subway)
 	subway.build()

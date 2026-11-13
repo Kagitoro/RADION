@@ -34,6 +34,7 @@ func _init(night_world: NightWorld) -> void:
 	world = night_world
 
 func build() -> void:
+	process_priority = 10
 	var center := BOUNDS.get_center()
 	build_ground_collision()
 	var barrier := Color("#383d4c")
@@ -270,7 +271,8 @@ func _process(delta: float) -> void:
 	var observer := to_local(player.global_position)
 	var view := get_viewport().get_camera_3d()
 	var viewer := to_local(view.global_position) if view!=null else observer
-	step_traffic(delta,observer)
+	var cinematic := view!=null and view!=world.home.player.camera
+	step_traffic(delta,viewer if cinematic else observer,cinematic)
 	elapsed += delta
 	if elapsed<.05:
 		return
@@ -298,7 +300,7 @@ func traffic_point(distance: float) -> Vector3:
 		remaining -= length
 	return TRAFFIC_ROUTE[0]
 
-func step_traffic(delta: float, observer: Vector3) -> void:
+func step_traffic(delta: float, observer: Vector3, cinematic := false) -> void:
 	var previous := PackedFloat64Array()
 	for route in traffic:
 		previous.append(route.distance)
@@ -312,7 +314,8 @@ func step_traffic(delta: float, observer: Vector3) -> void:
 		var room := maxf(0.0,gap-TRAFFIC_GAP)
 		var target_speed := minf(float(route.cruise),room*1.2)
 		var car: Node3D = route.car
-		if traffic_point(distance+2.4).distance_to(observer)<3.25:
+		var brake_distance := 6.5 if cinematic else 3.25
+		if traffic_point(distance+2.4).distance_to(observer)<brake_distance:
 			target_speed = 0.0
 		var acceleration := 2.6 if target_speed>float(route.speed) else 8.0
 		route.speed = move_toward(float(route.speed),target_speed,delta*acceleration)
@@ -322,5 +325,9 @@ func step_traffic(delta: float, observer: Vector3) -> void:
 		car.position = traffic_point(distance)
 		var direction := traffic_point(distance+.65)-traffic_point(distance-.65)
 		car.rotation.y = lerp_angle(car.rotation.y,atan2(direction.x,direction.z),minf(1.0,delta*6.0))
+		# A cut can place the camera beside a car before it has time to brake.
+		var local_eye := car.transform.affine_inverse()*observer
+		var camera_clear := absf(local_eye.x)>1.35 or absf(local_eye.z)>2.8 or local_eye.y>2.2
+		car.visible = not cinematic or camera_clear
 		for wheel in route.wheels:
 			wheel.rotate_x(step/float(route.radius))
