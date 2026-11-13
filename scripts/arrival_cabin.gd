@@ -132,6 +132,14 @@ func set_exit_doors(passenger_open: float, driver_open: float) -> void:
 	doors[0].rotation.y = passenger_open*1.28
 	doors[1].rotation.y = -driver_open*1.28
 
+func reach_exit_handle(amount: float) -> void:
+	if passenger == null or amount <= .001:
+		return
+	passenger.show()
+	var arm := passenger.arms[0]
+	var handle := passenger.skeleton.to_local(doors[0].to_global(Vector3(.055,.911,-1.04)))
+	passenger.point_arm(arm,Vector3(.23,.71,.22).lerp(handle,amount),Vector3.RIGHT+Vector3.DOWN)
+
 func lit_box(parent: Node3D, at: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
 	var shape := BoxMesh.new()
 	shape.size = size

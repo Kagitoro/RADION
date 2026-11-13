@@ -33,7 +33,7 @@ const LINES := [
 	[1,4.3,"Kir","Was that Maya from your old club? I thought you two were done talking.","acted_food"],
 	[1,2.3,"You","We are. She wants to know why I never showed.","acted_chew"],
 	[1,2.8,"Kir","Oh. Yeah, okay. We can talk about it after we get you some food.","acted_heard"],
-	[7,6.6,"","",""],
+	[7,7.5,"","",""],
 	[2,4.2,"Kir","Easy with the door, man. It's older than both of us.","acted_door"],
 	[2,3.5,"You","So who's waiting on me?","acted_waiting"],
 	[3,6.0,"Kir","See Samir by the door? I gave him your name. If the opener flakes, you get twenty minutes.","acted_slot"],
@@ -675,12 +675,13 @@ func update_first_exit(delta: float) -> void:
 		engine.play()
 	if elapsed>=1.37 and engine.playing:
 		engine.stop()
-	var passenger_open := smoothstep(1.56,2.26,elapsed)*(1.0-smoothstep(3.13,3.59,elapsed))
+	var passenger_open := smoothstep(1.63,2.28,elapsed)*(1.0-smoothstep(3.70,4.20,elapsed))
 	var driver_open := smoothstep(1.49,2.16,elapsed)*(1.0-smoothstep(2.94,3.44,elapsed))
 	cabin.set_exit_doors(passenger_open,driver_open)
 	var driver_step := smoothstep(2.03,2.82,elapsed)
 	cabin.driver.visible = elapsed<2.82
 	cabin.update_pose(delta,running_time,PhoneUI.Page.OFF,0,Vector2.ZERO,0,0,false)
+	cabin.reach_exit_handle(smoothstep(1.29,1.65,elapsed)*(1.0-smoothstep(1.92,2.40,elapsed)))
 	cabin.driver.position = Vector3(.42,-.26,-.27).lerp(Vector3(1.18,0,-.20),driver_step)
 	cabin.driver.rotation.y = lerp_angle(PI,-PI*.5,driver_step)
 	if driver_step>0 and cabin.driver.visible:
@@ -702,19 +703,20 @@ func update_first_exit(delta: float) -> void:
 	friend.pose(delta,0.0,elapsed>2.82 and elapsed<5.38)
 	var eye := Cabin.EYE
 	eye = eye.lerp(Vector3(-.72,1.22,-.43),smoothstep(1.47,2.23,elapsed))
-	eye = eye.lerp(Vector3(-1.39,1.58,-.50),smoothstep(2.22,3.23,elapsed))
-	eye = eye.lerp(Vector3(-1.45,1.61,2.17),smoothstep(3.57,4.85,elapsed))
-	eye = eye.lerp(Vector3(.42,1.60,2.16),smoothstep(4.72,5.45,elapsed))
-	eye = eye.lerp(FIRST_EYE-FIRST_PARK,smoothstep(5.33,6.57,elapsed))
-	var walk := smoothstep(3.55,3.88,elapsed)*(1.0-smoothstep(6.20,6.54,elapsed))
+	eye = eye.lerp(Vector3(-1.52,1.58,-.50),smoothstep(2.26,3.47,elapsed))
+	eye = eye.lerp(Vector3(-1.52,1.61,2.45),smoothstep(4.12,5.73,elapsed))
+	eye = eye.lerp(Vector3(.42,1.60,2.45),smoothstep(5.48,6.43,elapsed))
+	eye = eye.lerp(FIRST_EYE-FIRST_PARK,smoothstep(6.25,7.46,elapsed))
+	var walk := smoothstep(4.10,4.48,elapsed)*(1.0-smoothstep(7.10,7.43,elapsed))
 	eye.y += sin(elapsed*TAU*2.04)*.016*walk
-	var look := Vector3(-.38,1.30,2.7).lerp(Vector3(-1.75,.88,-.28),smoothstep(1.35,2.23,elapsed))
-	look = look.lerp(Vector3(-1.43,1.45,3.0),smoothstep(2.40,3.65,elapsed))
-	look = look.lerp(friend.position-FIRST_PARK+Vector3.UP*1.33,smoothstep(4.63,5.68,elapsed))
-	camera.fov = lerpf(68.0,55.0,smoothstep(5.40,6.57,elapsed))
+	var look := Vector3(-.38,1.30,2.7).lerp(Vector3(-1.75,.88,-.28),smoothstep(1.12,1.70,elapsed))
+	look = look.lerp(Vector3(-.90,1.04,-.05),smoothstep(2.53,3.67,elapsed))
+	look = look.lerp(Vector3(-1.43,1.45,3.8),smoothstep(3.90,4.70,elapsed))
+	look = look.lerp(friend.position-FIRST_PARK+Vector3.UP*1.33,smoothstep(5.05,6.48,elapsed))
+	camera.fov = lerpf(68.0,55.0,smoothstep(6.20,7.46,elapsed))
 	camera.global_position = cabin.to_global(eye)
 	camera.look_at(cabin.to_global(look))
-	var beats := [1.63,2.71,3.55,3.87,4.31,4.75,5.19,5.63,6.07]
+	var beats := [1.63,3.13,4.17,4.41,4.86,5.31,5.76,6.21,6.66,7.10]
 	if exit_sound_step<beats.size() and elapsed>=beats[exit_sound_step]:
 		if exit_sound_step in [0,2]:
 			door_sound.pitch_scale = .84 if exit_sound_step==0 else 1.0
