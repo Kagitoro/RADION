@@ -93,11 +93,10 @@ var cabin_glance := 0.0
 var line_duration := 0.0
 var exit_sound_step := 0
 var exit_steps: AudioStreamPlayer3D
-const HOME_PARK := Vector3(-7.7,0,-.30)
 const KEY_EYE := Vector3(-4.18,1.59,-.27)
-const FIRST_PARK := Vector3(-13.05,0,2.10)
-const FIRST_KIR := Vector3(-12.35,0,3.47)
-const FIRST_EYE := Vector3(-10.43,1.73,4.42)
+const FIRST_PARK := Vector3(-10.0,0,-1.50)
+const FIRST_KIR := Vector3(-8.24,0,1.12)
+const FIRST_EYE := Vector3(-9.80,1.64,1.15)
 var arrival_car: Node3D
 var friend: Node3D
 var key_prop: Node3D
@@ -436,6 +435,8 @@ func set_line() -> void:
 	if clip == null:
 		return
 	voice_lead = CLEAR_WAKE_LINE if line==0 else (VOICEMAIL_PLAY if line==PHONE_LINE else .19)
+	if line==KEY_LINE:
+		voice_lead = 3.1
 	if line==0:
 		voice_lead = maxf(voice_lead,WAKE_CALL+DISTANT_KIR.get_length()+.28)
 	voice.volume_db = -1.0 if row[2]=="Old voicemail" else 0.0
@@ -510,7 +511,7 @@ func _process(delta: float) -> void:
 		subtitle.visible = waking or elapsed>=voice_lead
 		speaker.visible = subtitle.visible
 	else:
-		subtitle.visible = line!=PHONE_LINE or elapsed>=voice_lead
+		subtitle.visible = line not in [PHONE_LINE,KEY_LINE] or elapsed>=voice_lead
 		speaker.visible = subtitle.visible
 	wake_mask.visible = line==0 and elapsed>=EXTERIOR_END and eyelids>.035
 	if wake_mask.visible:
@@ -605,8 +606,7 @@ func update_shot(delta: float) -> void:
 			focus = friend.position+Vector3.UP*1.33
 		elif shot in [3,4]:
 			var venue := home.club
-			arrival_car.position = venue.to_global(Vector3(-.7,0,9.1))-origin
-			arrival_car.rotation.y = venue.global_rotation.y+PI*.5
+			arrival_car.hide()
 			friend.position = venue.to_global(Vector3(-5.86,0,7.22))-origin
 			var guard := venue.staff[2] as PartyGuest
 			var turn := guard.position.direction_to(venue.to_local(origin+friend.position))
@@ -619,7 +619,7 @@ func update_shot(delta: float) -> void:
 				focus = friend.position+Vector3.UP*1.46
 		else:
 			arrival_car.hide()
-			cabin.position = HOME_PARK
+			cabin.position = FIRST_PARK
 			cabin.rotation = Vector3.ZERO
 			cabin.show()
 			cabin.parked_details.show()
@@ -630,7 +630,11 @@ func update_shot(delta: float) -> void:
 				eye = Vector3(-4.65,1.75,-.48+motion*.20)
 				focus = friend.position+Vector3(0,1.29,0)
 				if line==KEY_LINE:
-					eye = KEY_EYE
+					var approach := smoothstep(0.0,2.90,elapsed)
+					eye = Vector3(-7.0,1.64,-.27).lerp(KEY_EYE,approach)
+					eye.y += sin(elapsed*TAU*1.95)*.016*sin(PI*approach)
+					friend.position = Vector3(-5.75,0,.60).lerp(Vector3(-2.67,0,.75),approach)
+					focus = friend.position+Vector3.UP*1.25
 					focus = friend.position+Vector3(0,1.25,0)
 			else:
 				eye = Vector3(-3.85,1.63,-.73+motion*.14)
@@ -639,11 +643,11 @@ func update_shot(delta: float) -> void:
 		friend.rotation.y = atan2(-direction.x,-direction.z)
 		var rig := friend.imported_model as GuestModel
 		if rig != null:
-			rig.pose(delta,false,1.0,false,0.0)
+			rig.pose(delta,line==KEY_LINE and elapsed<2.9,1.0,false,0.0)
 			if line in [9,11,13,KEY_LINE,18,19,21] and rig.arms.size()==2:
 				var gesture := sin(clampf(elapsed/2.2,0.0,1.0)*PI)
 				var held := Vector3(.28,1.31,.43) if line==KEY_LINE else Vector3(.36,1.23,.32)
-				var wrist := Vector3(.18,.87,.10).lerp(held,gesture if line!=KEY_LINE else smoothstep(0.0,.9,elapsed))
+				var wrist := Vector3(.18,.87,.10).lerp(held,gesture if line!=KEY_LINE else smoothstep(2.9,3.8,elapsed))
 				rig.point_arm(rig.arms[0],wrist,Vector3(.85,-.4,-.15))
 				if key_prop.visible:
 					var hand := rig.skeleton.get_bone_global_pose(rig.arms[0].z)
@@ -694,19 +698,14 @@ func update_first_exit(delta: float) -> void:
 	var driver_walk := smoothstep(2.82,5.46,elapsed)
 	friend.visible = elapsed>=2.82
 	var driver_start := FIRST_PARK+Vector3(1.18,0,-.20)
-	var driver_corner := FIRST_PARK+Vector3(1.18,0,.98)
-	friend.position = driver_start.lerp(driver_corner,smoothstep(0,.67,driver_walk))
-	friend.position = friend.position.lerp(FIRST_KIR,smoothstep(.48,1,driver_walk))
+	var driver_corner := FIRST_PARK+Vector3(1.58,0,2.62)
+	friend.position = driver_start.lerp(driver_corner,smoothstep(0,.84,driver_walk))
+	friend.position = friend.position.lerp(FIRST_KIR,smoothstep(.84,1,driver_walk))
 	var turn := smoothstep(4.75,5.50,elapsed)
 	var facing := FIRST_KIR.direction_to(FIRST_EYE)
 	friend.rotation.y = lerp_angle(-PI*.5,atan2(-facing.x,-facing.z),turn)
 	friend.pose(delta,0.0,elapsed>2.82 and elapsed<5.38)
-	var eye := Cabin.EYE
-	eye = eye.lerp(Vector3(-.72,1.22,-.43),smoothstep(1.47,2.23,elapsed))
-	eye = eye.lerp(Vector3(-1.52,1.58,-.50),smoothstep(2.26,3.47,elapsed))
-	eye = eye.lerp(Vector3(-1.52,1.61,2.45),smoothstep(4.12,5.73,elapsed))
-	eye = eye.lerp(Vector3(.42,1.60,2.45),smoothstep(5.48,6.43,elapsed))
-	eye = eye.lerp(FIRST_EYE-FIRST_PARK,smoothstep(6.25,7.46,elapsed))
+	var eye := exit_eye(elapsed)
 	var walk := smoothstep(4.10,4.48,elapsed)*(1.0-smoothstep(7.10,7.43,elapsed))
 	eye.y += sin(elapsed*TAU*2.04)*.016*walk
 	var look := Vector3(-.38,1.30,2.7).lerp(Vector3(-1.75,.88,-.28),smoothstep(1.12,1.70,elapsed))
@@ -726,6 +725,15 @@ func update_first_exit(delta: float) -> void:
 			exit_steps.stream = home.player.steps["wood"][exit_sound_step%3]
 			exit_steps.play()
 		exit_sound_step += 1
+
+func exit_eye(time: float) -> Vector3:
+	if time < 2.23:
+		return Cabin.EYE.lerp(Vector3(-.69,1.21,-.51),smoothstep(1.47,2.23,time))
+	if time < 3.47:
+		return Vector3(-.69,1.21,-.51).lerp(Vector3(-1.58,1.64,-.52),smoothstep(2.23,3.47,time))
+	if time < 5.82:
+		return Vector3(-1.58,1.64,-.52).lerp(Vector3(-1.58,1.64,2.65),smoothstep(4.16,5.82,time))
+	return Vector3(-1.58,1.64,2.65).lerp(FIRST_EYE-FIRST_PARK,smoothstep(5.82,7.46,time))
 
 func finish() -> void:
 	if not active:

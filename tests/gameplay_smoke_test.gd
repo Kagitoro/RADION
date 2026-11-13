@@ -326,6 +326,15 @@ func check_intro() -> void:
 	intro.elapsed = 6.17
 	await wait(.16)
 	expect(intro.cabin.doors[0].rotation.y<.03 and intro.friend.visible, "Интро: выход из машины не завершился")
+	var space := home.get_world_3d().direct_space_state
+	var route := [3.47,5.82,7.46]
+	for index in range(route.size()-1):
+		for height in [-1.2,-.55,0.0]:
+			var offset := Vector3.UP*float(height)
+			var from := intro.cabin.to_global(intro.exit_eye(route[index]))+offset
+			var to := intro.cabin.to_global(intro.exit_eye(route[index+1]))+offset
+			var ray := PhysicsRayQueryParameters3D.create(from,to,1,[home.player.get_rid()])
+			expect(space.intersect_ray(ray).is_empty(), "Интро: на пути от машины до Кира есть препятствие")
 	while intro.line<intro.KEY_LINE:
 		intro.advance_line()
 	await wait(1.0)
