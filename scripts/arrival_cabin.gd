@@ -16,6 +16,8 @@ var cabin_light: OmniLight3D
 var screen_light: OmniLight3D
 var driver_look := 0.0
 var phone_press := 0.0
+var doors: Array[Node3D] = []
+var parked_details := Node3D.new()
 const EYE := Vector3(-.43,1.36,-.33)
 
 func build(night_world: NightWorld) -> void:
@@ -45,9 +47,15 @@ func build(night_world: NightWorld) -> void:
 	world.box(self,Vector3(0,.68,-.03),Vector3(.25,.26,.92),trim)
 	world.box(self,Vector3(0,.824,.09),Vector3(.18,.027,.36),rubber)
 	for side in [-1,1]:
-		world.box(self,Vector3(side*.915,.75,-.02),Vector3(.081,.64,1.97),trim)
-		world.box(self,Vector3(side*.875,1.047,-.02),Vector3(.10,.048,1.99),rubber)
-		world.box(self,Vector3(side*.86,.911,-.24),Vector3(.032,.037,.29),Color("#7d7777"))
+		var door := Node3D.new()
+		add_child(door)
+		doors.append(door)
+		door.position = Vector3(side*.915,0,.80)
+		world.box(door,Vector3(0,.75,-.81),Vector3(.081,.64,1.62),trim)
+		world.box(door,Vector3(side*.047,.75,-.81),Vector3(.018,.62,1.60),paint)
+		world.box(door,Vector3(-side*.04,1.047,-.81),Vector3(.10,.048,1.64),rubber)
+		world.box(door,Vector3(-side*.055,.911,-1.04),Vector3(.032,.037,.29),Color("#7d7777"))
+		world.box(self,Vector3(side*.915,.75,-.90),Vector3(.081,.64,.17),trim)
 		world.box(self,Vector3(side*.45,.61,-.52),Vector3(.60,.19,.70),leather)
 		world.box(self,Vector3(side*.45,1.02,-.98),Vector3(.60,.74,.15),leather)
 		world.box(self,Vector3(side*.45,1.43,-1.00),Vector3(.29,.23,.16),leather)
@@ -55,6 +63,18 @@ func build(night_world: NightWorld) -> void:
 		(pillar.mesh as BoxMesh).size = Vector3(.087,.76,.085)
 		pillar.rotation.x = .32
 		world.box(self,Vector3(side*.90,1.40,-.91),Vector3(.075,.72,.09),trim)
+	add_child(parked_details)
+	parked_details.hide()
+	world.box(parked_details,Vector3(0,.61,-1.49),Vector3(1.86,.43,1.0),paint)
+	world.box(parked_details,Vector3(0,.47,1.93),Vector3(1.87,.12,.11),trim)
+	for side in [-1,1]:
+		for axle in [-1.44,1.36]:
+			var tyre := CylinderMesh.new()
+			tyre.height = .23
+			tyre.top_radius = .34
+			tyre.bottom_radius = .34
+			world.mesh(parked_details,tyre,Vector3(side*.88,.34,axle),rubber).rotation.z = PI*.5
+		lit_box(parked_details,Vector3(side*.69,.66,-2.0),Vector3(.21,.095,.02),Color("#8c2c28"))
 	for x in [-.60,-.43,-.09,.09]:
 		world.box(self,Vector3(x,.963,.458),Vector3(.125,.082,.028),rubber)
 		for row in range(3):
@@ -107,6 +127,10 @@ func build(night_world: NightWorld) -> void:
 	screen_light.light_color = Color("#a6cdff")
 	screen_light.omni_range = .43
 	screen_light.light_energy = .18
+
+func set_exit_doors(passenger_open: float, driver_open: float) -> void:
+	doors[0].rotation.y = passenger_open*1.28
+	doors[1].rotation.y = -driver_open*1.28
 
 func lit_box(parent: Node3D, at: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
 	var shape := BoxMesh.new()

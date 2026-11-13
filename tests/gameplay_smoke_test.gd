@@ -287,7 +287,7 @@ func check_intro() -> void:
 	expect(intro.active and home.modal, "Интро: не запускается")
 	await wait(.3)
 	expect(intro.layer.visible, "Интро: оверлей не показывается")
-	expect(intro.dialogue.size() == intro.LINES.size(), "Интро: отсутствуют звуковые дорожки")
+	expect(intro.dialogue.size() == intro.LINES.size()-1, "Интро: отсутствуют звуковые дорожки")
 	expect(intro.arrival_car.visible and not intro.cabin.visible, "Интро: нет внешнего кадра на трассе")
 	var car_start := intro.cabin.position.z
 	await wait(.24)
@@ -317,6 +317,14 @@ func check_intro() -> void:
 	await wait(.25)
 	expect(intro.line == intro.PHONE_LINE+1, "Интро: реплики не переключаются")
 	expect(not intro.subtitle.text.is_empty() and not intro.speaker.text.is_empty(), "Интро: субтитры не показываются")
+	while intro.line<intro.EXIT_LINE:
+		intro.advance_line()
+	intro.elapsed = 2.24
+	await wait(.16)
+	expect(intro.cabin.doors[0].rotation.y>1.0 and intro.cabin.visible, "Интро: пассажирская дверь не открылась")
+	intro.elapsed = 6.17
+	await wait(.16)
+	expect(intro.cabin.doors[0].rotation.y<.03 and intro.friend.visible, "Интро: выход из машины не завершился")
 	while intro.line<intro.KEY_LINE:
 		intro.advance_line()
 	await wait(1.0)
