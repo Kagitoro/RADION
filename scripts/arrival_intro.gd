@@ -24,12 +24,12 @@ const VOICEMAIL_PLAY := 7.58
 const PHONE_LINE := 4
 const KEY_LINE := 15
 const LINES := [
-	[0,13.2,"You","[Sleepy grunt] What's up?","acted_groggy"],
+	[0,13.2,"You","[Exhales] What's up?","acted_groggy"],
 	[0,3.1,"Kir","Man, you slept through my whole damn playlist.","acted_playlist"],
 	[0,2.5,"You","Yeah? Guess I got lucky.","acted_lucky"],
 	[0,3.7,"Kir","Get outta here. That's our exit, by the way.","acted_exit"],
 	[1,5.0,"Old voicemail","Hey. Where are you?! You said ten minutes. We've been waiting forty! I put Nico on. Call me back.","acted_maya"],
-	[1,4.3,"Kir","Was that Maya, from your old club? I thought you two were done talking.","acted_food"],
+	[1,4.3,"Kir","Was that Maya from your old club? I thought you two were done talking.","acted_food"],
 	[1,2.3,"You","We are. She wants to know why I never showed.","acted_chew"],
 	[1,2.8,"Kir","Oh. Yeah, okay. We can talk about it after we get you some food.","acted_heard"],
 	[2,4.2,"Kir","Easy with the door, man. It's older than both of us.","acted_door"],
