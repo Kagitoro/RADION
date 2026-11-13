@@ -101,7 +101,7 @@ func draw_inbox() -> void:
 	rounded(Rect2(15,205,330,110),Color.WHITE,18)
 	avatar(Vector2(55,258),25)
 	text_at(Vector2(93,245),CONTACT,26,INK)
-	text_at(Vector2(93,277),"Voice message · 0:06",21,SUBTLE)
+	text_at(Vector2(93,277),"Voice message",21,SUBTLE)
 	text_at(Vector2(302,247),"›",30,SUBTLE)
 	draw_circle(Vector2(306,271),5,BLUE,true,-1,true)
 

@@ -28,7 +28,7 @@ const LINES := [
 	[0,3.1,"Kir","Man, you slept through my whole damn playlist.","acted_playlist"],
 	[0,2.5,"You","Yeah? Guess I got lucky.","acted_lucky"],
 	[0,3.7,"Kir","Get outta here. That's our exit, by the way.","acted_exit"],
-	[1,5.0,"Old voicemail","Hey. Where are you? You said ten minutes. We've been waiting forty. I put Nico on. Call me back.","acted_maya"],
+	[1,5.0,"Old voicemail","Hey. Where are you?! You said ten minutes. We've been waiting forty! I put Nico on. Call me back.","acted_maya"],
 	[1,4.3,"Kir","Was that Maya, from your old club? I thought you two were done talking.","acted_food"],
 	[1,2.3,"You","We are. She wants to know why I never showed.","acted_chew"],
 	[1,2.8,"Kir","Oh. Yeah, okay. We can talk about it after we get you some food.","acted_heard"],
@@ -495,7 +495,7 @@ func _process(delta: float) -> void:
 		eyelids = smoothstep(4.10,EXTERIOR_END,elapsed)*(1.0-smoothstep(6.53,8.75,elapsed))
 		eyelids += .23*(smoothstep(7.92,8.22,elapsed)-smoothstep(8.27,8.64,elapsed))
 		var waking := elapsed>=WAKE_CALL and wake_voice.playing
-		subtitle.text = "Hey, man... You with me?" if waking else str(LINES[0][3])
+		subtitle.text = "Heeey, man… You with me?" if waking else str(LINES[0][3])
 		speaker.text = "KIR" if waking else "YOU"
 		subtitle.visible = waking or elapsed>=voice_lead
 		speaker.visible = subtitle.visible
