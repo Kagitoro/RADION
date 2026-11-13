@@ -190,7 +190,7 @@ func update_pose(delta: float, clock: float, phone_view: PhoneUI.Page, played: f
 	phone.rotate_object_local(Vector3.RIGHT,-.033*phone_press)
 	if passenger != null:
 		passenger.visible = phone.visible
-		tap_hand.hide()
+		tap_hand.visible = phone.visible
 		passenger.pose(0.0,false,1.0,false,0.0)
 		sit(passenger)
 		var contact := Vector3(-.027,-.078,-.082)
@@ -209,19 +209,19 @@ func update_pose(delta: float, clock: float, phone_view: PhoneUI.Page, played: f
 			phone.global_position = wrist - phone.global_basis*contact
 			var fingers := phone.to_global(Vector3(-.015,.040,contact.z-.006))
 			orient_hand(passenger,arm.z,wrist,fingers,phone.global_basis.z,.94)
-			if reach>.001:
-				var tap_arm := passenger.arms[1]
-				var local := Vector3((tap.x/360.0-.5)*.074,(.5-tap.y/720.0)*.148,.014)
-				var tip := phone.to_global(local)
-				var hand := phone.to_global(local+Vector3(.083,-.041,.048))
-				var rest := passenger.skeleton.to_global(Vector3(-.23,.71,.22))
-				passenger.point_arm(tap_arm,passenger.skeleton.to_local(rest.lerp(hand,reach)),Vector3(-1,-.9,-.15))
-				var tap_wrist := passenger.skeleton.to_global(passenger.skeleton.get_bone_global_pose(tap_arm.z).origin)
-				var pointing := tap_wrist.direction_to(tip)
-				var across := pointing.cross(phone.global_basis.z).normalized()
-				tap_hand.global_transform = Transform3D(Basis(across,pointing,across.cross(pointing)),tap_wrist)
-				tap_hand.pose_tip(tip,touch)
-				tap_hand.show()
+			var tap_arm := passenger.arms[1]
+			var local := Vector3((tap.x/360.0-.5)*.074,(.5-tap.y/720.0)*.148,.014)
+			var tip := phone.to_global(local)
+			var hand := phone.to_global(local+Vector3(.092,-.054,.030))
+			var rest := to_global(Vector3(-.71,.57,.02))
+			var path := rest.lerp(hand,reach)
+			path += global_basis*Vector3(-.11,-.12,.02)*sin(PI*reach)
+			passenger.point_arm(tap_arm,passenger.skeleton.to_local(path),Vector3(-.86,-1.45,-.06))
+			var tap_wrist := passenger.skeleton.to_global(passenger.skeleton.get_bone_global_pose(tap_arm.z).origin)
+			var pointing := (global_basis*Vector3(.12,.58,.80)).lerp(tap_wrist.direction_to(tip),reach).normalized()
+			var across := pointing.cross(phone.global_basis.z).normalized()
+			tap_hand.global_transform = Transform3D(Basis(across,pointing,across.cross(pointing)),tap_wrist)
+			tap_hand.pose_tip(tip,touch)
 
 func orient_hand(rig: GuestModel, bone: int, wrist: Vector3, fingers: Vector3, palm_normal: Vector3, influence: float) -> void:
 	var inverse := rig.skeleton.global_basis.inverse()

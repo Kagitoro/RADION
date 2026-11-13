@@ -24,8 +24,8 @@ const VOICEMAIL_PLAY := 7.58
 const PHONE_LINE := 4
 const KEY_LINE := 15
 const LINES := [
-	[0,13.2,"You","Mm... What's up?","acted_groggy"],
-	[0,3.1,"Kir","You missed my whole damn playlist.","acted_playlist"],
+	[0,13.2,"You","[Sleepy grunt] What's up?","acted_groggy"],
+	[0,3.1,"Kir","Man, you slept through my whole damn playlist.","acted_playlist"],
 	[0,2.5,"You","Yeah? Guess I got lucky.","acted_lucky"],
 	[0,3.7,"Kir","Get outta here. That's our exit, by the way.","acted_exit"],
 	[1,5.0,"Old voicemail","Hey. Where are you? You said ten minutes. We've been waiting forty. I put Nico on. Call me back.","acted_maya"],
@@ -37,7 +37,7 @@ const LINES := [
 	[3,6.0,"Kir","See Samir by the door? I gave him your name. If the opener flakes, you get twenty minutes.","acted_slot"],
 	[3,3.5,"You","You signed me up? You could've texted.","acted_name"],
 	[3,4.8,"Kir","And you'd have spent all night talking yourself out of it. I told him you could play. That's all.","acted_promise"],
-	[4,3.6,"You","Shit. When's the set?","acted_when"],
+	[4,3.6,"You","Oh, shit. When's the set?","acted_when"],
 	[4,4.0,"Kir","Tonight. Keep your phone on, all right? Do me that one favor.","acted_tonight"],
 	[5,5.5,"Kir","Here, catch. Front door key. Controller's in the bedroom. You bring your tracks?","acted_keys"],
 	[5,3.8,"You","Two tracks. One clean shirt. Clean-ish.","acted_shirt"],
