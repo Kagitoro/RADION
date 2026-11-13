@@ -319,6 +319,7 @@ func check_intro() -> void:
 	expect(not intro.subtitle.text.is_empty() and not intro.speaker.text.is_empty(), "Интро: субтитры не показываются")
 	while intro.line<intro.EXIT_LINE:
 		intro.advance_line()
+	expect(intro.LINES[intro.EXIT_LINE-1][0]==1 and intro.LINES[intro.EXIT_LINE+1][4]=="acted_door", "Интро: выход должен быть перед первым разговором снаружи")
 	intro.elapsed = 2.24
 	await wait(.16)
 	expect(intro.cabin.doors[0].rotation.y>1.0 and intro.cabin.visible, "Интро: пассажирская дверь не открылась")
