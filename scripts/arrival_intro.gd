@@ -25,28 +25,28 @@ const PHONE_LINE := 4
 const EXIT_LINE := 8
 const KEY_LINE := 16
 const LINES := [
-	[0,13.2,"You","[Exhales] What's up?","acted_groggy"],
-	[0,3.1,"Kir","Man, you slept through my whole damn playlist.","acted_playlist"],
+	[0,13.2,"You","What's up?","acted_groggy"],
+	[0,3.1,"Kir","Man you slept through my whole damn playlist.","acted_playlist"],
 	[0,2.5,"You","Yeah? Guess I got lucky.","acted_lucky"],
-	[0,3.7,"Kir","Get outta here. That's our exit, by the way.","acted_exit"],
+	[0,3.7,"Kir","Get outta here. That's our exit by the way.","acted_exit"],
 	[1,5.0,"Old voicemail","Hey. Where are you?! You said ten minutes. We've been waiting forty! I put Nico on. Call me back.","acted_maya"],
 	[1,4.3,"Kir","Was that Maya from your old club? I thought you two were done talking.","acted_food"],
 	[1,2.3,"You","We are. She wants to know why I never showed.","acted_chew"],
-	[1,2.8,"Kir","Oh. Yeah, okay. We can talk about it after we get you some food.","acted_heard"],
+	[1,2.8,"Kir","Oh. Yeah. Okay. We can talk about it after we get you some food.","acted_heard"],
 	[7,7.5,"","",""],
-	[2,4.2,"Kir","Easy with the door, man. It's older than both of us.","acted_door"],
+	[2,4.2,"Kir","Easy with the door man. It's older than both of us.","acted_door"],
 	[2,3.5,"You","So who's waiting on me?","acted_waiting"],
-	[3,6.0,"Kir","See Samir by the door? I gave him your name. If the opener flakes, you get twenty minutes.","acted_slot"],
+	[3,6.0,"Kir","See Samir by the door? I gave him your name. If the opener flakes you get twenty minutes.","acted_slot"],
 	[3,3.5,"You","You gave him my name already?","acted_name"],
-	[3,4.8,"Kir","Yeah, because if I asked, you'd find a reason to say no. I know you, man.","acted_promise"],
-	[4,3.6,"You","Oh, shit… when do I go on?","acted_when"],
-	[4,4.0,"Kir","Tonight. Keep your phone on, all right? Do me that one favor.","acted_tonight"],
-	[5,5.5,"Kir","Here, catch. Front door key. Controller's in the bedroom. You bring your tracks?","acted_keys"],
+	[3,4.8,"Kir","Yeah because if I asked you'd find a reason to say no. I know you man.","acted_promise"],
+	[4,3.6,"You","Oh shit… When do I go on?","acted_when"],
+	[4,4.0,"Kir","Tonight. Keep your phone on all right? Do me that one favor.","acted_tonight"],
+	[5,5.5,"Kir","Here. Catch. Front door key. Controller's in the bedroom. You bring your tracks?","acted_keys"],
 	[5,3.8,"You","Two tracks. One clean shirt. Clean-ish.","acted_shirt"],
 	[5,4.4,"Kir","Look at you. Warm the room up first. Save the big stuff for later.","acted_warm"],
-	[6,5.5,"Kir","Oh, and there's a note on the fridge. Read it before you open anything that smells funny.","acted_note"],
+	[6,5.5,"Kir","Oh and there's a note on the fridge. Read it before you open anything that smells funny.","acted_note"],
 	[6,3.2,"You","You could've led with that.","acted_led"],
-	[6,3.7,"Kir","And miss that face? Nah. See you at the club, man.","acted_goodbye"],
+	[6,3.7,"Kir","And miss that face? Nah. See you at the club man.","acted_goodbye"],
 ]
 
 var home: Home
@@ -94,16 +94,23 @@ var line_duration := 0.0
 var exit_sound_step := 0
 var exit_steps: AudioStreamPlayer3D
 const KEY_EYE := Vector3(-4.18,1.59,-.27)
+const HOUSE_WALK_START := Vector3(-5.75,0,.60)
+const HOUSE_WALK_END := Vector3(-2.67,0,.75)
 const FIRST_PARK := Vector3(-10.0,0,-1.50)
 const FIRST_KIR := Vector3(-8.24,0,1.12)
 const FIRST_EYE := Vector3(-9.80,1.64,1.15)
 var arrival_car: Node3D
 var friend: Node3D
 var key_prop: Node3D
+var receiving_hand: FPHand
+var phone_messages: Array[String] = []
 var active := false
 var seen := false
 var opening_completed := false
 var first_set_done := false
+var home_soundcheck_done := false
+var samir_confirmed := false
+var soundcheck_time := 0.0
 var replay := false
 var line := 0
 var elapsed := 0.0
@@ -124,7 +131,10 @@ func setup(game_home: Home, night_game: NightGame) -> void:
 	var config := ConfigFile.new()
 	if config.load(SAVE)==OK:
 		seen = config.get_value("story","intro_seen",false)
+		phone_messages.assign(config.get_value("story","phone_messages",[]))
 		first_set_done = config.get_value("story","first_set_done",false)
+		home_soundcheck_done = config.get_value("story","home_soundcheck_done",false)
+		samir_confirmed = config.get_value("story","samir_confirmed",false)
 		opening_completed = config.get_value("story","opening_completed",first_set_done)
 		entry_opened = config.get_value("story","entry_opened",opening_completed)
 		note_read = config.get_value("story","note_read",opening_completed)
@@ -162,7 +172,12 @@ func update_objective() -> void:
 		objective.text = tr("Убрать дом · %d/%d · награда $%d") % [game.LITTER.size() - game.cleanup_remaining(),game.LITTER.size(),game.CLEANUP_REWARD]
 		objective.show()
 		return
-	objective.text = tr("Первый заказ · В RADION нажми J, чтобы начать сет")
+	if not home_soundcheck_done:
+		objective.text = tr("Первый вечер · Запусти трек на домашнем FLX4")
+	elif not samir_confirmed:
+		objective.text = tr("RADION · Поговори с Самиром у входа [E]")
+	else:
+		objective.text = tr("RADION · Поднимись к пульту и начни сет [J]")
 	objective.visible = seen and not first_set_done
 
 func build_overlay() -> void:
@@ -255,6 +270,9 @@ func build_follow_up() -> void:
 	follow_up.hide()
 
 func show_message(text: String, seconds: float) -> void:
+	if (text.begins_with(tr("Кир")+" ·") or text.begins_with(tr("Самир")+" ·") or text.begins_with(tr("Ты")+" ·")) and not phone_messages.has(text):
+		phone_messages.append(text)
+		save_story()
 	follow_up_text.text = text
 	follow_up_left = seconds
 	follow_up.show()
@@ -335,6 +353,12 @@ func start(is_replay: bool = false) -> void:
 	home.night_world.box(key_prop,Vector3(0,-.041,0),Vector3(.018,.061,.006),brass)
 	home.night_world.box(key_prop,Vector3(.013,-.059,0),Vector3(.019,.012,.006),brass)
 	key_prop.hide()
+	receiving_hand = FPHand.new(false)
+	camera.add_child(receiving_hand)
+	receiving_hand.top_level = true
+	receiving_hand.wrist_bend = Vector3(.25,.05,-.10)
+	receiving_hand.set_pose("brace")
+	receiving_hand.hide()
 	friend.hide()
 	street_sound = AudioStreamPlayer.new()
 	street_sound.stream = loop_stream(STREET_BED)
@@ -425,6 +449,7 @@ func set_line() -> void:
 	subtitle.text = tr(str(row[3]))
 	caption.visible = line<PHONE_LINE
 	key_prop.visible = line==KEY_LINE
+	receiving_hand.hide()
 	line_duration = float(row[1])
 	voice.stop()
 	wake_voice.stop()
@@ -453,7 +478,7 @@ func advance_line() -> void:
 		return
 	if line+1==EXIT_LINE:
 		engine.stop()
-	if LINES[line][0]!=LINES[line+1][0] and LINES[line+1][0]!=1 and line!=EXIT_LINE:
+	if LINES[line][0]!=LINES[line+1][0] and LINES[line+1][0]!=1 and line!=EXIT_LINE and line<KEY_LINE:
 		opening_fade = .15
 	line += 1
 	elapsed = 0.0
@@ -461,10 +486,14 @@ func advance_line() -> void:
 
 func _process(delta: float) -> void:
 	if not active:
+		update_soundcheck(delta)
 		if follow_up_left>0:
 			follow_up_left -= delta
 			if follow_up_left<=0:
 				if follow_up_line==1:
+					follow_up_line = 3
+					show_message(tr("Кир · Хороший сет. Теперь скажи честно: где ты был в тот вечер?"),6.5)
+				elif follow_up_line==3:
 					follow_up_line = 2
 					show_message(tr("Ты · Я дошёл до дверей. Услышал зал и струсил. Потом соврал про автобус."),6.5)
 				elif follow_up_line==2:
@@ -506,7 +535,7 @@ func _process(delta: float) -> void:
 		eyelids = smoothstep(4.10,EXTERIOR_END,elapsed)*(1.0-smoothstep(6.53,8.75,elapsed))
 		eyelids += .23*(smoothstep(7.92,8.22,elapsed)-smoothstep(8.27,8.64,elapsed))
 		var waking := elapsed>=WAKE_CALL and wake_voice.playing
-		subtitle.text = "Heeey, man… You with me?" if waking else str(LINES[0][3])
+		subtitle.text = "Hey man. You with me?" if waking else str(LINES[0][3])
 		speaker.text = "KIR" if waking else "YOU"
 		subtitle.visible = waking or elapsed>=voice_lead
 		speaker.visible = subtitle.visible
@@ -625,22 +654,25 @@ func update_shot(delta: float) -> void:
 			cabin.parked_details.show()
 			cabin.driver.hide()
 			cabin.set_exit_doors(0.0,0.0)
-			friend.position = Vector3(-2.67,0,.75)
-			if shot==5:
-				eye = Vector3(-4.65,1.75,-.48+motion*.20)
-				focus = friend.position+Vector3(0,1.29,0)
-				if line==KEY_LINE:
-					var approach := smoothstep(0.0,2.90,elapsed)
-					eye = Vector3(-7.0,1.64,-.27).lerp(KEY_EYE,approach)
-					eye.y += sin(elapsed*TAU*1.95)*.016*sin(PI*approach)
-					friend.position = Vector3(-5.75,0,.60).lerp(Vector3(-2.67,0,.75),approach)
-					focus = friend.position+Vector3.UP*1.25
-					focus = friend.position+Vector3(0,1.25,0)
-			else:
-				eye = Vector3(-3.85,1.63,-.73+motion*.14)
-				focus = Vector3(-.81,1.52,.17)
+			friend.position = HOUSE_WALK_END
+			eye = KEY_EYE
+			focus = friend.position+Vector3.UP*1.29
+			if line==KEY_LINE:
+				var approach := smoothstep(0.0,2.90,elapsed)
+				eye = Vector3(-7.0,1.64,-.27).lerp(KEY_EYE,approach)
+				eye.y += sin(elapsed*TAU*1.95)*.016*sin(PI*approach)
+				friend.position = HOUSE_WALK_START.lerp(HOUSE_WALK_END,approach)
+				var lean := smoothstep(3.00,3.86,elapsed)*(1.0-smoothstep(4.16,5.20,elapsed))
+				var toward_kir := Vector3(friend.position.x-eye.x,0,friend.position.z-eye.z).normalized()
+				eye += (toward_kir*.31-Vector3.UP*.06)*lean
+				focus = friend.position+Vector3.UP*1.29
 		var direction := friend.position.direction_to(eye)
-		friend.rotation.y = atan2(-direction.x,-direction.z)
+		var face_player := atan2(-direction.x,-direction.z)
+		friend.rotation.y = face_player
+		if line==KEY_LINE:
+			var forward := HOUSE_WALK_START.direction_to(HOUSE_WALK_END)
+			var face_house := atan2(-forward.x,-forward.z)
+			friend.rotation.y = lerp_angle(face_house,face_player,smoothstep(2.45,3.08,elapsed))
 		var rig := friend.imported_model as GuestModel
 		if rig != null:
 			rig.pose(delta,line==KEY_LINE and elapsed<2.9,1.0,false,0.0)
@@ -652,9 +684,26 @@ func update_shot(delta: float) -> void:
 				if key_prop.visible:
 					var hand := rig.skeleton.get_bone_global_pose(rig.arms[0].z)
 					var pinch := rig.skeleton.to_global(hand*Vector3(.016,.107,-.012))
-					var toward_view := pinch.direction_to(origin+eye)
-					key_prop.global_position = pinch+toward_view*.028+Vector3.DOWN*.045
-					key_prop.rotation = Vector3(.055*sin(elapsed*6),.16,.075*sin(elapsed*7.5))
+					var lower := smoothstep(4.10,5.05,elapsed)
+					var reach := smoothstep(3.12,3.90,elapsed)
+					var forward := eye.direction_to(focus)
+					var right := forward.cross(Vector3.UP).normalized()
+					var shoulder := origin+eye+right*.21-Vector3.UP*.31
+					var rest := shoulder+forward*.22-Vector3.UP*.48
+					var receive := rest.lerp(pinch,reach).lerp(rest,lower)
+					receive.y += sin(PI*reach)*.075*(1.0-lower)
+					var arm_direction := shoulder.direction_to(receive)
+					var hand_basis := Basis.looking_at(arm_direction).rotated(arm_direction,-.39)
+					var grip := Vector3(-.017,.018,-.133)
+					receiving_hand.global_transform = Transform3D(hand_basis,receive-hand_basis*grip)
+					receiving_hand.visible = elapsed>=3.12 and lower<.99
+					if elapsed>=3.70 and receiving_hand.pose_to!="pinch":
+						receiving_hand.set_pose("pinch",.20)
+					key_prop.global_position = pinch if elapsed<3.90 else receiving_hand.to_global(grip)
+					key_prop.rotation = Vector3(.08,.16,-.27*lower)
+					focus = focus.lerp(key_prop.global_position-origin+Vector3.UP*.08,.65*smoothstep(3.05,3.72,elapsed)*(1.0-smoothstep(4.18,5.10,elapsed)))
+					if lower>=.99:
+						key_prop.hide()
 		else:
 			friend.pose(delta,0.0,false)
 	camera.global_position = origin+eye
@@ -785,23 +834,53 @@ func finish() -> void:
 func cleanup_complete() -> void:
 	if is_instance_valid(cash_envelope):
 		cash_envelope.hide()
-	if seen and not first_set_done:
-		show_message(tr("Кир · Диджей не приехал. Разогрев твой. Скажи Самиру, что ты от меня."),7.0)
+	soundcheck_time = 0.0
+
+func update_soundcheck(delta: float) -> void:
+	if not opening_completed or not note_read or first_set_done or home_soundcheck_done or game.cleanup_remaining()>0:
+		return
+	if game.menu.opened or game.pause_panel.visible:
+		return
+	var dj := game.dj
+	if home.party.near_deck() and dj.manual and dj.has_playback() and home.party.music_gain>.08 and dj.mix_weights()[dj.audible_deck()]>.075:
+		soundcheck_time += delta
+	else:
+		soundcheck_time = 0.0
+	if soundcheck_time<3.0:
+		return
+	home_soundcheck_done = true
+	save_story()
+	update_objective()
+	show_message(tr("Кир · Опенер не приехал. У тебя двадцать минут. Скажи Самиру у входа, что ты от меня."),9.0)
+
+func confirm_booking() -> String:
+	if not opening_completed or first_set_done:
+		return ""
+	if not home_soundcheck_done:
+		return tr("Кир предупреждал. Проверь свой трек дома и возвращайся.")
+	samir_confirmed = true
+	save_story()
+	update_objective()
+	return tr("А, ты от Кира. Твой слот. Ступени справа, поднимайся к пульту.")
 
 func first_booking_complete() -> void:
 	if not seen or first_set_done:
 		return
+	home.shop.pay_first_booking()
 	first_set_done = true
 	save_story()
 	update_objective()
 	follow_up_line = 1
-	show_message(tr("Кир · Хороший сет. Теперь скажи честно: где ты был в тот вечер?"),6.5)
+	show_message(tr("Самир · Зал остался до конца. Твои $40. Позову тебя ещё."),7.5)
 
 func save_story() -> void:
 	var config := ConfigFile.new()
 	config.set_value("story","intro_seen",seen)
+	config.set_value("story","phone_messages",phone_messages)
 	config.set_value("story","opening_completed",opening_completed)
 	config.set_value("story","first_set_done",first_set_done)
+	config.set_value("story","home_soundcheck_done",home_soundcheck_done)
+	config.set_value("story","samir_confirmed",samir_confirmed)
 	config.set_value("story","entry_opened",entry_opened)
 	config.set_value("story","note_read",note_read)
 	if config.save(SAVE)!=OK:

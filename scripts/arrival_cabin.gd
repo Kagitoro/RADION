@@ -164,9 +164,6 @@ func label(parent: Node3D, value: String, at: Vector3, pixel: float, color: Colo
 
 func build_phone() -> void:
 	add_child(phone)
-	world.box(phone,Vector3.ZERO,Vector3(.081,.158,.011),Color("#25272e"))
-	world.box(phone,Vector3(0,0,.005),Vector3(.077,.153,.003),Color("#101117"))
-	world.box(phone,Vector3(.041,.027,-.001),Vector3(.002,.022,.003),Color("#a2a8b5"))
 	var viewport := SubViewport.new()
 	viewport.size = Vector2i(360,720)
 	viewport.disable_3d = true
@@ -174,14 +171,7 @@ func build_phone() -> void:
 	phone.add_child(viewport)
 	phone_ui = PhoneUI.new()
 	viewport.add_child(phone_ui)
-	var glass := QuadMesh.new()
-	glass.size = Vector2(.074,.148)
-	var screen := world.mesh(phone,glass,Vector3(0,0,.008),Color.WHITE)
-	var material := StandardMaterial3D.new()
-	material.albedo_texture = viewport.get_texture()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	screen.material_override = material
-	screen.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	preload("res://scripts/radion_phone_model.gd").build(phone,viewport.get_texture())
 	phone.hide()
 
 func sit(rig: GuestModel) -> void:

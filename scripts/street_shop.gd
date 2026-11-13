@@ -19,6 +19,9 @@ var beer := 0
 var fridge_beer := 3
 var energy := 0
 var cleaned_litter := 0
+var food_stock: Dictionary = {}
+var owned_controllers := 0
+var first_booking_paid := false
 var pose_time := 0.0
 
 func _init(night_world: NightWorld) -> void:
@@ -363,14 +366,24 @@ func apply_energy() -> void:
 	home.party.consumables.sound("heartbeat",-4)
 	GameEvents.notify(tr("Энергетик · бег быстрее на 45 с"))
 
+func pay_first_booking() -> void:
+	if first_booking_paid:
+		return
+	first_booking_paid = true
+	home.party.cash += 40
+	save_stock()
+
 func save_stock() -> void:
 	var config := ConfigFile.new()
 	config.set_value("supplies","cash",home.party.cash)
+	config.set_value("supplies","food_stock",food_stock)
+	config.set_value("supplies","owned_controllers",owned_controllers)
 	config.set_value("supplies","beer",beer)
 	config.set_value("supplies","fridge_beer",fridge_beer)
 	config.set_value("supplies","energy",energy)
 	config.set_value("supplies","cigarettes",home.party.cigarettes)
 	config.set_value("supplies","cleaned_litter",cleaned_litter)
+	config.set_value("supplies","first_booking_paid",first_booking_paid)
 	if config.save(SAVE)!=OK:
 		push_warning("Не удалось сохранить покупки Night Shop")
 
@@ -379,11 +392,14 @@ func load_stock() -> void:
 	if config.load(SAVE)!=OK:
 		return
 	home.party.cash = maxi(0,int(config.get_value("supplies","cash",home.party.cash)))
+	food_stock = config.get_value("supplies","food_stock",{})
+	owned_controllers = int(config.get_value("supplies","owned_controllers",0))
 	home.party.cigarettes = maxi(0,int(config.get_value("supplies","cigarettes",home.party.cigarettes)))
 	beer = maxi(0,int(config.get_value("supplies","beer",beer)))
 	fridge_beer = clampi(int(config.get_value("supplies","fridge_beer",3)),0,24)
 	energy = maxi(0,int(config.get_value("supplies","energy",energy)))
 	cleaned_litter = int(config.get_value("supplies","cleaned_litter",0))
+	first_booking_paid = config.get_value("supplies","first_booking_paid",false)
 
 func _process(delta: float) -> void:
 	if not is_instance_valid(cashier):

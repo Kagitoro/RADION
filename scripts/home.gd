@@ -97,8 +97,10 @@ func _ready() -> void:
 	for id in records:
 		apply_item(id)
 	scene_finish.sync_ceilings()
-	if not SavePaths.is_test_run() and FileAccess.file_exists(storage.SAVE_PATH):
-		storage.load_project(storage.SAVE_PATH, false)
+	if not SavePaths.is_test_run():
+		var loaded := storage.load_project(storage.SAVE_PATH, false)
+		if not loaded:
+			storage.load_project("res://assets/house/default_layout.json", false)
 	add_child(night_world)
 	night_world.setup()
 	player = Player.new()

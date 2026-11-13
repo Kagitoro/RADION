@@ -1,7 +1,7 @@
 class_name FPViewModel
 extends Node3D
 ## First-person hands rig attached to the player camera.
-## Layout: ViewModel/Sway/{Right/RightHand, Left/LeftHand, Mouth}. Each pivot
+## Layout: ViewModel/{Sway/{Right/RightHand, Left/LeftHand}, Mouth}. Each pivot
 ## (Right, Left) is the grip point of the held item: animations move the pivot,
 ## the item sits on it and the hand is posed around it with `hold()`. Actions are Animation
 ## resources played by `anim`; Sway adds look lag, walk bob and breathing on top.
@@ -54,7 +54,7 @@ func _ready() -> void:
 	# Presentation point for the lips: a bit lower and further than the real
 	# mouth so items brought to it stay readable instead of filling the screen.
 	mouth.position = Vector3(0,-.072,-.13)
-	sway.add_child(mouth)
+	add_child(mouth)
 	anim = new_player()
 	last_basis = global_basis
 

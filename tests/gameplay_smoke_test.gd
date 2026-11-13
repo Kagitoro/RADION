@@ -23,6 +23,16 @@ func run(collected: Array[String]) -> void:
 	await check_subway()
 	await check_intro()
 	await check_home_interactions()
+	var phone := home.night_game.phone
+	home._unhandled_input(key_event(KEY_P))
+	expect(phone.visible and home.modal, "Телефон: P не открыл экран")
+	for app in ["messages","news","map"]:
+		phone.show_page(app)
+		expect(phone.body.get_child_count()>0, "Телефон: пустой экран "+app)
+	expect(phone.places().size()==7, "Телефон: отсутствуют метки карты")
+	home._unhandled_input(key_event(KEY_ESCAPE))
+	expect(not phone.visible and not home.modal, "Телефон: Esc не вернул управление")
+	check_city_retail()
 	await check_localization()
 	await check_language_setting()
 	check_translation_coverage()
@@ -373,6 +383,26 @@ func check_story_entry() -> void:
 	var saved := ConfigFile.new()
 	expect(saved.load(intro.SAVE)==OK and saved.get_value("story","note_read",false), "История: прочитанная записка не сохранилась")
 
+func check_city_retail() -> void:
+	var market = home.night_world.retail[0]
+	var gear = home.night_world.retail[1]
+	var cash := home.party.cash
+	home.party.cash = 500
+	for store in [market,gear]:
+		home.player.global_position = store.to_global(store.counter+Vector3(0,.08,1.0))
+		expect(store.can_interact(), "Магазин: касса недоступна")
+		home._unhandled_input(key_event(KEY_E))
+		expect(store.panel.visible, "Магазин: E не открывает каталог")
+		store.buy()
+		home._unhandled_input(key_event(KEY_ESCAPE))
+		expect(not store.panel.visible, "Магазин: Esc не закрывает каталог")
+	home.shop.load_stock()
+	expect(home.shop.food_stock.get("Яблоки",0)==1 and gear.owns(0) and home.party.cash==378, "Магазин: покупки не сохранились")
+	home.party.cash = cash
+	home.shop.food_stock.clear()
+	home.shop.owned_controllers = 0
+	home.shop.save_stock()
+
 func check_localization() -> void:
 	var previous := TranslationServer.get_locale()
 	TranslationServer.set_locale("en")
@@ -424,7 +454,29 @@ func check_home_interactions() -> void:
 		expect(reachable, "Уборка: не подбирается мусор возле метки %s" % point)
 	expect(game.litter.is_empty() and home.party.cash == cash+game.CLEANUP_REWARD, "Уборка: квест или награда не засчитаны")
 	expect(not game.intro.cash_envelope.visible, "История: конверт остался после начисления награды")
-	game.intro.first_booking_complete()
+	var intro := game.intro
+	expect(not intro.home_soundcheck_done and not intro.samir_confirmed, "История: приглашение пришло до проверки трека")
+	intro.confirm_booking()
+	expect(not intro.samir_confirmed, "История: Самир пропустил проверку трека")
+	var deck := home.party.deck.global_position
+	player.global_position = deck+Vector3(0,-.9,1.0)
+	game.dj.engage()
+	game.dj.crossfade = -1.0
+	game.dj.gains[game.dj.routing[0]] = 1.0
+	home.party.music_gain = .85
+	home.party.music[0].stream = AudioStreamGenerator.new()
+	home.party.music[0].stream_paused = false
+	home.party.music[0].play()
+	intro.update_soundcheck(3.1)
+	expect(intro.home_soundcheck_done and intro.follow_up.visible, "История: домашний трек не открыл приглашение")
+	home.club.speak(home.club.staff[2])
+	expect(intro.samir_confirmed, "История: Самир не подтвердил слот")
+	var booking_cash := home.party.cash
+	intro.first_booking_complete()
+	intro.first_booking_complete()
+	shop.load_stock()
+	expect(home.party.cash==booking_cash+40, "История: оплата сета не сохранилась или выдана дважды")
+	home.party.music[0].stop()
 	expect(game.intro.first_set_done and game.intro.follow_up_line == 1, "История: после первого сета нет разговора с Киром")
 
 ## Picks English in the pause menu, checks it is applied live and saved, then restores.

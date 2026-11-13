@@ -204,6 +204,11 @@ func setup_labels() -> void:
 	name_tag = floating_label(guest_name,1.91*body_height,28)
 	name_tag.modulate = Color("#ecdfc6")
 	speech = floating_label("",2.10*body_height,26)
+	speech.no_depth_test = true
+	speech.render_priority = 5
+	speech.outline_render_priority = 4
+	speech.width = 360
+	speech.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	speech.visible = false
 
 func use_imported_model(template: Node3D) -> void:

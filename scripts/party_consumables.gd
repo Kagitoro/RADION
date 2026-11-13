@@ -388,7 +388,8 @@ const CIG_HAND_TURN := Vector3(0,-PI*.5,0)
 ## Hand turned so the palm faces the lips and the fingers point up-left.
 const HAND_AT_LIPS := Vector3(.1,PI*.5,-.45)
 ## Cigarette resting on the lips, relative to the mouth anchor.
-const LIPS_TURN := Vector3(-.16,-.10,0)
+const LIPS_TURN := Vector3(-.24,-.14,0)
+const FILTER_SEAT := Vector3(0,0,.009)
 
 func cigarette_pivot_at_lips() -> Vector3:
 	return at_mouth(CIG_IN_HAND,HAND_AT_LIPS)
@@ -415,7 +416,7 @@ func light_cigarette() -> void:
 	mirror_copy(copy,false)
 	var lips := cigarette_pivot_at_lips()
 	# Tip of the cigarette once it rests on the lips (Sway space); the flame licks it.
-	var tip := rig.mouth.position+Basis.from_euler(LIPS_TURN)*Vector3(0,0,-.086)
+	var tip := rig.mouth.position+Basis.from_euler(LIPS_TURN)*(FILTER_SEAT+Vector3(0,0,-.086))
 	var flame_tip := Vector3(-.004,.101-.03+.006,0)
 	var lighter_at := tip-flame_tip
 	var cup := tip+Vector3(.075,-.035,.06)
@@ -508,7 +509,7 @@ func place_on_lips() -> void:
 	lip_view = held_item
 	held_item = null
 	lip_view.reparent(rig.mouth,false)
-	lip_view.position = Vector3.ZERO
+	lip_view.position = Basis.from_euler(LIPS_TURN)*FILTER_SEAT
 	lip_view.rotation = LIPS_TURN
 	# The mirror copy moves to the mouth too.
 	var actor := player()
@@ -519,8 +520,9 @@ func place_on_lips() -> void:
 		lip_cigarette = FPProps.cigarette(false)
 		set_prop_layers(lip_cigarette,4)
 		actor.mouth_anchor().add_child(lip_cigarette)
-	lip_cigarette.reparent(actor.mouth_anchor(),false)
-	lip_cigarette.position = Vector3(0,-.018,-.009) if is_instance_valid(actor.dj_rig) else Vector3(.014,-.064,-.109)
+	if lip_cigarette.get_parent()!=actor.mouth_anchor():
+		lip_cigarette.reparent(actor.mouth_anchor(),false)
+	lip_cigarette.position = FILTER_SEAT if is_instance_valid(actor.dj_rig) else Vector3(.014,-.064,-.100)
 	lip_cigarette.rotation = Vector3.ZERO
 	ember_timer = 0.0
 

@@ -466,7 +466,8 @@ func speak(worker: Node3D) -> void:
 		tr("Сейчас разнесу напитки. У диванов есть свободные места."),
 		tr("Заходи. DJ на сцене, ступени справа."),
 	]
-	worker.speech.text = replies[index]
+	var booking := world.home.night_game.intro.confirm_booking() if index==2 and not shift.active else ""
+	worker.speech.text = replies[index] if booking.is_empty() else booking
 	worker.speech.show()
 
 func animate_staff(delta: float, beat: float) -> void:

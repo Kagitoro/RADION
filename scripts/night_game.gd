@@ -2,6 +2,7 @@ class_name NightGame
 extends Node
 
 var dj: DJStation
+var phone: Control
 var club_dj: DJStation
 var intro: ArrivalIntro
 var menu: MainMenu
@@ -84,10 +85,14 @@ func setup() -> void:
 	intro = ArrivalIntro.new()
 	add_child(intro)
 	intro.setup(home,self)
+	phone = preload("res://scripts/radion_phone.gd").new(self)
+	home.hud.root.add_child(phone)
 	menu = MainMenu.new()
 	add_child(menu)
 	menu.setup(home,self)
 	home.shop.setup()
+	for store in home.night_world.retail:
+		store.setup()
 	if home.nodes.has(KitchenFridge.ITEM_ID) and home.game_mode:
 		fridge = KitchenFridge.new(home)
 		home.nodes[KitchenFridge.ITEM_ID].add_child(fridge)
@@ -252,6 +257,10 @@ func _process(delta: float) -> void:
 		interact_hint.offset_top = -101 if fridge.opened else -79
 		interact_hint.text = fridge.hint()
 		return
+	for store in home.night_world.retail:
+		if store.can_interact():
+			interact_hint.text = "E · %s" % store.title()
+			return
 	if home.shop.can_interact():
 		interact_hint.text = "E · Night Shop"
 		return
@@ -337,6 +346,10 @@ func interact() -> void:
 				return
 			fridge.toggle()
 			return
+	for store in home.night_world.retail:
+		if store.can_interact():
+			store.open()
+			return
 	if home.shop.can_interact():
 		home.shop.open()
 		return
@@ -359,6 +372,11 @@ func interact() -> void:
 		return
 	var employee: Node3D = home.club.staff_target()
 	if employee != null:
+		if employee==home.club.staff[2] and intro.home_soundcheck_done and not intro.samir_confirmed and not home.club.shift.active:
+			var scene := preload("res://scripts/samir_booking.gd").new()
+			add_child(scene)
+			scene.start(self,employee)
+			return
 		if not home.club.shift.handle_staff(employee):
 			home.club.speak(employee)
 		return
@@ -467,9 +485,23 @@ func toggle_pause() -> void:
 
 ## Routes a gameplay input event to the matching action.
 func handle_input(event: InputEvent) -> void:
+	var key := event as InputEventKey
+	var phone_key := key!=null and key.pressed and not key.echo and key.physical_keycode==KEY_P
+	if phone.visible:
+		if phone_key or event.is_action_pressed("pause"):
+			phone.close()
+		return
+	if phone_key and not home.modal and not intro.active and not home.player.collapsed and not home.player.vomiting:
+		phone.open()
+		return
 	if home.subway.encounter != null:
 		home.subway.encounter_input(event)
 		return
+	for store in home.night_world.retail:
+		if store.panel.visible:
+			if event.is_action_pressed("pause"):
+				store.close()
+			return
 	if home.shop.is_open():
 		if event.is_action_pressed("pause"):
 			home.shop.close()
@@ -503,6 +535,13 @@ func handle_input(event: InputEvent) -> void:
 		var shift = home.club.shift
 		if shift.nearby():
 			if not shift.active:
+				if intro.opening_completed and not intro.first_set_done:
+					if not intro.samir_confirmed:
+						GameEvents.notify(tr("Сначала поговори с Самиром у входа."))
+						return
+					if not home.club.near_deck():
+						GameEvents.notify(tr("Поднимись к пульту на сцене."))
+						return
 				shift.start()
 		else:
 			home.party.toggle()
