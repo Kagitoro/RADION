@@ -269,7 +269,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if not home.modal:
 		consumables.update_falling_bits(delta)
-	if is_instance_valid(consumables.lip_cigarette) and not home.modal:
+	if consumables.smoking() and not home.modal:
 		consumables.cigarette_burn += delta*.004
 		consumables.update_cigarette_length()
 		if consumables.cigarette_burn>=1.0 and not is_instance_valid(consumables.hand_prop):

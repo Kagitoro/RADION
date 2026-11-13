@@ -5,12 +5,40 @@ msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
-#: scripts/arrival_intro.gd:80
+#: scripts/arrival_intro.gd:158
+msgid "Первый вечер · Открой входную дверь"
+msgstr ""
+
+#: scripts/arrival_intro.gd:158
+msgid "Первый вечер · Прочитай записку на холодильнике"
+msgstr ""
+
+#: scripts/arrival_intro.gd:162
+msgid "Убрать дом · %d/%d · награда $%d"
+msgstr ""
+
+#: scripts/arrival_intro.gd:165
 msgid "Первый заказ · В RADION нажми J, чтобы начать сет"
 msgstr ""
 
-#: scripts/arrival_intro.gd:330
-msgid "Первый заказ закрыт · Кир обещал узнать про следующий слот"
+#: scripts/arrival_intro.gd:240
+msgid "Записка · «Убери мусор. $12 под магнитом твои, когда закончишь. Пиво можешь брать сразу.»"
+msgstr ""
+
+#: scripts/arrival_intro.gd:469
+msgid "Ты · Я дошёл до дверей. Услышал зал и струсил. Потом соврал про автобус."
+msgstr ""
+
+#: scripts/arrival_intro.gd:472
+msgid "Кир · В следующий раз позвони. Даже если ты всё ещё стоишь у дверей."
+msgstr ""
+
+#: scripts/arrival_intro.gd:789
+msgid "Кир · Диджей не приехал. Разогрев твой. Скажи Самиру, что ты от меня."
+msgstr ""
+
+#: scripts/arrival_intro.gd:798
+msgid "Кир · Хороший сет. Теперь скажи честно: где ты был в тот вечер?"
 msgstr ""
 
 #: scripts/club_shift.gd:8
@@ -293,51 +321,51 @@ msgstr ""
 msgid "Русский"
 msgstr ""
 
-#: scripts/home.gd:355
+#: scripts/home.gd:359
 msgid "Двери, окна и их стены можно перемещать на плане по Tab."
 msgstr ""
 
-#: scripts/home.gd:393 scripts/home.gd:429
+#: scripts/home.gd:397 scripts/home.gd:433
 msgid "Пол"
 msgstr ""
 
-#: scripts/home.gd:400
+#: scripts/home.gd:404
 msgid "Поверхность"
 msgstr ""
 
-#: scripts/home.gd:418
+#: scripts/home.gd:422
 msgid "Потолок / нижняя сторона"
 msgstr ""
 
-#: scripts/home.gd:429
+#: scripts/home.gd:433
 msgid "Нет опоры"
 msgstr ""
 
-#: scripts/home.gd:450
+#: scripts/home.gd:454
 msgid "Наведи на пол или на поверхность, куда хочешь поставить предмет."
 msgstr ""
 
-#: scripts/home.gd:546
+#: scripts/home.gd:550
 msgid "Сначала вынеси мебель из комнаты."
 msgstr ""
 
-#: scripts/home.gd:597
+#: scripts/home.gd:601
 msgid "Возврат на пол"
 msgstr ""
 
-#: scripts/home.gd:623
+#: scripts/home.gd:627
 msgid "Под точкой установки нет пола."
 msgstr ""
 
-#: scripts/home.gd:641
+#: scripts/home.gd:645
 msgid "Под выбранным объектом нет пола."
 msgstr ""
 
-#: scripts/home.gd:671
+#: scripts/home.gd:675
 msgid "Размер выходит за границы стены или пересекает соседний проём."
 msgstr ""
 
-#: scripts/home.gd:708
+#: scripts/home.gd:712
 msgid "Стена слишком мала для установленных дверей или окон."
 msgstr ""
 
@@ -565,111 +593,147 @@ msgstr ""
 msgid "ПКМ выделить"
 msgstr ""
 
-#: scripts/night_game.gd:32
+#: scripts/kitchen_fridge.gd:70
+msgid "E · Открыть холодильник"
+msgstr ""
+
+#: scripts/kitchen_fridge.gd:71
+msgid "Холодильник: %d · с собой: %d · E закрыть\n1 взять · 2 положить · 3 убрать упаковку · 4 взять упаковку"
+msgstr ""
+
+#: scripts/kitchen_fridge.gd:89
+msgid "Бутылок недостаточно"
+msgstr ""
+
+#: scripts/kitchen_fridge.gd:92
+msgid "Холодильник заполнен"
+msgstr ""
+
+#: scripts/night_game.gd:42
 msgid "синий"
 msgstr ""
 
-#: scripts/night_game.gd:32
+#: scripts/night_game.gd:42
 msgid "фиолетовый"
 msgstr ""
 
-#: scripts/night_game.gd:32
+#: scripts/night_game.gd:42
 msgid "тёплый"
 msgstr ""
 
-#: scripts/night_game.gd:105
-msgid "E · Разнять гостей"
+#: scripts/night_game.gd:212
+msgid "След отмыт"
 msgstr ""
 
-#: scripts/night_game.gd:109
-msgid "E / ЛКМ · Подойти к пульту"
+#: scripts/night_game.gd:219
+msgid "Дом убран · заработано $%d"
 msgstr ""
 
-#: scripts/night_game.gd:112
-msgid "E · Ноутбук     C · FLX4"
+#: scripts/night_game.gd:221
+msgid "Осталось убрать: %d"
 msgstr ""
 
-#: scripts/night_game.gd:115 scripts/night_game.gd:125
-msgid "E · Ноутбук     ЛКМ по контроллеру     J · Вечеринка"
-msgstr ""
-
-#: scripts/night_game.gd:123
-msgid "E · Поговорить · %s"
-msgstr ""
-
-#: scripts/night_game.gd:127
-msgid "Курилка · N сигарета · K потушить · R энергетик"
-msgstr ""
-
-#: scripts/night_game.gd:240
-msgid "Давай спокойно. Здесь все отдыхают."
+#: scripts/night_game.gd:243
+msgid "E · Открыть дверь ключом"
 msgstr ""
 
 #: scripts/night_game.gd:246
-msgid "Поставишь «%s»? Под него хочется двигаться."
+msgid "E · Убрать"
 msgstr ""
 
 #: scripts/night_game.gd:250
+msgid "E · Прочитать записку"
+msgstr ""
+
+#: scripts/night_game.gd:263
+msgid "E · Разнять гостей"
+msgstr ""
+
+#: scripts/night_game.gd:267
+msgid "E / ЛКМ · Подойти к пульту"
+msgstr ""
+
+#: scripts/night_game.gd:270
+msgid "E · Ноутбук     C · FLX4"
+msgstr ""
+
+#: scripts/night_game.gd:273 scripts/night_game.gd:283
+msgid "E · Ноутбук     ЛКМ по контроллеру     J · Вечеринка"
+msgstr ""
+
+#: scripts/night_game.gd:281 scripts/subway_station.gd:442
+msgid "E · Поговорить · %s"
+msgstr ""
+
+#: scripts/night_game.gd:285
+msgid "Курилка · N сигарета · K потушить · R энергетик"
+msgstr ""
+
+#: scripts/night_game.gd:412
+msgid "Давай спокойно. Здесь все отдыхают."
+msgstr ""
+
+#: scripts/night_game.gd:418
+msgid "Поставишь «%s»? Под него хочется двигаться."
+msgstr ""
+
+#: scripts/night_game.gd:422
 msgid "Танцпол пока закрыт. Увидимся, когда включишь музыку."
 msgstr ""
 
-#: scripts/night_game.gd:253
+#: scripts/night_game.gd:425
 msgid "Я к колонкам. Увидимся на танцполе!"
 msgstr ""
 
-#: scripts/night_game.gd:257
+#: scripts/night_game.gd:429
 msgid "Давай чуть позже."
 msgstr ""
 
-#: scripts/night_game.gd:260
+#: scripts/night_game.gd:432
 msgid "Я выхожу. Встретимся под навесом."
 msgstr ""
 
-#: scripts/night_game.gd:266
+#: scripts/night_game.gd:438
 msgid "Я уже написал. Дай им немного времени."
 msgstr ""
 
-#: scripts/night_game.gd:269
+#: scripts/night_game.gd:441
 msgid "Сначала раскачаем танцпол. Тогда будет кого звать."
 msgstr ""
 
-#: scripts/night_game.gd:274
+#: scripts/night_game.gd:446
 msgid "Скинул друзьям адрес. Скоро подтянутся."
 msgstr ""
 
-#: scripts/night_game.gd:355
+#: scripts/night_game.gd:532
 msgid "Свет · %s"
 msgstr ""
 
-#: scripts/night_world.gd:125
+#: scripts/night_world.gd:128
 msgid "КУРИЛКА"
 msgstr ""
 
-#: scripts/nightclub.gd:143
-msgid "ВХОД"
-msgstr ""
-
-#: scripts/nightclub.gd:319
+#: scripts/nightclub.gd:403
 msgid "Бармен · Лина"
 msgstr ""
 
-#: scripts/nightclub.gd:319
+#: scripts/nightclub.gd:403
 msgid "Официант · Макс"
 msgstr ""
 
-#: scripts/nightclub.gd:319
+#: scripts/nightclub.gd:403
 msgid "Охрана · Самир"
 msgstr ""
 
-#: scripts/nightclub.gd:381
+#: scripts/nightclub.gd:465
 msgid "Привет! Если надо освежиться, у бара есть вода."
 msgstr ""
 
-#: scripts/nightclub.gd:382
+#: scripts/nightclub.gd:466
 msgid "Сейчас разнесу напитки. У диванов есть свободные места."
 msgstr ""
 
-#: scripts/nightclub.gd:383
+#: scripts/nightclub.gd:467
 msgid "Заходи. DJ на сцене, ступени справа."
 msgstr ""
 
@@ -685,175 +749,175 @@ msgstr ""
 msgid "Окно комнаты с ковром"
 msgstr ""
 
-#: scripts/party.gd:39
+#: scripts/party.gd:42
 msgid "Привет! Ты давно здесь?"
 msgstr ""
 
-#: scripts/party.gd:39
+#: scripts/party.gd:42
 msgid "Недавно. Что сейчас играет?"
 msgstr ""
 
-#: scripts/party.gd:39
+#: scripts/party.gd:42
 msgid "Пойдём ближе к пульту, там лучше слышно."
 msgstr ""
 
-#: scripts/party.gd:40
+#: scripts/party.gd:43
 msgid "Слышишь, как поменялся бас?"
 msgstr ""
 
-#: scripts/party.gd:40
+#: scripts/party.gd:43
 msgid "Да. Вот этот трек я бы оставил подольше."
 msgstr ""
 
-#: scripts/party.gd:40
+#: scripts/party.gd:43
 msgid "Согласен. Пусть пока играет."
 msgstr ""
 
-#: scripts/party.gd:41
+#: scripts/party.gd:44
 msgid "Ты уже видел комнату с мониторами?"
 msgstr ""
 
-#: scripts/party.gd:41
+#: scripts/party.gd:44
 msgid "Да, там сейчас все танцуют."
 msgstr ""
 
-#: scripts/party.gd:41
+#: scripts/party.gd:44
 msgid "Давай тоже заглянем."
 msgstr ""
 
-#: scripts/party.gd:42
+#: scripts/party.gd:45
 msgid "Здесь уже почти полный дом."
 msgstr ""
 
-#: scripts/party.gd:42
+#: scripts/party.gd:45
 msgid "Ага, я даже в коридоре встретил знакомых."
 msgstr ""
 
-#: scripts/party.gd:42
+#: scripts/party.gd:45
 msgid "Пойдём поздороваемся."
 msgstr ""
 
-#: scripts/party.gd:177
+#: scripts/party.gd:183
 msgid "Открываем двери гостям…"
 msgstr ""
 
-#: scripts/party.gd:179
+#: scripts/party.gd:185
 msgid "Подойди к DJ-пульту на рабочем столе в спальне-студии."
 msgstr ""
 
-#: scripts/party.gd:199
+#: scripts/party.gd:211
 msgid "Рядом с пультом мало проходов. Освободи место и попробуй снова."
 msgstr ""
 
-#: scripts/party.gd:248
+#: scripts/party.gd:263
 msgid "Сведение в бит · атмосфера растёт"
 msgstr ""
 
-#: scripts/party.gd:250
+#: scripts/party.gd:265
 msgid "Нажимай M, когда в индикаторе загорается БИТ."
 msgstr ""
 
-#: scripts/party.gd:355
+#: scripts/party.gd:346
 msgid "Аншлаг! Ты удержал полный дом и атмосферу."
 msgstr ""
 
-#: scripts/party.gd:442
+#: scripts/party.gd:486
 msgid "J · Начать вечеринку    B · Пиво    N · Сигарета"
 msgstr ""
 
-#: scripts/party.gd:442
+#: scripts/party.gd:486
 msgid "Найди DJ-пульт в спальне-студии    B · Пиво    N · Сигарета"
 msgstr ""
 
-#: scripts/party.gd:446
+#: scripts/party.gd:490
 msgid "БИТ"
 msgstr ""
 
-#: scripts/party.gd:451
+#: scripts/party.gd:495
 msgid "Выбери трек на ноутбуке"
 msgstr ""
 
-#: scripts/party.gd:452
+#: scripts/party.gd:496
 msgid "%s   %d/%d внутри   %d%%"
 msgstr ""
 
-#: scripts/party.gd:452
+#: scripts/party.gd:496
 msgid "Аншлаг!"
 msgstr ""
 
-#: scripts/party.gd:452
+#: scripts/party.gd:496
 msgid "Вечеринка"
 msgstr ""
 
-#: scripts/party.gd:453
+#: scripts/party.gd:497
 msgid "%s%s · запрос %s · %s\n%s\nB пиво · N сигарета · K потушить · R энергетик · V тошнит"
 msgstr ""
 
-#: scripts/party.gd:455
+#: scripts/party.gd:499
 msgid "E ноутбук · C контроллер · 1–3 хаус"
 msgstr ""
 
-#: scripts/party.gd:455
+#: scripts/party.gd:499
 msgid "Вернись к пульту, чтобы сменить трек."
 msgstr ""
 
-#: scripts/party.gd:456
+#: scripts/party.gd:500
 msgid "\nНа улице %d · $%d · сигарет %d"
 msgstr ""
 
-#: scripts/party.gd:460
+#: scripts/party.gd:504
 msgid "\nУдержи аншлаг ещё %d с"
 msgstr ""
 
-#: scripts/party_consumables.gd:29
+#: scripts/party_consumables.gd:55 scripts/party_consumables.gd:83
 msgid "Сначала потуши сигарету · K"
 msgstr ""
 
-#: scripts/party_consumables.gd:36
+#: scripts/party_consumables.gd:62
 msgid "Пива нет · купи в Night Shop"
 msgstr ""
 
-#: scripts/party_consumables.gd:41
+#: scripts/party_consumables.gd:67
 msgid "Сигареты закончились · купи в Night Shop"
 msgstr ""
 
-#: scripts/party_consumables.gd:208
-msgid "Сигарета потушена · осталось %d"
-msgstr ""
-
-#: scripts/party_consumables.gd:230
+#: scripts/party_consumables.gd:291
 msgid "Опьянение · %d%%"
 msgstr ""
 
-#: scripts/party_events.gd:26
+#: scripts/party_consumables.gd:637
+msgid "Сигарета потушена · осталось %d"
+msgstr ""
+
+#: scripts/party_events.gd:29
 msgid "Ты охуел? Руки убрал!"
 msgstr ""
 
-#: scripts/party_events.gd:26
+#: scripts/party_events.gd:29
 msgid "Какого хуя ты толкаешься?!"
 msgstr ""
 
-#: scripts/party_events.gd:26
+#: scripts/party_events.gd:29
 msgid "Пошёл нахуй со своими понтами!"
 msgstr ""
 
-#: scripts/party_events.gd:26
+#: scripts/party_events.gd:29
 msgid "Не трогай меня, блядь!"
 msgstr ""
 
-#: scripts/party_events.gd:26
+#: scripts/party_events.gd:29
 msgid "Сейчас получишь, сука!"
 msgstr ""
 
-#: scripts/party_events.gd:163
+#: scripts/party_events.gd:174
 msgid "Гости сцепились! Подойди и нажми E, чтобы разнять."
 msgstr ""
 
-#: scripts/party_events.gd:227
+#: scripts/party_events.gd:277
 msgid "Всё, блядь, хватит!"
 msgstr ""
 
-#: scripts/party_events.gd:253
+#: scripts/party_events.gd:303
 msgid "Разнял гостей. Атмосфера восстанавливается."
 msgstr ""
 
@@ -1157,7 +1221,7 @@ msgstr ""
 msgid "Стена должна опираться на пол."
 msgstr ""
 
-#: scripts/player.gd:301
+#: scripts/player.gd:336
 msgid "Тошнит…"
 msgstr ""
 
@@ -1193,51 +1257,75 @@ msgstr ""
 msgid "Этот файл проекта не удалось открыть."
 msgstr ""
 
-#: scripts/street_shop.gd:6
+#: scripts/street_shop.gd:7
 msgid "Энергетик"
 msgstr ""
 
-#: scripts/street_shop.gd:6
+#: scripts/street_shop.gd:7
 msgid "+15% к скорости бега на 45 с · R"
 msgstr ""
 
 #: scripts/street_shop.gd:7
+msgid "VOLT Energy, 330 мл. Ледяная банка из холодильника у кассы."
+msgstr ""
+
+#: scripts/street_shop.gd:8
 msgid "Пиво"
 msgstr ""
 
-#: scripts/street_shop.gd:7
+#: scripts/street_shop.gd:8
 msgid "1 бутылка · B"
 msgstr ""
 
 #: scripts/street_shop.gd:8
+msgid "Night Lager 5,2%. Тёмное стекло, капли конденсата, открывается большим пальцем."
+msgstr ""
+
+#: scripts/street_shop.gd:9
 msgid "Сигареты"
 msgstr ""
 
-#: scripts/street_shop.gd:8
+#: scripts/street_shop.gd:9
 msgid "5 сигарет · N"
 msgstr ""
 
-#: scripts/street_shop.gd:86
+#: scripts/street_shop.gd:9
+msgid "Пачка ORION. Зажигалка уже в кармане."
+msgstr ""
+
+#: scripts/street_shop.gd:10
+msgid "Упаковка пива"
+msgstr ""
+
+#: scripts/street_shop.gd:10
+msgid "6 бутылок"
+msgstr ""
+
+#: scripts/street_shop.gd:10
+msgid "Шесть бутылок Night Lager в картонной переноске. Выгоднее, чем по одной."
+msgstr ""
+
+#: scripts/street_shop.gd:325
 msgid "$%d   ·   Пиво %d   ·   Энергетики %d   ·   Сигареты %d"
 msgstr ""
 
-#: scripts/street_shop.gd:93
+#: scripts/street_shop.gd:335
 msgid "Не хватает денег."
 msgstr ""
 
-#: scripts/street_shop.gd:102
-msgid "Куплено · %s"
+#: scripts/street_shop.gd:345
+msgid "Куплено · %s × %d"
 msgstr ""
 
-#: scripts/street_shop.gd:106
+#: scripts/street_shop.gd:350
 msgid "Энергетиков нет · купи в Night Shop"
 msgstr ""
 
-#: scripts/street_shop.gd:109
+#: scripts/street_shop.gd:353
 msgid "Энергетик ещё действует · %d с"
 msgstr ""
 
-#: scripts/street_shop.gd:114
+#: scripts/street_shop.gd:364
 msgid "Энергетик · бег быстрее на 45 с"
 msgstr ""
 
@@ -1274,23 +1362,31 @@ msgid "Спасибо ещё раз. Хорошей ночи."
 msgstr ""
 
 #: scripts/subway_station.gd:20
-msgid "Ничего, бывает. Доброй ночи."
+msgid "Да пошёл ты нахуй. И не стой надо мной."
 msgstr ""
 
-#: scripts/subway_station.gd:276
+#: scripts/subway_station.gd:20
+msgid "Тогда чего уставился? Иди нахуй отсюда."
+msgstr ""
+
+#: scripts/subway_station.gd:20
+msgid "Ни цента? Ну и катись нахуй."
+msgstr ""
+
+#: scripts/subway_station.gd:341
+msgid "1 / E · Дать $%d     2 / Esc · Отказать"
+msgstr ""
+
+#: scripts/subway_station.gd:364 scripts/subway_station.gd:429
 msgid "Для помощи нужно $%d"
 msgstr ""
 
-#: scripts/subway_station.gd:282
+#: scripts/subway_station.gd:435
 msgid "Ты дал $%d · осталось $%d"
 msgstr ""
 
-#: scripts/subway_station.gd:288
+#: scripts/subway_station.gd:441
 msgid "E · Поговорить"
-msgstr ""
-
-#: scripts/subway_station.gd:289
-msgid "E · Дать $%d · %s"
 msgstr ""
 
 #: ui/main_menu_screen.gd:17 ui/main_menu_screen.tscn ui/pause_menu.tscn
@@ -1299,6 +1395,18 @@ msgstr ""
 
 #: ui/main_menu_screen.gd:17
 msgid "Начать игру"
+msgstr ""
+
+#: ui/shop_panel.gd:190 ui/shop_panel.tscn
+msgid "Купить"
+msgstr ""
+
+#: ui/shop_panel.gd:190
+msgid "Не хватает денег"
+msgstr ""
+
+#: ui/shop_panel.gd:209
+msgid "есть: %d"
 msgstr ""
 
 #: ui/dj/laptop_panel.tscn
@@ -1415,6 +1523,30 @@ msgstr ""
 
 #: ui/shop_panel.tscn
 msgid "NIGHT SHOP"
+msgstr ""
+
+#: ui/shop_panel.tscn
+msgid "OPEN 24/7"
+msgstr ""
+
+#: ui/shop_panel.tscn
+msgid "$0"
+msgstr ""
+
+#: ui/shop_panel.tscn
+msgid "−"
+msgstr ""
+
+#: ui/shop_panel.tscn
+msgid "1"
+msgstr ""
+
+#: ui/shop_panel.tscn
+msgid "+"
+msgstr ""
+
+#: ui/shop_panel.tscn
+msgid "Стрелки — выбор · −/+ — количество · Enter — купить · Esc — закрыть"
 msgstr ""
 
 #: assets/layout.json

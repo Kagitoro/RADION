@@ -1374,3 +1374,45 @@ msgstr "You · I made it to the door. Heard the crowd and chickened out. Then I 
 
 msgid "Кир · В следующий раз позвони. Даже если ты всё ещё стоишь у дверей."
 msgstr "Kir · Next time, call me. Even if you're still standing outside."
+
+msgid "Стрелки — выбор · −/+ — количество · Enter — купить · Esc — закрыть"
+msgstr "Arrows — select · −/+ — quantity · Enter — buy · Esc — close"
+
+msgid "+"
+msgstr "+"
+
+msgid "−"
+msgstr "−"
+
+msgid "OPEN 24/7"
+msgstr "OPEN 24/7"
+
+msgid "$0"
+msgstr "$0"
+
+msgid "1"
+msgstr "1"
+
+msgid "Пачка ORION. Зажигалка уже в кармане."
+msgstr "A pack of ORION. The lighter is already in your pocket."
+
+msgid "Шесть бутылок Night Lager в картонной переноске. Выгоднее, чем по одной."
+msgstr "Six bottles of Night Lager in a cardboard carrier. Cheaper than buying them one by one."
+
+msgid "VOLT Energy, 330 мл. Ледяная банка из холодильника у кассы."
+msgstr "VOLT Energy, 330 ml. An ice-cold can from the fridge by the till."
+
+msgid "Night Lager 5,2%. Тёмное стекло, капли конденсата, открывается большим пальцем."
+msgstr "Night Lager 5.2%. Dark glass, beads of condensation, the cap flicks off with your thumb."
+
+msgid "Не хватает денег"
+msgstr "Not enough money"
+
+msgid "есть: %d"
+msgstr "owned: %d"
+
+msgid "Куплено · %s × %d"
+msgstr "Bought · %s × %d"
+
+msgid "Купить"
+msgstr "Buy"

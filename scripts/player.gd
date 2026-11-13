@@ -40,6 +40,15 @@ var blackout: ColorRect
 var head_bob := 0.0
 var energy_boost := 0.0
 var camera_rest := Vector3(0,1.64,-.12)
+## First-person hands and held items (drawn over the world).
+var view_model: FPViewModel
+## Screen-space drunk / nausea / energy effects.
+var screen_fx: ScreenFX
+## Additive camera motion driven by hand actions: head tilt (radians),
+## position shift (metres) and field-of-view change (degrees).
+var action_look := Vector3.ZERO
+var action_shift := Vector3.ZERO
+var action_fov := 0.0
 var mouse_sensitivity := .0025
 
 func drink_beer() -> void:
@@ -67,6 +76,7 @@ func fall_over() -> void:
 	motion.parallel().tween_property(avatar,"rotation",Vector3(.18,0,-1.35),.75)
 	motion.tween_interval(.32)
 	motion.tween_callback(func():
+		screen_fx.pulse_heave(1.0)
 		get_parent().party.events.vomit_burst()
 	)
 	motion.tween_property(blackout,"color:a",1.0,1.0)
@@ -106,6 +116,10 @@ func _ready() -> void:
 	camera.near = 0.018
 	camera.set_cull_mask_value(3,false)
 	add_child(camera)
+	view_model = FPViewModel.new(self)
+	camera.add_child(view_model)
+	screen_fx = ScreenFX.new(self)
+	add_child(screen_fx)
 	make_body()
 	setup_steps()
 
@@ -114,7 +128,7 @@ func look_motion(delta: Vector2) -> void:
 		return
 	rotate_y(-delta.x * mouse_sensitivity)
 	pitch = clampf(pitch - delta.y * mouse_sensitivity, -1.46, 1.46)
-	camera.rotation.x = pitch
+	camera.rotation.x = pitch + action_look.x
 
 func move_to(eye: Vector3, target: Vector3) -> void:
 	if collapsed:
@@ -141,6 +155,9 @@ func _physics_process(delta: float) -> void:
 	if paused:
 		velocity = Vector3.ZERO
 		return
+	if vomiting and not collapsed:
+		camera.rotation = Vector3(pitch+action_look.x,action_look.y,action_look.z)
+		camera.position = camera_rest+action_shift
 	if collapsed or vomiting:
 		retch_clock += delta
 		update_body(delta)
@@ -157,7 +174,7 @@ func _physics_process(delta: float) -> void:
 	intoxication = move_toward(intoxication,0.0,delta*.004)
 	alcohol_motion += delta
 	var sway := sin(alcohol_motion*2.9)*intoxication
-	camera.rotation.z = sway*.046
+	camera.rotation = Vector3(pitch+action_look.x,action_look.y,sway*.046+action_look.z)
 	if not airborne:
 		direction = direction.rotated(Vector3.UP,sway*.17)
 		speed *= 1.0-intoxication*.16
@@ -182,8 +199,8 @@ func _physics_process(delta: float) -> void:
 	if is_on_floor():
 		head_bob += delta*pace*5.4
 	var bob := Vector3(sin(head_bob*.5)*.007,absf(sin(head_bob))*.013,0) if pace>.15 and is_on_floor() else Vector3.ZERO
-	camera.position = camera.position.lerp(camera_rest+bob,minf(1,delta*12))
-	camera.fov = lerpf(camera.fov,76.0 if running and pace>2 else 72.0,minf(1,delta*5))
+	camera.position = camera.position.lerp(camera_rest+bob+action_shift,minf(1,delta*14))
+	camera.fov = lerpf(camera.fov,(76.0 if running and pace>2 else 72.0)+action_fov,minf(1,delta*5))
 	if is_on_floor() and global_position.y>-.25:
 		safe_floor = global_position
 		has_safe_floor = true
@@ -311,26 +328,54 @@ func vomit() -> void:
 	if party.hands_busy():
 		nausea_time = .4
 		return
-	party.extinguish()
+	party.consumables.drop_cigarette()
 	vomiting = true
 	nausea_time = 0
 	nausea_cooldown = 35.0
 	velocity = Vector3.ZERO
 	GameEvents.notify(tr("Тошнит…"))
 	retch_clock = 0.0
-	var motion := create_tween().set_trans(Tween.TRANS_SINE)
-	motion.tween_property(self,"kneel_amount",1.0,.65)
-	motion.parallel().tween_property(camera,"rotation:x",-.72,.65)
-	motion.parallel().tween_property(camera,"position:y",.96,.65)
-	motion.tween_callback(party.events.vomit_burst)
-	motion.tween_interval(2.35)
-	motion.tween_property(self,"kneel_amount",0.0,.85)
-	motion.parallel().tween_property(camera,"rotation:x",pitch,.85)
-	motion.parallel().tween_property(camera,"position:y",camera_rest.y,.85)
+	screen_fx.nausea_target = 1.0
+	# Bend over: head goes down toward the floor in front of the feet.
+	var bend := -.82-pitch
+	var motion := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	motion.tween_property(self,"kneel_amount",1.0,.7)
+	motion.parallel().tween_property(self,"action_look",Vector3(bend,0,.05),.7)
+	motion.parallel().tween_property(self,"action_shift",Vector3(0,-.66,-.05),.7)
+	motion.tween_interval(.2)
+	# A dry heave, then the real ones.
+	retch(motion,.45,false,bend)
+	motion.tween_interval(.35)
+	retch(motion,1.0,true,bend)
+	motion.tween_interval(.55)
+	retch(motion,.7,true,bend)
+	motion.tween_interval(.6)
+	motion.tween_callback(func(): screen_fx.nausea_target = .25)
+	motion.tween_property(self,"kneel_amount",0.0,.9)
+	motion.parallel().tween_property(self,"action_look",Vector3.ZERO,.9)
+	motion.parallel().tween_property(self,"action_shift",Vector3.ZERO,.9)
 	motion.tween_callback(func():
 		vomiting = false
+		screen_fx.nausea_target = 0.0
 		intoxication = maxf(.35,intoxication-.14)
 	)
+
+## One lurch of the body; `burst` also brings it up.
+func retch(motion: Tween, strength: float, burst: bool, bend: float) -> void:
+	var events = get_parent().party.events
+	motion.tween_callback(func():
+		screen_fx.pulse_heave(strength)
+		if burst:
+			events.vomit_burst()
+		else:
+			events.retching.global_position = mouth_anchor().global_position
+			events.retching.stream = FPSounds.get_sound("heave")
+			events.retching.play()
+	)
+	motion.tween_property(self,"action_look",Vector3(bend-.16*strength,0,.05-.04*strength),.12).set_ease(Tween.EASE_OUT)
+	motion.parallel().tween_property(self,"action_shift",Vector3(0,-.70-.05*strength,-.05-.07*strength),.12)
+	motion.tween_property(self,"action_look",Vector3(bend,0,.05),.45)
+	motion.parallel().tween_property(self,"action_shift",Vector3(0,-.66,-.05),.45)
 
 func arm_basis(direction: Vector3) -> Basis:
 	var up := -direction.normalized()

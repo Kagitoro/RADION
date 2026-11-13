@@ -136,13 +136,23 @@ func check_night_shop() -> void:
 	var item_buttons: Node = shop.panel.get_node("%Items")
 	expect(item_buttons.get_child_count() == StreetShop.ITEMS.size(), "Магазин: кнопки товаров не построены")
 	(item_buttons.get_child(1) as Button).pressed.emit()
+	expect(shop.panel.selected == 1, "Магазин: карточка товара не выбирается")
+	(shop.panel.get_node("%BuyButton") as Button).pressed.emit()
 	expect(shop.beer == beer + 1 and home.party.cash == 95, "Магазин: покупка пива не работает")
+	shop.panel.change_quantity(1)
+	(shop.panel.get_node("%BuyButton") as Button).pressed.emit()
+	expect(shop.beer == beer + 3 and home.party.cash == 85, "Магазин: покупка нескольких штук не работает")
 	shop.buy(0)
 	shop.close()
 	expect(not shop.is_open() and not home.modal, "Магазин: не закрывается")
 	home.player.energy_boost = 0.0
+	home.party.extinguish()
+	await wait_until(func(): return not home.party.hands_busy(), 4.0)
 	shop.drink_energy()
+	expect(home.party.hands_busy(), "Энергетик: нет анимации в руках")
+	await wait_until(func(): return home.player.energy_boost > 0.0, 5.0)
 	expect(home.player.energy_boost > 0.0, "Магазин: энергетик не действует")
+	await wait_until(func(): return not home.party.hands_busy(), 5.0)
 	expect(FileAccess.file_exists(StreetShop.SAVE), "Магазин: покупки не сохраняются")
 	var before := shop.beer
 	home.party.consume(true)
@@ -160,7 +170,10 @@ func check_cigarette() -> void:
 	expect(party.cigarettes == 2 and is_instance_valid(smokes.lip_cigarette), "Сигарета: N не зажигает сигарету")
 	await wait_until(func(): return not is_instance_valid(smokes.hand_prop), 6.0)
 	party.extinguish()
-	expect(not is_instance_valid(smokes.lip_cigarette), "Сигарета: K не тушит сигарету")
+	# K takes the cigarette from the lips and flicks it away (~1 s).
+	await wait_until(func(): return not is_instance_valid(smokes.lip_view), 3.0)
+	expect(not is_instance_valid(smokes.lip_cigarette) and not is_instance_valid(smokes.lip_view), "Сигарета: K не тушит сигарету")
+	await wait_until(func(): return not is_instance_valid(smokes.hand_prop), 3.0)
 	await wait(.2)
 
 func check_music_library() -> void:

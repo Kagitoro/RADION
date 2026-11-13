@@ -114,6 +114,8 @@ func _ready() -> void:
 	night_world.dress_bar()
 	add_child(night_game)
 	night_game.setup()
+	VisualQuality.plaster(scene_finish.paint)
+	VisualQuality.apply(self)
 	if not SavePaths.is_test_run():
 		GameSettings.apply_language(GameSettings.language())
 	go_room("hall")
@@ -123,6 +125,8 @@ func _ready() -> void:
 	elif "--visual-smoke" in OS.get_cmdline_user_args():
 		smoke_runner = SmokeRunner.new(self)
 		smoke_runner.run_visual.call_deferred()
+	elif Array(OS.get_cmdline_user_args()).any(func(arg: String): return arg.begins_with("--visual-tour")):
+		VisualTour.new(self).run.call_deferred()
 	elif not headless:
 		if game_mode and "--skip-menu" not in OS.get_cmdline_user_args():
 			get_tree().auto_accept_quit = false

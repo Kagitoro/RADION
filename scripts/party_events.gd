@@ -357,6 +357,17 @@ func vomit_burst() -> void:
 	stream.material_override = surface
 	add_child(stream)
 	streams.append({"node":stream,"age":0.0,"impact":result.position+Vector3.UP*.015})
+	var impact: Vector3 = result.position
+	get_tree().create_timer(.22).timeout.connect(func():
+		FPEffects.splatter(self,impact)
+		var splash := AudioStreamPlayer3D.new()
+		splash.stream = FPSounds.get_sound("splash")
+		splash.volume_db = -14
+		add_child(splash)
+		splash.global_position = impact
+		splash.play()
+		splash.finished.connect(splash.queue_free)
+	)
 	var puddle := Node3D.new()
 	add_child(puddle)
 	puddle.global_position = result.position+Vector3.UP*.009

@@ -1,0 +1,49 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://assets/fp/arm.glb" id="1_4vghm"]
+[ext_resource type="PackedScene" path="res://assets/fp/cigarette.glb" id="2_yvxw7"]
+[ext_resource type="PackedScene" path="res://assets/fp/lighter.glb" id="3_gftc7"]
+[ext_resource type="Animation" path="res://assets/fp/anims/light.tres" id="4_khbsa"]
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_kdmye"]
+_data = {
+&"light": ExtResource("4_khbsa")
+}
+
+[node name="Preview_light" type="Node3D" unique_id=2133811390]
+
+[node name="Sway" type="Node3D" parent="." unique_id=23492043]
+
+[node name="Right" type="Node3D" parent="Sway" unique_id=997597783]
+transform = Transform3D(0.9553365, 0.29552022, 0, -0.28232124, 0.9126679, -0.29552022, -0.0873322, 0.28232124, 0.9553365, 0.32, -0.5, -0.3)
+
+[node name="RightHand" type="Node3D" parent="Sway/Right" unique_id=301335060]
+
+[node name="Arm" type="Node3D" parent="Sway/Right/RightHand" unique_id=458097135 instance=ExtResource("1_4vghm")]
+
+[node name="Cigarette" type="Node3D" parent="Sway/Right" unique_id=1701761048 instance=ExtResource("2_yvxw7")]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -0.048, 0.018, -0.118)
+
+[node name="Left" type="Node3D" parent="Sway" unique_id=446949367]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.20429221, -0.44654158, -0.24395001)
+
+[node name="LeftHand" type="Node3D" parent="Sway/Left" unique_id=234076735]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, 1, -0.036, 0.012, 0.05)
+
+[node name="Arm" type="Node3D" parent="Sway/Left/LeftHand" unique_id=538361495 instance=ExtResource("1_4vghm")]
+
+[node name="Lighter" type="Node3D" parent="Sway/Left" unique_id=1635562629 instance=ExtResource("3_gftc7")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.03, 0)
+
+[node name="Mouth" type="Node3D" parent="Sway" unique_id=1091767135]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.072, -0.13)
+
+[node name="PlayerCamera" type="Camera3D" parent="." unique_id=138619276]
+fov = 72.486755
+near = 0.01
+
+[node name="Light" type="DirectionalLight3D" parent="." unique_id=1686621539]
+transform = Transform3D(0.87758255, -0.3088544, 0.36668488, 0, 0.7648422, 0.64421767, -0.47942555, -0.56535417, 0.6712122, 0, 0, 0)
+
+[node name="Actions" type="AnimationPlayer" parent="." unique_id=689880544]
+libraries/ = SubResource("AnimationLibrary_kdmye")

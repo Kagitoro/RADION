@@ -1,14 +1,16 @@
 class_name SavePaths
 extends RefCounted
 ## Single place that decides where the game writes files.
-## Test runs (--smoke / --visual-smoke) get their own folder so they never touch
+## Test runs (--smoke / --visual-smoke / --visual-tour) get their own folder so they never touch
 ## the player's real saves.
 
 const TEST_FOLDER := "user://smoke_test/"
 
 static func is_test_run() -> bool:
-	var args := OS.get_cmdline_user_args()
-	return "--smoke" in args or "--visual-smoke" in args
+	for arg in OS.get_cmdline_user_args():
+		if arg == "--smoke" or arg == "--visual-smoke" or arg.begins_with("--visual-tour"):
+			return true
+	return false
 
 static func file(file_name: String) -> String:
 	if is_test_run():
