@@ -1,18 +1,19 @@
+class_name SceneFinish
 extends Node
 
 const MIRROR_LAYER := 2
 const REFLECTED_HEAD_LAYER := 3
 const WALL_HEIGHT := 2.70
 
-var home
+var home: Home
 var mirror: MeshInstance3D
 var mirror_camera: Camera3D
 var mirror_view: SubViewport
 var ceilings := {}
 var paint := StandardMaterial3D.new()
 
-func _init(editor) -> void:
-	home = editor
+func _init(game_home: Home) -> void:
+	home = game_home
 	paint.albedo_color = Color("#b7ad9d")
 	paint.roughness = .86
 	var grain := FastNoiseLite.new()
@@ -35,7 +36,7 @@ func prepare_walls() -> void:
 		replace_wall_mesh(source,dimensions)
 		home.data.templates.wall.h = WALL_HEIGHT
 	for row in home.originals.values():
-		if home.structural_wall(row) and str(row.label)=="Стена":
+		if home.rooms.structural_wall(row) and str(row.label)=="Стена":
 			replace_wall_mesh(home.nodes[row.id],home.vector(row.dimensions))
 
 func replace_wall_mesh(root: Node3D, dimensions: Vector3) -> void:
@@ -68,9 +69,9 @@ func sync_ceilings() -> void:
 			home.add_child(model)
 			ceilings[row.id] = model
 		var slab := model.mesh as BoxMesh
-		var built: bool = home.built_room(row)
+		var built: bool = home.rooms.built_room(row)
 		slab.size = Vector3(float(row.w)+.024,.05,float(row.d)+.024)
-		var top: float = home.floor_surface(row)+WALL_HEIGHT
+		var top: float = home.rooms.floor_surface(row)+WALL_HEIGHT
 		if not built:
 			top += .027
 			var key := str(row.id)

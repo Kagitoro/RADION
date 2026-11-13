@@ -1,7 +1,6 @@
-extends Node3D
+class_name Nightclub
+extends DeckHost
 
-const ClubShift = preload("res://scripts/club_shift.gd")
-const Guest = preload("res://scripts/party_guest.gd")
 const Interior = preload("res://assets/club/radion_club.glb")
 const ENTRY_X := -4.2
 const ENTRY_Z := 5.08
@@ -11,24 +10,15 @@ const DOOR_HALF_WIDTH := .57
 const CYAN := Color("#58def9")
 const PINK := Color("#f75ba9")
 
-var world
+var world: NightWorld
 var interior: Node3D
 var dancers: Array[Node3D] = []
 var lights: Array[OmniLight3D] = []
-const DJStation = preload("res://scripts/dj_station.gd")
 const TRACKS := ["DJ Dance"]
 const BPM := [128.0]
 const STAGE_HEIGHT := .42
 const BEAM_SOURCES := [Vector3(-3.3,3.80,-2.95),Vector3(-1.1,3.80,1.05),Vector3(1.1,3.80,-2.95),Vector3(3.3,3.80,1.05)]
 
-var deck := Node3D.new()
-var music: Array[AudioStreamPlayer] = []
-var music_bus := -1
-var music_gain := 1.0
-var track := 0
-var playing := 0
-var track_time := 0.0
-var fader: Tween
 var dj: DJStation
 var shift: Node
 var pose_time := 0.0
@@ -40,6 +30,11 @@ var staff: Array[Node3D] = []
 var response_time := 0.0
 var responding: Node3D
 var waiter_target := 0
+var entry_queue: Array[PartyGuest] = []
+var entry_cycle := 0.0
+const QUEUE_COUNT := 6
+const ENTRY_INTERVAL := 8.0
+const QUEUE_Z := ENTRY_Z + 1.10
 const COUNTER_X := -6.52
 const SHELVES_X := -8.67
 const BARTENDER_X := -7.67
@@ -49,8 +44,14 @@ const SERVICE_ROUTE := [
 	Vector3(5.56,0,1.72),Vector3(5.56,0,-.64),Vector3(4.35,0,2.50),
 ]
 
-func _init(night_world) -> void:
+func _init(night_world: NightWorld) -> void:
 	world = night_world
+
+func track_titles() -> Array:
+	return TRACKS
+
+func track_bpm() -> Array:
+	return BPM
 
 func build() -> void:
 	name = "Nightclub"
@@ -142,10 +143,7 @@ func build_shell() -> void:
 		world.box(self,Vector3((span.x+span.y)*.5,2.23,ENTRY_Z),Vector3(span.y-span.x,4.46,.22),facade,true)
 	world.box(self,Vector3(ENTRY_X,3.38,ENTRY_Z),Vector3(1.14,2.16,.22),facade,true)
 	world.box(self,Vector3(0,-.07,5.18),Vector3(FLOOR_WIDTH,.14,.85),facade)
-	world.box(self,Vector3(ENTRY_X,2.53,5.35),Vector3(1.8,.16,.73),Color("#222130"))
-	world.add_sign(self,"RADION / CLUB",Vector3(ENTRY_X,3.18,5.21),Vector3.ZERO,CYAN,.0046)
-	world.add_sign(self,"ВХОД",Vector3(ENTRY_X,2.82,5.21),Vector3.ZERO,Color("#ffb1d2"),.0021)
-	world.point_light(self,Vector3(ENTRY_X,2.65,5.40),CYAN,2.0,6.5)
+	build_entrance()
 	for x in [-5.5,-3.0,-.5,2.0,4.5]:
 		world.box(self,Vector3(x,3.77,5.21),Vector3(1.75,.06,.05),PINK if x<0 else CYAN)
 	for x in [-8.95,-8.15,-7.35,-6.55,-1.25,-.45,.35,1.15,1.95,2.75,3.55,4.35,5.15,5.95,6.75,7.55,8.35,9.15]:
@@ -166,6 +164,81 @@ func build_shell() -> void:
 	for x in [-3.9,3.9]:
 		solid(Vector3(x,.64+STAGE_HEIGHT,-4.2),Vector3(.78,1.28,.78))
 	solid(Vector3(-.25,.48,4.1),Vector3(1.6,.96,.65))
+
+func build_entrance() -> void:
+	var dark := Color("#191b24")
+	var steel := Color("#3b4351")
+	var warm := Color("#ffc499")
+	world.box(self,Vector3(ENTRY_X,2.59,5.77),Vector3(3.48,.25,1.66),dark)
+	world.box(self,Vector3(ENTRY_X,2.62,6.61),Vector3(3.48,.095,.045),steel)
+	world.box(self,Vector3(ENTRY_X,2.49,6.64),Vector3(3.42,.026,.031),CYAN)
+	world.box(self,Vector3(ENTRY_X,3.18,5.25),Vector3(3.22,.72,.16),dark)
+	world.box(self,Vector3(ENTRY_X,2.89,6.60),Vector3(2.84,.49,.12),dark)
+	world.add_sign(self,"R A D I O N",Vector3(ENTRY_X,2.94,6.67),Vector3.ZERO,CYAN,.0064)
+	world.add_sign(self,"NIGHT CLUB",Vector3(ENTRY_X,2.74,6.67),Vector3.ZERO,warm,.0024)
+	world.box(self,Vector3(ENTRY_X+3.32,.010,QUEUE_Z),Vector3(5.60,.018,1.20),Color("#32343f"))
+	world.box(self,Vector3(ENTRY_X,.012,5.90),Vector3(1.10,.024,1.9),Color("#5c2442"))
+	for side in [-1,1]:
+		var x: float = ENTRY_X+side*.72
+		world.box(self,Vector3(x,1.22,5.28),Vector3(.20,2.44,.26),steel)
+		world.box(self,Vector3(x,1.21,5.43),Vector3(.035,2.31,.035),warm)
+		world.box(self,Vector3(ENTRY_X+side*1.43,2.45,6.22),Vector3(.14,.06,.60),warm)
+	world.point_light(self,Vector3(ENTRY_X,2.40,6.30),warm,1.45,4.2)
+	world.point_light(self,Vector3(ENTRY_X,2.55,5.43),CYAN,1.2,4.0)
+	var base := CylinderMesh.new()
+	base.top_radius = .115
+	base.bottom_radius = .126
+	base.height = .038
+	var post := CylinderMesh.new()
+	post.top_radius = .026
+	post.bottom_radius = .032
+	post.height = .89
+	for rail in [-.48,.50]:
+		for index in range(4):
+			var at := Vector3(ENTRY_X+1.05+index*1.54,0,QUEUE_Z+rail)
+			world.mesh(self,base,at+Vector3.UP*.022,steel)
+			world.mesh(self,post,at+Vector3.UP*.46,steel)
+			world.sphere(self,at+Vector3.UP*.927,Vector3.ONE*.085,warm)
+			if index<3:
+				for half in [0,1]:
+					var segment := world.mesh(self,BoxMesh.new(),at+Vector3(.385+half*.77,.817,0),Color("#893453"))
+					(segment.mesh as BoxMesh).size = Vector3(.78,.027,.046)
+					segment.rotation.z = -.13 if half==0 else .13
+
+func queue_slot(index: int) -> Vector3:
+	return Vector3(ENTRY_X+1.16+index*.83,0,QUEUE_Z)
+
+func animate_entry_queue(delta: float) -> void:
+	if entry_queue.is_empty():
+		return
+	entry_cycle += delta
+	if entry_cycle >= ENTRY_INTERVAL:
+		entry_cycle -= ENTRY_INTERVAL
+		var first: PartyGuest = entry_queue.pop_front()
+		entry_queue.append(first)
+		first.position = queue_slot(QUEUE_COUNT)+Vector3(.6,0,.12)
+	var advance := smoothstep(2.35,3.95,entry_cycle)
+	for index in range(QUEUE_COUNT):
+		var person := entry_queue[index]
+		var next := queue_slot(index).lerp(queue_slot(index-1),advance) if index>0 else queue_slot(0)
+		var walking := entry_cycle>2.35 and entry_cycle<3.95
+		person.visible = true
+		if index==0:
+			var corner := Vector3(ENTRY_X,0,QUEUE_Z)
+			var inside := Vector3(ENTRY_X,0,ENTRY_Z-1.18)
+			next = next.lerp(corner,smoothstep(0.0,1.15,entry_cycle)).lerp(inside,smoothstep(1.15,2.83,entry_cycle))
+			next = next.lerp(inside+Vector3(1.12,0,-.21),smoothstep(2.83,3.8,entry_cycle))
+			walking = entry_cycle<3.8
+			person.visible = entry_cycle<3.8
+		elif index==QUEUE_COUNT-1:
+			next = next.lerp(queue_slot(QUEUE_COUNT)+Vector3(.6,0,.12),1.0-smoothstep(0.0,2.35,entry_cycle))
+			walking = entry_cycle<3.95
+		var direction := next - person.position
+		person.position = next
+		if direction.length_squared()>.000001:
+			person.rotation.y = lerp_angle(person.rotation.y,atan2(-direction.x,-direction.z),minf(1.0,delta*7.0))
+		if person.visible:
+			person.pose(delta,0.0,walking)
 
 func build_stage() -> void:
 	var finish := Color("#272b3b")
@@ -266,8 +339,8 @@ func build_show() -> void:
 func box(parent: Node3D, at: Vector3, size: Vector3, tint: Color) -> void:
 	world.box(parent,at,size,tint)
 
-func cylinder(parent: Node3D, at: Vector3, radius: float, height: float, tint: Color) -> void:
-	world.home.party.cylinder(parent,at,radius,height,tint)
+func cylinder(parent: Node3D, at: Vector3, radius: float, height: float, tint: Color) -> MeshInstance3D:
+	return world.home.party.cylinder(parent,at,radius,height,tint)
 
 func near_deck() -> bool:
 	var player := to_local(world.home.player.global_position)
@@ -286,7 +359,7 @@ func setup_dj() -> DJStation:
 		channel.bus = bus_name
 		add_child(channel)
 		music.append(channel)
-	var stream := AudioStreamMP3.load_from_file("res://assets/party/DJ Dance.mp3")
+	var stream := (load("res://assets/party/DJ Dance.mp3") as AudioStreamMP3).duplicate() as AudioStreamMP3
 	if stream != null:
 		stream.loop = true
 		music[0].stream = stream
@@ -306,13 +379,20 @@ func solid(at: Vector3, size: Vector3) -> void:
 	world.box(self,at,size,Color.TRANSPARENT,true,true)
 
 func open_venue() -> void:
+	for index in range(QUEUE_COUNT):
+		var person := PartyGuest.new(index+17,null,world.home.party.psx_assets)
+		add_child(person)
+		person.position = queue_slot(index)
+		person.rotation.y = PI*.5
+		person.name_tag.hide()
+		entry_queue.append(person)
 	var positions := [
 		Vector3(-1.85,.015,-1.85),Vector3(-.62,.015,-2.5),Vector3(.65,.015,-1.95),
 		Vector3(1.85,.015,-.8),Vector3(-1.35,.015,.05),Vector3(.23,.015,.25),
 		Vector3(1.65,.015,.95),Vector3(-2.65,.015,.8),Vector3(2.9,.015,.2),Vector3(-.9,.015,1.58),
 	]
 	for index in range(positions.size()):
-		var guest := Guest.new(index+2,null,world.home.party.psx_assets)
+		var guest := PartyGuest.new(index+2,null,world.home.party.psx_assets)
 		interior.add_child(guest)
 		guest.position = positions[index]
 		guest.rotation.y = (float(index%3)-1.0)*.62
@@ -320,10 +400,10 @@ func open_venue() -> void:
 		guest.name_tag.hide()
 		dancers.append(guest)
 
-	var roles := ["Бармен · Лина","Официант · Макс","Охрана · Самир"]
+	var roles := [tr("Бармен · Лина"),tr("Официант · Макс"),tr("Охрана · Самир")]
 	var starts := [Vector3(BARTENDER_X,0,-.45),SERVICE_ROUTE[0],Vector3(-5.65,0,5.78)]
 	for index in range(roles.size()):
-		var worker := Guest.new([3,8,2][index],null,world.home.party.psx_assets,index==2)
+		var worker := PartyGuest.new([3,8,2][index],null,world.home.party.psx_assets,index==2)
 		add_child(worker)
 		worker.position = starts[index]
 		worker.rotation.y = -PI*.5 if index==0 else PI
@@ -382,9 +462,9 @@ func speak(worker: Node3D) -> void:
 	response_time = 4.5
 	var index := staff.find(worker)
 	var replies := [
-		"Привет! Если надо освежиться, у бара есть вода.",
-		"Сейчас разнесу напитки. У диванов есть свободные места.",
-		"Заходи. DJ на сцене, ступени справа.",
+		tr("Привет! Если надо освежиться, у бара есть вода."),
+		tr("Сейчас разнесу напитки. У диванов есть свободные места."),
+		tr("Заходи. DJ на сцене, ступени справа."),
 	]
 	worker.speech.text = replies[index]
 	worker.speech.show()
@@ -458,6 +538,7 @@ func _process(delta: float) -> void:
 	var pulse := exp(-5.0*beat) if dj.has_playback() else .12
 	animate_show(maxf(pulse,dj.bass*.85))
 	animate_staff(pose_time,beat)
+	animate_entry_queue(pose_time)
 	for person in shift.incident_guests:
 		person.pose(pose_time,beat,false)
 	for index in range(lights.size()):

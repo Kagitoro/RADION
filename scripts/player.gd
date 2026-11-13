@@ -1,7 +1,19 @@
+class_name Player
 extends CharacterBody3D
 
-const Character = preload("res://scripts/party_guest.gd")
-const GuestModel = preload("res://scripts/guest_model.gd")
+const WALK_SPEED := 1.75
+const RUN_SPEED := 3.30
+## Extra run speed while an energy drink is active.
+const ENERGY_RUN_MULTIPLIER := 1.15
+const GRAVITY := 13.0
+const JUMP_VELOCITY := 3.5
+## Highest ledge the player steps onto automatically (metres).
+const STEP_HEIGHT := .16
+const ACCELERATION := 10.0
+const DECELERATION := 14.0
+const WALK_STRIDE := .57
+const RUN_STRIDE := .75
+
 var dj_rig: GuestModel
 var dj_mouth: Node3D
 var avatar: Node3D
@@ -26,7 +38,17 @@ var kneel_amount := 0.0
 var retch_clock := 0.0
 var blackout: ColorRect
 var head_bob := 0.0
-var camera_rest := Vector3(0,1.64,0)
+var energy_boost := 0.0
+var camera_rest := Vector3(0,1.64,-.12)
+## First-person hands and held items (drawn over the world).
+var view_model: FPViewModel
+## Screen-space drunk / nausea / energy effects.
+var screen_fx: ScreenFX
+## Additive camera motion driven by hand actions: head tilt (radians),
+## position shift (metres) and field-of-view change (degrees).
+var action_look := Vector3.ZERO
+var action_shift := Vector3.ZERO
+var action_fov := 0.0
 var mouse_sensitivity := .0025
 
 func drink_beer() -> void:
@@ -54,12 +76,13 @@ func fall_over() -> void:
 	motion.parallel().tween_property(avatar,"rotation",Vector3(.18,0,-1.35),.75)
 	motion.tween_interval(.32)
 	motion.tween_callback(func():
+		screen_fx.pulse_heave(1.0)
 		get_parent().party.events.vomit_burst()
 	)
 	motion.tween_property(blackout,"color:a",1.0,1.0)
 	motion.tween_interval(1.35)
 	motion.tween_callback(func():
-		camera.position = Vector3(0,1.64,0)
+		camera.position = camera_rest
 		camera.rotation = Vector3(pitch,0,0)
 		avatar.rotation = Vector3.ZERO
 		intoxication = .28
@@ -87,12 +110,16 @@ func _ready() -> void:
 	collider.position.y = 0.835
 	add_child(collider)
 	camera = Camera3D.new()
-	camera.position.y = 1.64
+	camera.position = camera_rest
 	camera.current = true
 	camera.fov = 70.0
-	camera.near = 0.035
+	camera.near = 0.018
 	camera.set_cull_mask_value(3,false)
 	add_child(camera)
+	view_model = FPViewModel.new(self)
+	camera.add_child(view_model)
+	screen_fx = ScreenFX.new(self)
+	add_child(screen_fx)
 	make_body()
 	setup_steps()
 
@@ -101,14 +128,14 @@ func look_motion(delta: Vector2) -> void:
 		return
 	rotate_y(-delta.x * mouse_sensitivity)
 	pitch = clampf(pitch - delta.y * mouse_sensitivity, -1.46, 1.46)
-	camera.rotation.x = pitch
+	camera.rotation.x = pitch + action_look.x
 
 func move_to(eye: Vector3, target: Vector3) -> void:
 	if collapsed:
 		return
-	global_position = eye - Vector3(0, camera.position.y, 0)
 	var direction := (target - eye).normalized()
 	rotation.y = atan2(-direction.x, -direction.z)
+	global_position = eye - global_basis * camera.position
 	pitch = asin(clampf(direction.y, -1.0, 1.0))
 	camera.rotation.x = pitch
 	velocity = Vector3.ZERO
@@ -128,47 +155,52 @@ func _physics_process(delta: float) -> void:
 	if paused:
 		velocity = Vector3.ZERO
 		return
+	if vomiting and not collapsed:
+		camera.rotation = Vector3(pitch+action_look.x,action_look.y,action_look.z)
+		camera.position = camera_rest+action_shift
 	if collapsed or vomiting:
 		retch_clock += delta
 		update_body(delta)
-		velocity.y = 0.0 if is_on_floor() else velocity.y-13.0*delta
+		velocity.y = 0.0 if is_on_floor() else velocity.y-GRAVITY*delta
 		move_and_slide()
 		return
-	var sideways := float(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT)) - float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT))
-	var forward := float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)) - float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN))
-	var direction := global_transform.basis * Vector3(sideways, 0.0, -forward).limit_length(1.0)
-	var running := Input.is_physical_key_pressed(KEY_SHIFT)
-	var speed := 3.30 if running else 1.75
+	var stick := Input.get_vector("move_left", "move_right", "move_back", "move_forward")
+	var direction := global_transform.basis * Vector3(stick.x, 0.0, -stick.y).limit_length(1.0)
+	var running := Input.is_action_pressed("run")
+	energy_boost = maxf(0.0,energy_boost-delta)
+	var speed := RUN_SPEED if running else WALK_SPEED
+	if running and energy_boost>0.0:
+		speed *= ENERGY_RUN_MULTIPLIER
 	intoxication = move_toward(intoxication,0.0,delta*.004)
 	alcohol_motion += delta
 	var sway := sin(alcohol_motion*2.9)*intoxication
-	camera.rotation.z = sway*.046
+	camera.rotation = Vector3(pitch+action_look.x,action_look.y,sway*.046+action_look.z)
 	if not airborne:
 		direction = direction.rotated(Vector3.UP,sway*.17)
 		speed *= 1.0-intoxication*.16
 	var desired := direction*speed
-	var acceleration := 10.0 if direction.length_squared()>.01 else 14.0
+	var acceleration := ACCELERATION if direction.length_squared()>.01 else DECELERATION
 	velocity.x = move_toward(velocity.x,desired.x,acceleration*delta)
 	velocity.z = move_toward(velocity.z,desired.z,acceleration*delta)
 	if airborne:
-		velocity.y = (float(Input.is_physical_key_pressed(KEY_SPACE)) - float(Input.is_physical_key_pressed(KEY_Q))) * speed
+		velocity.y = Input.get_axis("fly_down", "jump") * speed
 	else:
-		velocity.y = 0.0 if is_on_floor() else velocity.y - 13.0 * delta
-		if is_on_floor() and Input.is_physical_key_pressed(KEY_SPACE):
-			velocity.y = 3.5
+		velocity.y = 0.0 if is_on_floor() else velocity.y - GRAVITY * delta
+		if is_on_floor() and Input.is_action_pressed("jump"):
+			velocity.y = JUMP_VELOCITY
 	var horizontal := Vector3(velocity.x,0,velocity.z)*delta
 	if is_on_floor() and horizontal.length_squared()>.00001 and test_move(global_transform,horizontal):
 		var raised := global_transform
-		raised.origin.y += .16
-		if not test_move(global_transform,Vector3.UP*.16) and not test_move(raised,horizontal):
-			global_position.y += .16
+		raised.origin.y += STEP_HEIGHT
+		if not test_move(global_transform,Vector3.UP*STEP_HEIGHT) and not test_move(raised,horizontal):
+			global_position.y += STEP_HEIGHT
 	move_and_slide()
 	var pace := Vector2(velocity.x,velocity.z).length()
 	if is_on_floor():
 		head_bob += delta*pace*5.4
 	var bob := Vector3(sin(head_bob*.5)*.007,absf(sin(head_bob))*.013,0) if pace>.15 and is_on_floor() else Vector3.ZERO
-	camera.position = camera.position.lerp(camera_rest+bob,minf(1,delta*12))
-	camera.fov = lerpf(camera.fov,76.0 if running and pace>2 else 72.0,minf(1,delta*5))
+	camera.position = camera.position.lerp(camera_rest+bob+action_shift,minf(1,delta*14))
+	camera.fov = lerpf(camera.fov,(76.0 if running and pace>2 else 72.0)+action_fov,minf(1,delta*5))
 	if is_on_floor() and global_position.y>-.25:
 		safe_floor = global_position
 		has_safe_floor = true
@@ -198,7 +230,7 @@ func make_body() -> void:
 		update_body(0)
 		return
 	rig.free()
-	avatar = Character.new(5)
+	avatar = PartyGuest.new(5)
 	add_child(avatar)
 	avatar.position.z = .11
 	avatar.name_tag.hide()
@@ -215,6 +247,11 @@ func mouth_anchor() -> Node3D:
 func set_action_pose(amount: float) -> void:
 	action_amount = amount
 	update_body(0)
+
+func held_item_offset(beer: bool) -> Vector3:
+	if is_instance_valid(dj_rig):
+		return Vector3(.081,.008,-.032) if beer else Vector3(.067,.006,-.036)
+	return Vector3(-.018,0,-.015) if beer else Vector3(-.012,0,-.017)
 
 func update_body(delta: float) -> void:
 	var moving := is_on_floor() and Vector2(velocity.x,velocity.z).length()>.14
@@ -262,12 +299,25 @@ func update_dj_body(delta: float, moving: bool) -> void:
 	if kneel_amount>.01:
 		return
 	var arm := dj_rig.arms[0]
-	var idle := skeleton.get_bone_global_pose(arm.z).origin
+	for index in range(dj_rig.arms.size()):
+		var side := 1.0 if index == 0 else -1.0
+		var swing := sin(head_bob + index * PI) * .07 if moving else 0.0
+		dj_rig.point_arm(dj_rig.arms[index], Vector3(side * .27, .94, .19 + swing), Vector3(side,-.6,-.45))
+	var idle := Vector3(.25,1.09,.33) if action_amount > .001 else skeleton.get_bone_global_pose(arm.z).origin
 	var tilt := Vector3(1.17*action_amount if action_beer else 0.0,0,-.10*action_amount)
-	var contact := Vector3(-.018,.158,-.015) if action_beer else Vector3(-.012,.018,-.006)
+	var contact := held_item_offset(action_beer)
+	contact += Vector3(0,.158,0) if action_beer else Vector3(0,.018,.011)
 	var mouth_target := skeleton.to_local(dj_mouth.global_position-avatar.global_basis*Basis.from_euler(tilt)*contact)
 	if action_amount>.001:
 		dj_rig.point_arm(arm,idle.lerp(mouth_target,action_amount),Vector3(.72,-1,-.28))
+		var grip_basis := skeleton.global_basis.inverse()*avatar.global_basis*Basis.from_euler(tilt)
+		var palm_y := (grip_basis*Vector3(.94,.05,-.34)).normalized()
+		var wrist := skeleton.get_bone_global_pose(arm.z).basis.orthonormalized()
+		# Bend from the animated wrist and preserve its roll around the forearm.
+		var bend := Quaternion(wrist.y,palm_y)
+		var blend := minf(1.0,deg_to_rad(24.0)/maxf(.001,bend.get_angle()))
+		blend *= smoothstep(0.0,.25,action_amount)
+		dj_rig.set_joint_rotation(arm.z,Basis(Quaternion.IDENTITY.slerp(bend,blend))*wrist)
 	action_grip.global_position = skeleton.to_global(skeleton.get_bone_global_pose(arm.z).origin)
 	action_grip.rotation = tilt
 
@@ -275,29 +325,57 @@ func vomit() -> void:
 	if vomiting or collapsed or intoxication<.65 or nausea_cooldown>0:
 		return
 	var party = get_parent().party
-	if is_instance_valid(party.hand_prop):
+	if party.hands_busy():
 		nausea_time = .4
 		return
-	party.extinguish()
+	party.consumables.drop_cigarette()
 	vomiting = true
 	nausea_time = 0
 	nausea_cooldown = 35.0
 	velocity = Vector3.ZERO
-	get_parent().hud.notice("Тошнит…")
+	GameEvents.notify(tr("Тошнит…"))
 	retch_clock = 0.0
-	var motion := create_tween().set_trans(Tween.TRANS_SINE)
-	motion.tween_property(self,"kneel_amount",1.0,.65)
-	motion.parallel().tween_property(camera,"rotation:x",-.72,.65)
-	motion.parallel().tween_property(camera,"position:y",.96,.65)
-	motion.tween_callback(party.events.vomit_burst)
-	motion.tween_interval(2.35)
-	motion.tween_property(self,"kneel_amount",0.0,.85)
-	motion.parallel().tween_property(camera,"rotation:x",pitch,.85)
-	motion.parallel().tween_property(camera,"position:y",camera_rest.y,.85)
+	screen_fx.nausea_target = 1.0
+	# Bend over: head goes down toward the floor in front of the feet.
+	var bend := -.82-pitch
+	var motion := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	motion.tween_property(self,"kneel_amount",1.0,.7)
+	motion.parallel().tween_property(self,"action_look",Vector3(bend,0,.05),.7)
+	motion.parallel().tween_property(self,"action_shift",Vector3(0,-.66,-.05),.7)
+	motion.tween_interval(.2)
+	# A dry heave, then the real ones.
+	retch(motion,.45,false,bend)
+	motion.tween_interval(.35)
+	retch(motion,1.0,true,bend)
+	motion.tween_interval(.55)
+	retch(motion,.7,true,bend)
+	motion.tween_interval(.6)
+	motion.tween_callback(func(): screen_fx.nausea_target = .25)
+	motion.tween_property(self,"kneel_amount",0.0,.9)
+	motion.parallel().tween_property(self,"action_look",Vector3.ZERO,.9)
+	motion.parallel().tween_property(self,"action_shift",Vector3.ZERO,.9)
 	motion.tween_callback(func():
 		vomiting = false
+		screen_fx.nausea_target = 0.0
 		intoxication = maxf(.35,intoxication-.14)
 	)
+
+## One lurch of the body; `burst` also brings it up.
+func retch(motion: Tween, strength: float, burst: bool, bend: float) -> void:
+	var events = get_parent().party.events
+	motion.tween_callback(func():
+		screen_fx.pulse_heave(strength)
+		if burst:
+			events.vomit_burst()
+		else:
+			events.retching.global_position = mouth_anchor().global_position
+			events.retching.stream = FPSounds.get_sound("heave")
+			events.retching.play()
+	)
+	motion.tween_property(self,"action_look",Vector3(bend-.16*strength,0,.05-.04*strength),.12).set_ease(Tween.EASE_OUT)
+	motion.parallel().tween_property(self,"action_shift",Vector3(0,-.70-.05*strength,-.05-.07*strength),.12)
+	motion.tween_property(self,"action_look",Vector3(bend,0,.05),.45)
+	motion.parallel().tween_property(self,"action_shift",Vector3(0,-.66,-.05),.45)
 
 func arm_basis(direction: Vector3) -> Basis:
 	var up := -direction.normalized()
@@ -348,7 +426,7 @@ func update_steps(direction: Vector3) -> void:
 		return
 	var displacement := get_position_delta()
 	step_distance += Vector2(displacement.x,displacement.z).length()
-	var stride := .75 if Input.is_physical_key_pressed(KEY_SHIFT) else .57
+	var stride := RUN_STRIDE if Input.is_action_pressed("run") else WALK_STRIDE
 	if step_distance<stride:
 		return
 	step_distance -= stride

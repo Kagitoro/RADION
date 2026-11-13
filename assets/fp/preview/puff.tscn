@@ -1,0 +1,46 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://assets/fp/arm.glb" id="1_igsex"]
+[ext_resource type="PackedScene" path="res://assets/fp/cigarette.glb" id="2_dq802"]
+[ext_resource type="Animation" path="res://assets/fp/anims/puff.tres" id="3_2grvw"]
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_njtjq"]
+_data = {
+&"puff": ExtResource("3_2grvw")
+}
+
+[node name="Preview_puff" type="Node3D" unique_id=1343588091]
+
+[node name="Sway" type="Node3D" parent="." unique_id=635906061]
+
+[node name="Right" type="Node3D" parent="Sway" unique_id=1123962770]
+transform = Transform3D(0.86560154, -0.072065905, 0.49552038, 0.34174675, 0.80830705, -0.47942555, -0.36598235, 0.584334, 0.72430015, 0.3, -0.5, -0.26)
+
+[node name="RightHand" type="Node3D" parent="Sway/Right" unique_id=1271252445]
+
+[node name="Arm" type="Node3D" parent="Sway/Right/RightHand" unique_id=458097135 instance=ExtResource("1_igsex")]
+
+[node name="Left" type="Node3D" parent="Sway" unique_id=214490891]
+transform = Transform3D(0.9393727, -0.3428978, 0, 0.32758278, 0.89741707, -0.29552022, 0.10133323, 0.27760363, 0.9553365, -0.20752399, -0.5227014, -0.13447739)
+visible = false
+
+[node name="LeftHand" type="Node3D" parent="Sway/Left" unique_id=1031957669]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, 1, -0.036, 0.012, 0.05)
+
+[node name="Arm" type="Node3D" parent="Sway/Left/LeftHand" unique_id=332348286 instance=ExtResource("1_igsex")]
+
+[node name="Mouth" type="Node3D" parent="Sway" unique_id=1954041929]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.072, -0.13)
+
+[node name="Cigarette" type="Node3D" parent="Sway/Mouth" unique_id=1701761048 instance=ExtResource("2_dq802")]
+transform = Transform3D(0.9950042, 0.015905282, -0.09855828, 0, 0.98722726, 0.15931821, 0.09983342, -0.15852228, 0.9822953, 0, 0, 0)
+
+[node name="PlayerCamera" type="Camera3D" parent="." unique_id=804470681]
+fov = 72.000046
+near = 0.01
+
+[node name="Light" type="DirectionalLight3D" parent="." unique_id=108780589]
+transform = Transform3D(0.87758255, -0.3088544, 0.36668488, 0, 0.7648422, 0.64421767, -0.47942555, -0.56535417, 0.6712122, 0, 0, 0)
+
+[node name="Actions" type="AnimationPlayer" parent="." unique_id=863038251]
+libraries/ = SubResource("AnimationLibrary_njtjq")

@@ -1,3 +1,4 @@
+class_name GuestModel
 extends Node3D
 
 var skeleton: Skeleton3D
@@ -17,6 +18,14 @@ var last_beat := 0.0
 var combat := false
 var punch_side := 0
 var combat_target := Vector3.ZERO
+var combat_clock := 0.0
+var combat_swing := 0.0
+var combat_style := 0
+var combat_guard := 0.0
+var combat_recoil := 0.0
+var street_wear := false
+var street_reaction := 0.0
+var street_clock := 0.0
 var knockdown_time := 0.0
 var base_rotations: Array[Quaternion] = []
 var base_positions: Array[Vector3] = []
@@ -203,9 +212,18 @@ func pose(delta: float, walking: bool, speed: float, dance: bool, beat: float) -
 		combat_stance()
 	elif psx and dance and not walking and action_time<=0:
 		dance_pose(beat)
-	elif action_time<=0.0:
+	elif action_time<=0.0 and not player_body:
 		for index in range(arms.size()):
 			pocket(arms[index],1.0 if index==0 else -1.0)
+	if street_wear:
+		street_clock += delta
+		rotate_local("Spine",Vector3(.20,.02,.065*sin(street_clock*1.7)))
+		rotate_local("Head",Vector3(-.11,.05*sin(street_clock),.07))
+		if absf(street_reaction)>.001:
+			var level := absf(street_reaction)/.85
+			var gesture := Vector3(.31,1.19,.46) if street_reaction>0 else Vector3(.19,1.13,.25)
+			point_arm(arms[0],Vector3(.16,.87,.10).lerp(gesture,level),Vector3.RIGHT+Vector3.DOWN*.5)
+			street_reaction = move_toward(street_reaction,0.0,delta*.65)
 	if is_instance_valid(service_tray) and arms.size()==2:
 		carry_tray(delta,walking)
 	if is_instance_valid(ember) and head_bone>=0:
@@ -339,18 +357,22 @@ func dance_pose(beat: float) -> void:
 
 
 func combat_stance() -> void:
-	rotate_local("Spine",Vector3(.08,0,.04*sin(action_time*9)))
+	var strike := sin(PI*clampf(combat_swing,0,1))
+	var side_sign := 1.0 if punch_side==0 else -1.0
+	rotate_local("Spine",Vector3(.12+.20*strike-.23*combat_recoil,.27*strike*side_sign,.08*sin(combat_clock*9.0)+.16*combat_guard*side_sign))
+	rotate_local("Head",Vector3(.14*combat_guard-.32*combat_recoil,.12*combat_recoil*side_sign,0))
 	for side in range(2):
 		var sign_side := 1.0 if side==0 else -1.0
-		var target := Vector3(sign_side*.16,1.43,.24)
-		if action_time>0 and action==&"attack" and side==punch_side:
-			var amount := sin(clampf((.72-action_time)/.40,0,1)*PI)
-			var goal := Vector3(sign_side*.08,1.48,.69)
-			if combat_target!=Vector3.ZERO:
-				goal = skeleton.to_local(combat_target)
-			target = target.lerp(goal,amount)
-		if action_time>0 and action==&"hit":
-			rotate_local("Head",Vector3(-.10,.12*sin(action_time*12),0))
+		var step := sin(combat_clock*9.0+side*PI)
+		var target := Vector3(sign_side*.18,1.39+.045*step,.27)
+		target = target.lerp(Vector3(sign_side*.11,1.58,.24),combat_guard)
+		if strike>.001 and side==punch_side:
+			var goal := skeleton.to_local(combat_target)
+			goal.x += sin(TAU*combat_swing)*sign_side*(.27 if combat_style==1 else .055)
+			goal.y -= sin(TAU*combat_swing)*(.18 if combat_style==2 else .035)
+			target = target.lerp(goal,strike)
+		rotate_local(["LeftUpLeg","RightUpLeg"][side],Vector3(.08*step,0,.08*sign_side))
+		rotate_local(["LeftLeg","RightLeg"][side],Vector3(.12+.08*step,0,0))
 		point_arm(arms[side],target,Vector3(sign_side,-.15,-.25))
 
 func kneel(amount: float, retch: float) -> void:
@@ -377,20 +399,54 @@ func play_action(animation: StringName, duration: float) -> void:
 	action_time = duration
 	clip = &""
 
-func make_first_person() -> void:
+func make_first_person(visible_bones := PackedStringArray(), hidden_bones := PackedStringArray()) -> void:
+	var roots: Array[int] = [head_bone]
+	var hidden: Array[int] = []
+	for name in hidden_bones:
+		hidden.append(skeleton.find_bone(name))
+	if not visible_bones.is_empty():
+		roots.clear()
+		for name in visible_bones:
+			roots.append(skeleton.find_bone(name))
 	for node in find_children("*","MeshInstance3D",true,false):
 		var part := node as MeshInstance3D
 		part.layers = 4
+		if part.skin == null:
+			continue
 		var mesh := ArrayMesh.new()
 		for surface in range(part.mesh.get_surface_count()):
 			var arrays := part.mesh.surface_get_arrays(surface)
 			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 			var source: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+			if source.is_empty():
+				for vertex in range(vertices.size()):
+					source.append(vertex)
+			var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+			var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+			@warning_ignore("integer_division")
+			var stride := bones.size() / vertices.size()
+			var visible_vertices := PackedByteArray()
+			visible_vertices.resize(vertices.size())
+			for vertex in range(vertices.size()):
+				var weight := 0.0
+				var hidden_weight := 0.0
+				for influence in range(stride):
+					var index := vertex * stride + influence
+					var bone := part.skin.get_bind_bone(bones[index])
+					if bone < 0:
+						bone = skeleton.find_bone(part.skin.get_bind_name(bones[index]))
+					while bone >= 0 and not roots.has(bone) and not hidden.has(bone):
+						bone = skeleton.get_bone_parent(bone)
+					if hidden.has(bone):
+						hidden_weight += weights[index]
+					elif bone >= 0:
+						weight += weights[index]
+				visible_vertices[vertex] = int((weight <= .4 if visible_bones.is_empty() else weight > .22) and hidden_weight < .65)
 			var indices := PackedInt32Array()
 			for triangle in range(0,source.size(),3):
 				var keep := true
 				for corner in range(3):
-					keep = keep and vertices[source[triangle+corner]].y<1.31
+					keep = keep and visible_vertices[source[triangle+corner]] != 0
 				if keep:
 					indices.append_array(source.slice(triangle,triangle+3))
 			if indices.is_empty():

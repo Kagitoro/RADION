@@ -1,6 +1,6 @@
+class_name NightDistrict
 extends Node3D
 
-const Nightclub = preload("res://scripts/nightclub.gd")
 const GROUND_SHADER = preload("res://assets/city/district_ground.gdshader")
 const FACADE_DETAILS = preload("res://assets/city/facade_details.glb")
 const BRICK = preload("res://assets/city/brick.jpg")
@@ -14,39 +14,52 @@ const WALKS := [
 ]
 const VEHICLES := [preload("res://assets/city/street_compact.glb"),preload("res://assets/city/street_pickup.glb")]
 const CAR_SIZES := [Vector3(1.84,1.68,3.87),Vector3(2.10,1.89,4.91)]
-const Guest = preload("res://scripts/party_guest.gd")
 const BOUNDS := Rect2(-77,-35,63.1,69)
 const TRAFFIC_ROUTE := [Vector3(-17.5,0,-22),Vector3(-17.5,0,20),Vector3(-54,0,20),Vector3(-54,0,-22)]
 
-var world
+var world: NightWorld
+const TRAFFIC_GAP := 7.4
+
 var traffic: Array[Dictionary] = []
+var route_length := 0.0
 var walkers: Array[Dictionary] = []
 var elapsed := 0.0
 var facade_meshes := {}
 var warm_glass := StandardMaterial3D.new()
 var walk_material: StandardMaterial3D
 var wall_materials: Array[StandardMaterial3D] = []
+var highway_gate: MeshInstance3D
 
-func _init(night_world) -> void:
+func _init(night_world: NightWorld) -> void:
 	world = night_world
 
 func build() -> void:
 	var center := BOUNDS.get_center()
-	world.box(self,Vector3(center.x,-.12,center.y),Vector3(BOUNDS.size.x,.24,BOUNDS.size.y),Color.TRANSPARENT,true,true)
-	for z in [-34.9,33.9]:
-		world.box(self,Vector3(center.x,.65,z),Vector3(63.1,1.3,.22),Color("#383d4c"),true)
+	build_ground_collision()
+	var barrier := Color("#383d4c")
+	world.box(self,Vector3(center.x,.65,33.9),Vector3(63.1,1.3,.22),barrier,true)
+	for span in [Vector2(BOUNDS.position.x,-59.26),Vector2(-51.34,BOUNDS.end.x)]:
+		world.box(self,Vector3((span.x+span.y)*.5,.65,-34.9),Vector3(span.y-span.x,1.3,.22),barrier,true)
+	var gate_shape := BoxMesh.new()
+	gate_shape.size = Vector3(7.92,1.3,.22)
+	var gate_at := Vector3(-55.30,.65,-34.9)
+	highway_gate = world.mesh(self,gate_shape,gate_at,barrier)
+	world.box(self,gate_at,gate_shape.size,Color.TRANSPARENT,true,true)
 	world.box(self,Vector3(-76.9,.65,center.y),Vector3(.22,1.3,69),Color("#383d4c"),true)
 	for interval in [Vector2(-35,-1.7),Vector2(1.7,34)]:
 		world.box(self,Vector3(-13.91,.65,(interval.x+interval.y)*.5),Vector3(.11,1.3,interval.y-interval.x),Color("#353e4e"),true)
 	build_roads()
 	build_blocks()
+	for index in range(TRAFFIC_ROUTE.size()):
+		route_length += TRAFFIC_ROUTE[index].distance_to(TRAFFIC_ROUTE[(index+1)%TRAFFIC_ROUTE.size()])
 	for index in range(3):
-		var at: Vector3 = TRAFFIC_ROUTE[index].lerp(TRAFFIC_ROUTE[index+1],.25)
-		var car := place_car(self,index%2,at,true)
-		var direction: Vector3 = at.direction_to(TRAFFIC_ROUTE[index+1])
+		var distance := route_length*(float(index)+.18)/3.0
+		var car := place_car(self,index%2,traffic_point(distance),true)
+		var direction := traffic_point(distance+.7)-car.position
 		car.rotation.y = atan2(direction.x,direction.z)
 		var wheels := car.find_children("Axle-*","Node3D",true,false)
-		traffic.append({"car":car,"next":index+1,"speed":4.3+index*.45,"wheels":wheels,"radius":.34 if index%2==0 else .46})
+		traffic.append({"car":car,"distance":distance,"speed":0.0,"cruise":4.3+index*.45,
+			"wheels":wheels,"radius":.34 if index%2==0 else .46})
 	for index in range(4):
 		var car := place_car(self,index%2,Vector3(-45.2+index*4.0,0,14.6))
 		car.rotation.y = PI
@@ -69,6 +82,17 @@ static func place_car(parent: Node3D, index: int, at: Vector3, moving: bool = fa
 	car.add_child(body)
 	return car
 
+func build_ground_collision() -> void:
+	var cut := SubwayStation.OPENING
+	for section in [
+		Rect2(BOUNDS.position,Vector2(cut.position.x-BOUNDS.position.x,BOUNDS.size.y)),
+		Rect2(Vector2(cut.end.x,BOUNDS.position.y),Vector2(BOUNDS.end.x-cut.end.x,BOUNDS.size.y)),
+		Rect2(Vector2(cut.position.x,BOUNDS.position.y),Vector2(cut.size.x,cut.position.y-BOUNDS.position.y)),
+		Rect2(Vector2(cut.position.x,cut.end.y),Vector2(cut.size.x,BOUNDS.end.y-cut.end.y)),
+	]:
+		var center: Vector2 = section.get_center()
+		world.box(self,Vector3(center.x,-.12,center.y),Vector3(section.size.x,.24,section.size.y),Color.TRANSPARENT,true,true)
+
 func build_roads() -> void:
 	var surface := PlaneMesh.new()
 	surface.size = BOUNDS.size
@@ -77,6 +101,8 @@ func build_roads() -> void:
 	var material := ShaderMaterial.new()
 	material.shader = GROUND_SHADER
 	material.set_shader_parameter("club_half_width",Nightclub.FLOOR_WIDTH*.5)
+	var opening := SubwayStation.OPENING
+	material.set_shader_parameter("subway_opening",Vector4(opening.position.x,opening.position.y,opening.end.x,opening.end.y))
 	material.set_shader_parameter("asphalt",ASPHALT_TEXTURE)
 	material.set_shader_parameter("pavers",PAVERS)
 	model.material_override = material
@@ -230,7 +256,7 @@ func populate() -> void:
 		var midpoint := Vector3(center.x,CURB_HEIGHT,center.y)
 		routes.append(PackedVector3Array([midpoint-along,midpoint+along]))
 	for index in range(routes.size()):
-		var person := Guest.new(index+9,null,world.home.party.psx_assets)
+		var person := PartyGuest.new(index+9,null,world.home.party.psx_assets)
 		add_child(person)
 		person.name_tag.hide()
 		person.position = routes[index][0].lerp(routes[index][1],.17+.11*(index%4))
@@ -244,20 +270,7 @@ func _process(delta: float) -> void:
 	var observer := to_local(player.global_position)
 	var view := get_viewport().get_camera_3d()
 	var viewer := to_local(view.global_position) if view!=null else observer
-	for route in traffic:
-		var car: Node3D = route.car
-		var target: Vector3 = TRAFFIC_ROUTE[route.next]
-		var direction := car.position.direction_to(target)
-		var moving := (car.position+direction*2.2).distance_to(observer)>3.1
-		if car.position.distance_to(target)<.22:
-			route.next = (route.next+1)%TRAFFIC_ROUTE.size()
-		elif moving:
-			var previous := car.position
-			car.position = car.position.move_toward(target,route.speed*delta)
-			var turn := previous.distance_to(car.position)/float(route.radius)
-			for wheel in route.wheels:
-				wheel.rotate_x(turn)
-			car.rotation.y = lerp_angle(car.rotation.y,atan2(direction.x,direction.z),minf(1.0,delta*5))
+	step_traffic(delta,observer)
 	elapsed += delta
 	if elapsed<.05:
 		return
@@ -273,3 +286,41 @@ func _process(delta: float) -> void:
 		if person.position.distance_squared_to(viewer)<32.0*32.0:
 			person.pose(elapsed,0.0,true)
 	elapsed = 0.0
+
+func traffic_point(distance: float) -> Vector3:
+	var remaining := fposmod(distance,route_length)
+	for index in range(TRAFFIC_ROUTE.size()):
+		var start: Vector3 = TRAFFIC_ROUTE[index]
+		var end: Vector3 = TRAFFIC_ROUTE[(index+1)%TRAFFIC_ROUTE.size()]
+		var length := start.distance_to(end)
+		if remaining<length:
+			return start.lerp(end,remaining/length)
+		remaining -= length
+	return TRAFFIC_ROUTE[0]
+
+func step_traffic(delta: float, observer: Vector3) -> void:
+	var previous := PackedFloat64Array()
+	for route in traffic:
+		previous.append(route.distance)
+	for index in range(traffic.size()):
+		var route := traffic[index]
+		var distance := previous[index]
+		var gap := route_length
+		for other in range(previous.size()):
+			if other!=index:
+				gap = minf(gap,fposmod(previous[other]-distance,route_length))
+		var room := maxf(0.0,gap-TRAFFIC_GAP)
+		var target_speed := minf(float(route.cruise),room*1.2)
+		var car: Node3D = route.car
+		if traffic_point(distance+2.4).distance_to(observer)<3.25:
+			target_speed = 0.0
+		var acceleration := 2.6 if target_speed>float(route.speed) else 8.0
+		route.speed = move_toward(float(route.speed),target_speed,delta*acceleration)
+		var step := minf(float(route.speed)*delta,room)
+		distance = fposmod(distance+step,route_length)
+		route.distance = distance
+		car.position = traffic_point(distance)
+		var direction := traffic_point(distance+.65)-traffic_point(distance-.65)
+		car.rotation.y = lerp_angle(car.rotation.y,atan2(direction.x,direction.z),minf(1.0,delta*6.0))
+		for wheel in route.wheels:
+			wheel.rotate_x(step/float(route.radius))

@@ -1,7 +1,22 @@
+class_name PartyGuest
 extends Node3D
 
-const GuestModel = preload("res://scripts/guest_model.gd")
 
+const COUNTRIES := ["Украина","Марокко","Бразилия","Южная Корея","Египет","Колумбия","Япония","Великобритания","Канада","Турция","Индия","Тайвань","Португалия","Нигерия","Франция","Польша"]
+## [role, story, outdoor interest, dance interest] for the first guests.
+const BACKGROUNDS := [
+	["Промоутер","Знакомый диджей из Киева посоветовал послушать твой сет.",.08,.76],
+	["Подруга хозяина","Мы познакомились на вечеринке в Касабланке. Сегодня привела друзей.",.20,.59],
+	["Танцор","Выступал с друзьями из Сан-Паулу. Они прислали мне адрес этой вечеринки.",.04,.90],
+	["Фотограф","Снимала клубы в Сеуле. Друг попросил сделать пару кадров твоего сета.",.12,.70],
+	["Сосед","Переехал из Александрии и теперь живу рядом. Услышал басы и заглянул.",.44,.30],
+	["Танцор","Мои друзья из Боготы уже у колонок. Я к ним.",.05,.88],
+	["Друг хозяина","Мы вместе слушали пластинки в Осаке. Помнишь, какой хаус тогда играли?",.22,.60],
+	["Промоутер","Организую ночи в Лондоне. Один из гостей сказал, что здесь стоит послушать диджея.",.12,.74],
+]
+## Story template for every later guest; %s is the guest's home town.
+const DEFAULT_BACKGROUND := ["Гость","Друзья из города %s скинули мне адрес. Я зашёл познакомиться.",.17,.55]
+const PERSONALITIES := ["любит хаус","любит общение","танцует всю ночь","ценит спокойные треки"]
 const GUESTS := [
 	["Артём","Киев"],["Амина","Касабланка"],["Матеус","Сан-Паулу"],["Хана","Сеул"],
 	["Омар","Александрия"],["Валентина","Богота"],["Кэндзи","Осака"],["Зара","Лондон"],
@@ -46,6 +61,19 @@ var skin_color: Color
 var shirt_color: Color
 var pants_color: Color
 
+## Translated texts for the conversation UI.
+func display_name() -> String:
+	return tr(guest_name)
+
+func introduction() -> String:
+	return tr("Я %s. Мой родной город — %s (%s).") % [tr(guest_name), tr(hometown), tr(origin)]
+
+func backstory() -> String:
+	var story := tr(connection)
+	if story.contains("%s"):
+		story = story % tr(hometown)
+	return "%s. %s" % [tr(party_role), story]
+
 func _init(index: int, template: Node3D = null, psx_assets: Dictionary = {}, security: bool = false) -> void:
 	preference = index%3
 	speed = .86+float(index%4)*.12
@@ -61,23 +89,13 @@ func _init(index: int, template: Node3D = null, psx_assets: Dictionary = {}, sec
 	skin_color = skin
 	shirt_color = shirt
 	pants_color = pants
+	# Profile texts are stored as untranslated keys and translated when shown,
+	# so switching the language mid-game updates them too.
 	var profile_data: Array = GUESTS[index%GUESTS.size()]
 	guest_name = profile_data[0]
 	hometown = profile_data[1]
-	var countries := ["Украина","Марокко","Бразилия","Южная Корея","Египет","Колумбия","Япония","Великобритания","Канада","Турция","Индия","Тайвань","Португалия","Нигерия","Франция","Польша"]
-	origin = countries[index%countries.size()]
-	var connections := [
-		["Промоутер","Знакомый диджей из Киева посоветовал послушать твой сет.",.08,.76],
-		["Подруга хозяина","Мы познакомились на вечеринке в Касабланке. Сегодня привела друзей.",.20,.59],
-		["Танцор","Выступал с друзьями из Сан-Паулу. Они прислали мне адрес этой вечеринки.",.04,.90],
-		["Фотограф","Снимала клубы в Сеуле. Друг попросил сделать пару кадров твоего сета.",.12,.70],
-		["Сосед","Переехал из Александрии и теперь живу рядом. Услышал басы и заглянул.",.44,.30],
-		["Танцор","Мои друзья из Боготы уже у колонок. Я к ним.",.05,.88],
-		["Друг хозяина","Мы вместе слушали пластинки в Осаке. Помнишь, какой хаус тогда играли?",.22,.60],
-		["Промоутер","Организую ночи в Лондоне. Один из гостей сказал, что здесь стоит послушать диджея.",.12,.74],
-	]
-	var background: Array = connections[index%connections.size()] if index<connections.size() else [
-		"Гость","Друзья из города "+hometown+" скинули мне адрес. Я зашёл познакомиться.",.17,.55]
+	origin = COUNTRIES[index%COUNTRIES.size()]
+	var background: Array = BACKGROUNDS[index] if index<BACKGROUNDS.size() else DEFAULT_BACKGROUND
 	party_role = background[0]
 	connection = background[1]
 	outdoor_interest = background[2]
@@ -88,7 +106,7 @@ func _init(index: int, template: Node3D = null, psx_assets: Dictionary = {}, sec
 	if security:
 		body_height = 1.22
 	figure.scale = Vector3(width,body_height,width*.96)
-	personality = ["любит хаус","любит общение","танцует всю ночь","ценит спокойные треки"][index%4]
+	personality = PERSONALITIES[index%PERSONALITIES.size()]
 	if not psx_assets.is_empty():
 		var rig := GuestModel.new()
 		if rig.setup_psx(psx_assets,female,index,body_height,width,skin,shirt,pants,security):

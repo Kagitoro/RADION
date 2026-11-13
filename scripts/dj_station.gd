@@ -1,75 +1,17 @@
+class_name DJStation
 extends Node
 
-const FORMATS := ["mp3", "wav", "ogg"]
-const CONFIG := "user://dj_library.cfg"
 const DECK_NAMES := ["A", "B"]
 const FACE_SIZE := Vector2(.482,.273)
 const FACE_HEIGHT := .041
 const CHANNELS := 2
 const HOT_CUES := 8
 
-class DeckScope extends Control:
-	var samples := PackedVector2Array()
+const LAPTOP_PANEL := preload("res://ui/dj/laptop_panel.tscn")
 
-	func _ready() -> void:
-		custom_minimum_size.y = maxf(68,custom_minimum_size.y)
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	func _draw() -> void:
-		var middle := size.y*.5
-		draw_line(Vector2(0,middle),Vector2(size.x,middle),Color("#24465d"))
-		if samples.is_empty():
-			return
-		for column in range(100):
-			var peak := 0.0
-			var first := column*samples.size()/100
-			var last := (column+1)*samples.size()/100
-			for index in range(first,last):
-				peak = maxf(peak,maxf(absf(samples[index].x),absf(samples[index].y)))
-			var fraction := float(column)/99.0
-			var x := fraction*size.x
-			var height := clampf(peak*5.5,.01,1)*middle
-			var tint := Color("#48cafa").lerp(Color("#e374ff"),fraction)
-			draw_line(Vector2(x,middle-height),Vector2(x,middle+height),tint,2,true)
-
-class Dial extends Control:
-	signal changed(value: float)
-	var value := 0.0
-	var dragging := false
-	var jog := false
-
-	func _ready() -> void:
-		mouse_default_cursor_shape = Control.CURSOR_DRAG
-
-	func _gui_input(event: InputEvent) -> void:
-		if event is InputEventMouseButton:
-			if event.button_index==MOUSE_BUTTON_LEFT:
-				dragging = event.pressed
-				if event.double_click and not jog:
-					set_value(0.0)
-				accept_event()
-			elif event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN]:
-				adjust(.08 if event.button_index==MOUSE_BUTTON_WHEEL_UP else -.08)
-				accept_event()
-		elif event is InputEventMouseMotion and dragging and event.button_mask&MOUSE_BUTTON_MASK_LEFT:
-			adjust((event.relative.x-event.relative.y)*.009)
-			accept_event()
-
-	func adjust(amount: float) -> void:
-		if jog:
-			value = wrapf(value+amount,-1.3158,1.3158)
-			changed.emit(amount)
-			queue_redraw()
-		else:
-			set_value(clampf(value+amount,-1,1))
-
-	func set_value(amount: float) -> void:
-		value = amount
-		changed.emit(value)
-		queue_redraw()
-
-var home
-var party
+var home: Home
+## The venue this station plays in (house Party or Nightclub).
+var party: DeckHost
 var panel: PanelContainer
 var library: VBoxContainer
 var controller: Control
@@ -79,10 +21,6 @@ var control_camera: Camera3D
 var world_hint: Label
 var using_controller := false
 var last_pointer := Vector2.ZERO
-var chooser: FileDialog
-var listing: ItemList
-var search: LineEdit
-var folder_label: Label
 var info: Label
 var deck_labels: Array[Label] = []
 var positions: Array[HSlider] = []
@@ -100,7 +38,7 @@ var paused_decks := [false,false]
 var gains := [1.0,1.0]
 var trims := [0.0,0.0]
 var routing := [0,1]
-var hardware_dials: Array[Dial] = []
+var hardware_dials: Array[DJDial] = []
 var dial_meshes: Array[Node3D] = []
 var channel_faders: Array[VSlider] = []
 var cross_cap: Node3D
@@ -129,12 +67,6 @@ var low_pass: Array[AudioEffectLowPassFilter] = []
 var high_pass: Array[AudioEffectHighPassFilter] = []
 var deck_buses: Array[int] = []
 var analyzer_slot := -1
-var folder := ""
-var files := PackedStringArray()
-var pending := PackedStringArray()
-var directory: DirAccess
-var scan_path := ""
-var scanning := false
 var manual := false
 var crossfade := -1.0
 var cross_slider: HSlider
@@ -142,10 +74,13 @@ var bass := 0.0
 var bass_phase := 1.0
 var bass_average := 0.0
 var refresh_delay := 0.0
+var music_library := DJLibrary.new(self)
+var controller_face := DJControllerFace.new(self)
+var laptop_view_builder := DJLaptopView.new(self)
 
-func _init(editor, station = null) -> void:
-	home = editor
-	party = editor.party if station == null else station
+func _init(game_home: Home, station: DeckHost = null) -> void:
+	home = game_home
+	party = game_home.party if station == null else station
 
 func setup() -> void:
 	for index in range(CHANNELS):
@@ -182,188 +117,22 @@ func setup() -> void:
 	analyzer_slot = AudioServer.get_bus_effect_count(mix_bus)
 	AudioServer.add_bus_effect(mix_bus,AudioEffectSpectrumAnalyzer.new())
 	build_panel()
-	build_controller_face()
-	build_laptop_display()
+	controller_face.build_controller_face()
+	laptop_view_builder.build_laptop_display()
 	build_sampler()
-	var config := ConfigFile.new()
-	folder = OS.get_system_dir(OS.SYSTEM_DIR_MUSIC)
-	if config.load(CONFIG)==OK:
-		folder = str(config.get_value("library","folder",folder))
-	if not DirAccess.dir_exists_absolute(folder):
-		folder = OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
+	music_library.load_folder_setting()
 
 func build_panel() -> void:
-	panel = home.hud.panel()
-	panel.add_theme_stylebox_override("panel",panel_style(Color("#0e141f"),Color("#40546b"),18))
+	panel = LAPTOP_PANEL.instantiate()
 	home.hud.root.add_child(panel)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	panel.offset_left = 48
-	panel.offset_right = -48
-	panel.offset_top = 42
-	panel.offset_bottom = -42
-	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation",12)
-	panel.add_child(body)
-	var header := HBoxContainer.new()
-	body.add_child(header)
-	header.add_child(home.hud.label("Ноутбук / Музыка",18))
-	header.add_child(home.hud.button("К контроллеру",func(): open(false)))
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(spacer)
-	header.add_child(home.hud.button("Закрыть · Esc",close))
-	info = home.hud.label("",15)
-	body.add_child(info)
-	library = VBoxContainer.new()
-	library.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_child(library)
-	var toolbar := HBoxContainer.new()
-	library.add_child(toolbar)
-	var track_displays := HBoxContainer.new()
-	library.add_child(track_displays)
+	panel.get_node("%ControllerButton").pressed.connect(func(): open(false))
+	panel.get_node("%CloseButton").pressed.connect(close)
+	info = panel.get_node("%Info")
+	library = panel.get_node("%Library")
 	for index in range(2):
-		build_track_display(track_displays,index)
-	toolbar.add_child(home.hud.button("Выбрать папку",choose_folder))
-	toolbar.add_child(home.hud.button("Обновить",scan_folder))
-	search = LineEdit.new()
-	search.placeholder_text = "Поиск по названию и подпапке"
-	search.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	search.text_changed.connect(func(_query): refresh_library())
-	toolbar.add_child(search)
-	folder_label = home.hud.label("",14)
-	folder_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	library.add_child(folder_label)
-	listing = ItemList.new()
-	listing.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	listing.item_activated.connect(func(_index): activate_selection())
-	library.add_child(listing)
-	var load_row := HBoxContainer.new()
-	library.add_child(load_row)
-	load_row.add_child(home.hud.button("Включить",play_selection))
-	for index in range(2):
-		load_row.add_child(home.hud.button("Загрузить в "+DECK_NAMES[index],load_selection.bind(index,false)))
-	chooser = FileDialog.new()
-	chooser.title = "Папка с музыкой"
-	chooser.access = FileDialog.ACCESS_FILESYSTEM
-	chooser.file_mode = FileDialog.FILE_MODE_OPEN_DIR
-	chooser.dir_selected.connect(func(path):
-		folder = path
-		var config := ConfigFile.new()
-		config.set_value("library","folder",folder)
-		config.save(CONFIG)
-		scan_folder()
-	)
-	add_child(chooser)
+		laptop_view_builder.build_track_display(panel.get_node("%TrackDisplays"),index)
+	music_library.build_ui(panel.get_node("%Toolbar"),library)
 	panel.hide()
-
-func build_controller_face() -> void:
-	controls_view = SubViewport.new()
-	controls_view.size = Vector2i(1188,658)
-	controls_view.disable_3d = true
-	controls_view.gui_disable_input = false
-	controls_view.render_target_update_mode = SubViewport.UPDATE_ONCE
-	add_child(controls_view)
-	controller = Control.new()
-	controls_view.add_child(controller)
-	controller.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var photo := TextureRect.new()
-	photo.texture = ImageTexture.create_from_image(Image.load_from_file("res://assets/dj/flx4-face.png"))
-	photo.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	photo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	controller.add_child(photo)
-	photo.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	build_photo_controls()
-	var quad := QuadMesh.new()
-	quad.size = FACE_SIZE
-	face = MeshInstance3D.new()
-	face.mesh = quad
-	face.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var material := StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.albedo_texture = controls_view.get_texture()
-	face.material_override = material
-	party.deck.add_child(face)
-	face.position.y = FACE_HEIGHT
-	face.rotation.x = -PI*.5
-	face.hide()
-	party.box(party.deck,Vector3(0,.019,0),Vector3(FACE_SIZE.x,.040,FACE_SIZE.y),Color("#18191c"))
-	party.box(party.deck,Vector3(0,.010,FACE_SIZE.y*.5+.001),Vector3(FACE_SIZE.x-.006,.018,.004),Color("#25272b"))
-	face.show()
-	call_deferred("build_raised_controls")
-	control_camera = Camera3D.new()
-	control_camera.fov = 54
-	control_camera.near = .025
-	control_camera.cull_mask = home.player.camera.cull_mask
-	party.deck.add_child(control_camera)
-	world_hint = home.hud.label("Esc / ПКМ · отойти от контроллера",16)
-	home.hud.root.add_child(world_hint)
-	world_hint.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	world_hint.offset_left = -260
-	world_hint.offset_right = 260
-	world_hint.offset_top = -56
-	world_hint.offset_bottom = -29
-	world_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	world_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	world_hint.hide()
-
-func build_raised_controls() -> void:
-	await get_tree().process_frame
-	var platter_label := StandardMaterial3D.new()
-	platter_label.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	platter_label.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	platter_label.albedo_texture = ImageTexture.create_from_image(Image.load_from_file("res://assets/dj/flx4-platter.png"))
-	for dial in hardware_dials:
-		var position := dial.get_global_rect().get_center()/Vector2(controls_view.size)
-		var base := Node3D.new()
-		party.deck.add_child(base)
-		base.position = Vector3((position.x-.5)*FACE_SIZE.x,FACE_HEIGHT+.001,(position.y-.5)*FACE_SIZE.y)
-		var radius := minf(dial.size.x,dial.size.y)*(.46 if dial.jog else .43)*FACE_SIZE.x/controls_view.size.x
-		var height := .013 if dial.jog else .008
-		party.cylinder(base,Vector3(0,height*.5,0),radius,height,Color("#252c36"))
-		party.cylinder(base,Vector3(0,height+.001,0),radius*.87,.002,Color("#151a24"))
-		if dial.jog:
-			var rim := MeshInstance3D.new()
-			var ring := TorusMesh.new()
-			ring.inner_radius = radius*.88
-			ring.outer_radius = radius*.99
-			ring.rings = 48
-			ring.ring_segments = 8
-			rim.mesh = ring
-			rim.position.y = height
-			var metal := StandardMaterial3D.new()
-			metal.albedo_color = Color("#33373d")
-			metal.metallic = .55
-			metal.roughness = .3
-			metal.emission_enabled = true
-			metal.emission = Color("#111318")
-			rim.material_override = metal
-			rim.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			base.add_child(rim)
-			var label := MeshInstance3D.new()
-			var label_mesh := QuadMesh.new()
-			label_mesh.size = Vector2.ONE*radius*.88
-			label.mesh = label_mesh
-			label.material_override = platter_label
-			label.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			label.rotation.x = -PI*.5
-			label.position.y = height+.003
-			base.add_child(label)
-		party.box(base,Vector3(0,height+.002,-radius*.54),Vector3(.0018,.001,radius*.52),Color("#a9e5ff"))
-		dial_meshes.append(base)
-		dial.changed.connect(func(_value): base.rotation.y = -dial.value*PI*.76)
-	for slider in channel_faders+tempo_faders:
-		var cap := Node3D.new()
-		party.deck.add_child(cap)
-		party.box(cap,Vector3.ZERO,Vector3(.022,.007,.012),Color("#343b46"))
-		party.box(cap,Vector3(0,.004,0),Vector3(.016,.001,.0018),Color("#c6c9ca"))
-		move_fader(slider,cap,true)
-		slider.value_changed.connect(func(_value): move_fader(slider,cap,true))
-	cross_cap = Node3D.new()
-	party.deck.add_child(cross_cap)
-	party.box(cross_cap,Vector3.ZERO,Vector3(.012,.007,.021),Color("#343b46"))
-	party.box(cross_cap,Vector3(0,.004,0),Vector3(.0018,.001,.016),Color("#c6c9ca"))
-	move_fader(cross_slider,cross_cap,false)
-	cross_slider.value_changed.connect(func(_value): move_fader(cross_slider,cross_cap,false))
 
 func move_fader(slider: Slider, cap: Node3D, vertical: bool) -> void:
 	var rect := slider.get_global_rect()
@@ -405,7 +174,7 @@ func aimed_controller() -> bool:
 func _input(event: InputEvent) -> void:
 	if not using_controller:
 		return
-	if event is InputEventKey and event.pressed and event.physical_keycode==KEY_ESCAPE:
+	if event.is_action_pressed("pause"):
 		close()
 	elif event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_RIGHT:
 		close()
@@ -418,47 +187,14 @@ func _input(event: InputEvent) -> void:
 			forwarded.relative = mapped-last_pointer
 		last_pointer = mapped
 		controls_view.push_input(forwarded,true)
-	elif event is InputEventKey and event.pressed and event.physical_keycode==KEY_H and party!=home.party:
-		party.shift.assign_staff()
+	elif event.is_action_pressed("delegate_staff") and party!=home.party:
+		(party as Nightclub).shift.assign_staff()
 	elif event is InputEventKey:
 		controls_view.push_input(event.duplicate(),true)
 	else:
 		return
 	get_viewport().set_input_as_handled()
 
-func build_track_display(parent: HBoxContainer, index: int) -> void:
-	var display := PanelContainer.new()
-	display.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	display.add_theme_stylebox_override("panel",panel_style(Color("#080d16"),Color("#315a73"),11))
-	parent.add_child(display)
-	var screen := VBoxContainer.new()
-	display.add_child(screen)
-	var screen_header := HBoxContainer.new()
-	screen.add_child(screen_header)
-	var title: Label = home.hud.label("",16)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	screen_header.add_child(title)
-	screen_header.add_child(home.hud.label(DECK_NAMES[index],14))
-	deck_labels.append(title)
-	var scope := DeckScope.new()
-	scopes.append(scope)
-	screen.add_child(scope)
-	var position := HSlider.new()
-	position.step = .01
-	position.value_changed.connect(func(value): seek(index,value))
-	screen.add_child(position)
-	positions.append(position)
-	var clock: Label = home.hud.label("",14)
-	screen.add_child(clock)
-	time_labels.append(clock)
-	var bpm := SpinBox.new()
-	bpm.min_value = 40
-	bpm.max_value = 250
-	bpm.value = 124
-	bpm.suffix = "BPM"
-	bpm_fields.append(bpm)
-	screen.add_child(bpm)
 
 static func build_laptop(station) -> void:
 	var deck: Node3D = station.deck
@@ -471,42 +207,6 @@ static func build_laptop(station) -> void:
 	screen.position = laptop.position+Vector3(0,.1313,-.136)
 	screen.rotation.x = -.250
 
-func build_laptop_display() -> void:
-	laptop_view = SubViewport.new()
-	laptop_view.size = Vector2i(768,432)
-	laptop_view.disable_3d = true
-	laptop_view.render_target_update_mode = SubViewport.UPDATE_ONCE
-	add_child(laptop_view)
-	var frame := PanelContainer.new()
-	laptop_view.add_child(frame)
-	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	frame.add_theme_stylebox_override("panel",panel_style(Color("#090f1a"),Color("#344865"),16))
-	var rows := VBoxContainer.new()
-	rows.add_theme_constant_override("separation",10)
-	frame.add_child(rows)
-	for index in range(2):
-		var title: Label = home.hud.label("DECK "+DECK_NAMES[index],26)
-		title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		rows.add_child(title)
-		laptop_titles.append(title)
-		var scope := DeckScope.new()
-		scope.custom_minimum_size.y = 104
-		rows.add_child(scope)
-		laptop_scopes.append(scope)
-		var clock: Label = home.hud.label("",21)
-		rows.add_child(clock)
-		laptop_times.append(clock)
-	var screen := MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2(.333,.200)
-	screen.mesh = quad
-	var material := StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.albedo_texture = laptop_view.get_texture()
-	screen.material_override = material
-	screen.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	party.deck.get_node("LaptopScreen").add_child(screen)
-	screen.position.z = .003
 
 func build_sampler() -> void:
 	sample_player.bus = AudioServer.get_bus_name(party.music_bus)
@@ -530,7 +230,7 @@ func build_sampler() -> void:
 		sampler.append(stream)
 
 func hot_cue(index: int, slot: int) -> void:
-	if Input.is_key_pressed(KEY_SHIFT):
+	if Input.is_action_pressed("cue_clear_modifier"):
 		cue_points[index][slot] = -1.0
 		return
 	if not party.music[index].playing:
@@ -541,57 +241,7 @@ func hot_cue(index: int, slot: int) -> void:
 		loop_starts[index] = -1.0
 		seek(index,cue_points[index][slot])
 
-func build_photo_controls() -> void:
-	var browse := photo_button(Vector2(601,295),Vector2(51,47),"Browse · локальная музыка",func(): open(true))
-	browse.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	photo_button(Vector2(522,305),Vector2(47,27),"Load A · открыть библиотеку",open_deck_library.bind(0))
-	photo_button(Vector2(682,305),Vector2(47,27),"Load B · открыть библиотеку",open_deck_library.bind(1))
-	for index in range(2):
-		build_photo_deck(index)
-		build_photo_channel(index)
-	cross_slider = photo_slider(Vector2(602,875),Vector2(117,42),false,-1,1,-1)
-	cross_slider.value_changed.connect(func(value):
-		engage()
-		crossfade = value
-		apply_mix()
-	)
-	var echo_button := photo_button(Vector2(742,806),Vector2(47,47),"Beat FX · Echo",toggle_echo)
-	echo_button.toggle_mode = true
-	photo_button(Vector2(725,659),Vector2(27,23),"Укоротить Echo",func(): echo_beats = maxf(.25,echo_beats*.5))
-	photo_button(Vector2(760,659),Vector2(27,23),"Удлинить Echo",func(): echo_beats = minf(1,echo_beats*2))
-	photo_dial(Vector2(742,735),44,"Уровень Echo",func(value): echo.tap1_level_db = -15+value*13)
-	photo_dial(Vector2(742,354),44,"Master",func(value): party.music_gain = clampf(.85+value*.85,0,1))
 
-func build_photo_deck(index: int) -> void:
-	var shift := Vector2(776*index,0)
-	var jog := photo_dial(Vector2(214,537)+shift,330,"Jog · перемотка",func(amount): seek(index,deck_position(index)+amount*2.4),true)
-	jog.rotation = 0
-	var tempo := photo_slider(Vector2(363,784)+shift,Vector2(43,172),true,-1,1,0)
-	tempo.tooltip_text = "TEMPO ±10%"
-	tempo.value_changed.connect(func(value): party.music[index].pitch_scale = 1-value*.10)
-	tempo_faders.append(tempo)
-	transport.append(photo_button(Vector2(64,846)+shift,Vector2(65,65),"PLAY / PAUSE",toggle_deck.bind(index)))
-	photo_button(Vector2(64,776)+shift,Vector2(65,65),"CUE · к точке",func(): seek(index,cues[index]))
-	photo_button(Vector2(63,329)+shift,Vector2(40,40),"IN · начало лупа",func():
-		loop_marks[index] = deck_position(index)
-		cues[index] = loop_marks[index]
-	)
-	photo_button(Vector2(126,329)+shift,Vector2(40,40),"OUT · конец лупа",finish_loop.bind(index))
-	var loop_button := photo_button(Vector2(190,329)+shift,Vector2(35,35),"4 BEAT / EXIT",toggle_loop.bind(index))
-	loop_button.toggle_mode = true
-	loop_buttons.append(loop_button)
-	photo_button(Vector2(253,329)+shift,Vector2(25,25),"Назад на бит",func(): seek(index,deck_position(index)-60.0/bpm_fields[index].value))
-	photo_button(Vector2(305,329)+shift,Vector2(25,25),"Вперёд на бит",func(): seek(index,deck_position(index)+60.0/bpm_fields[index].value))
-	photo_button(Vector2(362,329)+shift,Vector2(32,32),"BEAT SYNC",sync_deck.bind(index))
-	for mode in range(4):
-		var button := photo_button(Vector2(132+mode*54.5,747)+shift,Vector2(48,22),["HOT CUE","PAD FX","BEAT JUMP","SAMPLER"][mode],set_pad_mode.bind(index,mode))
-		button.toggle_mode = true
-		pad_mode_buttons[index].append(button)
-	for slot in range(HOT_CUES):
-		var center := Vector2(132+(slot%4)*54.5,804+int(slot/4)*54)+shift
-		var pad := photo_button(center,Vector2(45,45),"Пэд %d" % (slot+1),press_pad.bind(index,slot))
-		pad.toggle_mode = true
-		cue_buttons[index].append(pad)
 
 func set_pad_mode(index: int, mode: int) -> void:
 	pad_modes[index] = mode
@@ -631,89 +281,14 @@ func sync_deck(index: int) -> void:
 	var position := deck_position(index)
 	seek(index,floorf(position/beat_length)*beat_length+other_phase*beat_length)
 
-func build_photo_channel(index: int) -> void:
-	var x := 552.0+index*99
-	photo_dial(Vector2(x,353),37,"TRIM",func(value):
-		engage()
-		trims[index] = value*12
-		apply_mix()
-	)
-	for row in range(3):
-		photo_dial(Vector2(x,416+row*60),45,["HIGH","MID","LOW"][row],set_eq.bind(index,2-row))
-	photo_dial(Vector2(x,596),46,"CFX · Filter",func(value):
-		engage()
-		set_filter(index,value)
-	)
-	var level := photo_slider(Vector2(x,756),Vector2(50,113),true,0,1,1)
-	level.value_changed.connect(func(value):
-		engage()
-		gains[index] = value
-		apply_mix()
-	)
-	channel_faders.append(level)
-	var vu := ProgressBar.new()
-	vu.fill_mode = ProgressBar.FILL_BOTTOM_TO_TOP
-	vu.max_value = 1
-	vu.show_percentage = false
-	vu.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vu.add_theme_stylebox_override("background",panel_style(Color("#1b1c1a"),Color("#1b1c1a"),0))
-	vu.add_theme_stylebox_override("fill",panel_style(Color("#a6e856"),Color("#a6e856"),0))
-	place_control(vu,Vector2(590+index*22,477),Vector2(5,101))
-	channel_meters.append(vu)
 
-func place_control(control: Control, center: Vector2, dimensions: Vector2) -> void:
-	controller.add_child(control)
-	control.position = center-Vector2(8,262)-dimensions*.5
-	control.size = dimensions
 
-func photo_button(center: Vector2, dimensions: Vector2, hint: String, callback: Callable) -> Button:
-	var button := Button.new()
-	button.focus_mode = Control.FOCUS_NONE
-	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	button.tooltip_text = hint
-	button.add_theme_stylebox_override("normal",StyleBoxEmpty.new())
-	button.add_theme_stylebox_override("hover",panel_style(Color(1,1,1,.06),Color(1,1,1,.35),0))
-	button.add_theme_stylebox_override("pressed",panel_style(Color(.9,.65,.2,.18),Color("#e9aa54"),0))
-	button.pressed.connect(callback)
-	place_control(button,center,dimensions)
-	return button
 
-func photo_dial(center: Vector2, diameter: float, hint: String, change: Callable, is_jog: bool = false) -> Dial:
-	var dial := Dial.new()
-	dial.jog = is_jog
-	dial.tooltip_text = hint
-	dial.changed.connect(change)
-	place_control(dial,center,Vector2.ONE*diameter)
-	hardware_dials.append(dial)
-	return dial
 
-func photo_slider(center: Vector2, dimensions: Vector2, vertical: bool, low: float, high: float, initial: float) -> Slider:
-	var slider: Slider = VSlider.new() if vertical else HSlider.new()
-	slider.min_value = low
-	slider.max_value = high
-	slider.step = .01
-	slider.value = initial
-	slider.focus_mode = Control.FOCUS_NONE
-	var invisible := ImageTexture.create_from_image(Image.create_empty(12,12,false,Image.FORMAT_RGBA8))
-	for icon in ["grabber","grabber_highlight","grabber_disabled"]:
-		slider.add_theme_icon_override(icon,invisible)
-	for track in ["slider","grabber_area","grabber_area_highlight"]:
-		slider.add_theme_stylebox_override(track,StyleBoxEmpty.new())
-	place_control(slider,center,dimensions)
-	return slider
 
 func route_deck(index: int, channel: int) -> void:
 	routing[index] = channel
 	party.music[index].bus = AudioServer.get_bus_name(deck_buses[channel])
-
-func panel_style(fill: Color, border: Color, margin: int) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = fill
-	style.border_color = border
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(10)
-	style.set_content_margin_all(margin)
-	return style
 
 func open(show_files: bool) -> void:
 	load_target = -1
@@ -735,13 +310,13 @@ func open(show_files: bool) -> void:
 		move_camera(destination,65 if club_view else 54,.48)
 	else:
 		controls_view.render_target_update_mode = SubViewport.UPDATE_ONCE
-		if files.is_empty() and not scanning:
-			scan_folder()
+		if music_library.files.is_empty() and not music_library.scanning:
+			music_library.scan_folder()
 
 func open_deck_library(index: int) -> void:
 	open(true)
 	load_target = index
-	info.text = "LOAD %s · двойной щелчок загружает трек" % DECK_NAMES[index]
+	info.text = tr("LOAD %s · двойной щелчок загружает трек") % DECK_NAMES[index]
 
 func close() -> void:
 	panel.hide()
@@ -773,72 +348,12 @@ func move_camera(destination: Transform3D, fov: float, duration: float) -> void:
 func is_open() -> bool:
 	return panel.visible or using_controller
 
-func choose_folder() -> void:
-	if DirAccess.dir_exists_absolute(folder):
-		chooser.current_dir = folder
-	chooser.popup_centered_ratio(.72)
 
-func scan_folder() -> void:
-	files.clear()
-	pending = PackedStringArray([folder])
-	directory = null
-	scanning = true
-	refresh_library()
 
-func scan_step() -> void:
-	for index in range(250):
-		if directory==null:
-			if pending.is_empty():
-				scanning = false
-				files.sort()
-				refresh_library()
-				return
-			scan_path = pending[-1]
-			pending.resize(pending.size()-1)
-			directory = DirAccess.open(scan_path)
-			if directory==null:
-				continue
-			directory.list_dir_begin()
-		var entry := directory.get_next()
-		if entry.is_empty():
-			directory = null
-			continue
-		if directory.is_link(entry):
-			continue
-		var path := scan_path.path_join(entry)
-		if directory.current_is_dir():
-			pending.append(path)
-		elif entry.get_extension().to_lower() in FORMATS:
-			files.append(path)
 
-func refresh_library() -> void:
-	var query := search.text.strip_edges().to_lower()
-	listing.clear()
-	for path in files:
-		var label := path.trim_prefix(folder.trim_suffix("/")+"/")
-		if query.is_empty() or label.to_lower().contains(query):
-			var index := listing.add_item(label)
-			listing.set_item_metadata(index,path)
-	folder_label.text = "%s   ·   %s" % [folder,"Поиск файлов…" if scanning else "%d треков" % listing.item_count]
 
-func play_selection() -> void:
-	var current := audible_deck()
-	load_selection(current,true)
 
-func activate_selection() -> void:
-	if load_target>=0:
-		load_selection(load_target,false)
-	else:
-		play_selection()
 
-func load_selection(index: int, play_now: bool) -> void:
-	var selected := listing.get_selected_items()
-	if selected.is_empty():
-		info.text = "Выбери трек в списке."
-		return
-	var path := str(listing.get_item_metadata(selected[0]))
-	if not load_file(path,index,play_now):
-		info.text = "Не удалось открыть "+path.get_file()
 
 func load_file(path: String, index: int, play_now: bool) -> bool:
 	if not FileAccess.file_exists(path):
@@ -879,7 +394,7 @@ func load_file(path: String, index: int, play_now: bool) -> bool:
 	apply_mix()
 	info.text = "%s · %s · %s" % [DECK_NAMES[index],titles[index],format_time(stream.get_length())]
 	if stream.get_length()<10:
-		info.text += " · Короткий файл"
+		info.text += tr(" · Короткий файл")
 	return true
 
 func engage() -> void:
@@ -890,9 +405,9 @@ func engage() -> void:
 		party.fader.kill()
 	for index in range(2):
 		if index==party.playing and party.music[index].playing:
-			titles[index] = party.TRACKS[party.track]
+			titles[index] = party.track_titles()[party.track]
 			sources[index] = party.track
-			bpm_fields[index].value = party.BPM[party.track]
+			bpm_fields[index].value = party.track_bpm()[party.track]
 		else:
 			party.music[index].stop()
 	crossfade = -1.0 if party.playing==0 else 1.0
@@ -939,7 +454,7 @@ func toggle_deck(index: int) -> void:
 	engage()
 	var player: AudioStreamPlayer = party.music[index]
 	if titles[index].is_empty():
-		info.text = "Загрузи трек из ноутбука в деку "+DECK_NAMES[index]+"."
+		info.text = tr("Загрузи трек из ноутбука в деку %s.") % DECK_NAMES[index]
 		return
 	if not player.playing:
 		player.play(cues[index])
@@ -986,7 +501,7 @@ func set_filter(index: int, value: float) -> void:
 	high_pass[index].cutoff_hz = 30*pow(130,maxf(value,0))
 
 func current_title() -> String:
-	return titles[audible_deck()] if manual else party.TRACKS[party.track]
+	return titles[audible_deck()] if manual else party.track_titles()[party.track]
 
 func current_builtin() -> int:
 	return sources[audible_deck()] if manual else party.track
@@ -1010,14 +525,14 @@ func update_bass(delta: float) -> void:
 func _process(delta: float) -> void:
 	if not is_instance_valid(panel):
 		return
-	if scanning:
-		scan_step()
+	if music_library.scanning:
+		music_library.scan_step()
 	for index in range(2):
 		if loop_starts[index]>=0 and party.music[index].playing and deck_position(index)>=loop_ends[index]:
 			seek(index,loop_starts[index])
 	update_bass(delta)
 	if echo_enabled:
-		var bpm: float = bpm_fields[audible_deck()].value if manual else party.BPM[party.track]
+		var bpm: float = bpm_fields[audible_deck()].value if manual else party.track_bpm()[party.track]
 		echo.tap1_delay_ms = 60000.0/bpm*echo_beats
 	if not using_controller and not party.near_deck():
 		return
@@ -1049,8 +564,8 @@ func _process(delta: float) -> void:
 			pad_mode_buttons[index][mode].set_pressed_no_signal(pad_modes[index]==mode)
 		for slot in range(HOT_CUES):
 			cue_buttons[index][slot].set_pressed_no_signal(pad_modes[index]==0 and cue_points[index][slot]>=0)
-		var title: String = titles[index] if manual else (party.TRACKS[party.track] if player.playing else "")
-		deck_labels[index].text = title if not title.is_empty() else "Дека пуста"
+		var title: String = titles[index] if manual else (party.track_titles()[party.track] if player.playing else "")
+		deck_labels[index].text = title if not title.is_empty() else tr("Дека пуста")
 		loop_buttons[index].set_pressed_no_signal(loop_starts[index]>=0)
 		transport[index].tooltip_text = "PAUSE" if player.playing and not player.stream_paused else "PLAY"
 		var length: float = player.stream.get_length() if player.stream!=null else 0.0

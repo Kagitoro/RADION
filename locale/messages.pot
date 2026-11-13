@@ -1,0 +1,1870 @@
+# Translation template for Late Set. Source language: Russian.
+# Create <lang>.po from this file (e.g. with Poedit), then add it under
+# Project Settings > Localization > Translations.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+
+#: scripts/arrival_intro.gd:158
+msgid "Первый вечер · Открой входную дверь"
+msgstr ""
+
+#: scripts/arrival_intro.gd:158
+msgid "Первый вечер · Прочитай записку на холодильнике"
+msgstr ""
+
+#: scripts/arrival_intro.gd:162
+msgid "Убрать дом · %d/%d · награда $%d"
+msgstr ""
+
+#: scripts/arrival_intro.gd:165
+msgid "Первый заказ · В RADION нажми J, чтобы начать сет"
+msgstr ""
+
+#: scripts/arrival_intro.gd:240
+msgid "Записка · «Убери мусор. $12 под магнитом твои, когда закончишь. Пиво можешь брать сразу.»"
+msgstr ""
+
+#: scripts/arrival_intro.gd:469
+msgid "Ты · Я дошёл до дверей. Услышал зал и струсил. Потом соврал про автобус."
+msgstr ""
+
+#: scripts/arrival_intro.gd:472
+msgid "Кир · В следующий раз позвони. Даже если ты всё ещё стоишь у дверей."
+msgstr ""
+
+#: scripts/arrival_intro.gd:789
+msgid "Кир · Диджей не приехал. Разогрев твой. Скажи Самиру, что ты от меня."
+msgstr ""
+
+#: scripts/arrival_intro.gd:798
+msgid "Кир · Хороший сет. Теперь скажи честно: где ты был в тот вечер?"
+msgstr ""
+
+#: scripts/club_shift.gd:8
+msgid "Просьба о треке"
+msgstr ""
+
+#: scripts/club_shift.gd:8
+msgid "Очередь у бара"
+msgstr ""
+
+#: scripts/club_shift.gd:8
+msgid "Спор у входа"
+msgstr ""
+
+#: scripts/club_shift.gd:169
+msgid "Ровный переход · публика прибавляет"
+msgstr ""
+
+#: scripts/club_shift.gd:172
+msgid "Резкая смена трека · часть гостей отходит"
+msgstr ""
+
+#: scripts/club_shift.gd:174
+msgid "Переход услышали · выровняй темп и фазы"
+msgstr ""
+
+#: scripts/club_shift.gd:180
+msgid "Скачок громкости · убавь Gain или Master"
+msgstr ""
+
+#: scripts/club_shift.gd:244
+msgid "Гость просит новый трек от 124 BPM."
+msgstr ""
+
+#: scripts/club_shift.gd:245
+msgid "У бара очередь. Помоги раздать воду."
+msgstr ""
+
+#: scripts/club_shift.gd:246
+msgid "У входа спорят. Подойди к охране."
+msgstr ""
+
+#: scripts/club_shift.gd:274
+msgid "Персонал занялся ситуацией"
+msgstr ""
+
+#: scripts/club_shift.gd:280
+msgid "Поставь новый трек от 124 BPM или поручи ответ официанту через H"
+msgstr ""
+
+#: scripts/club_shift.gd:299
+msgid "Я тут уже жду."
+msgstr ""
+
+#: scripts/club_shift.gd:299
+msgid "Давай спокойно, разберёмся."
+msgstr ""
+
+#: scripts/club_shift.gd:313
+msgid "Персонал всё уладил"
+msgstr ""
+
+#: scripts/club_shift.gd:313
+msgid "Гость услышал новый трек"
+msgstr ""
+
+#: scripts/club_shift.gd:313
+msgid "Очередь у бара рассосалась"
+msgstr ""
+
+#: scripts/club_shift.gd:313
+msgid "У входа снова спокойно"
+msgstr ""
+
+#: scripts/club_shift.gd:316
+msgid "Ситуацию не решили · энергия упала"
+msgstr ""
+
+#: scripts/club_shift.gd:328
+msgid "Смена удалась"
+msgstr ""
+
+#: scripts/club_shift.gd:328
+msgid "Смена окончена"
+msgstr ""
+
+#: scripts/club_shift.gd:328
+msgid "RADION · Клубная смена"
+msgstr ""
+
+#: scripts/club_shift.gd:329
+msgid "Финал: %d на танцполе · энергия %d%%. J · Начать смену"
+msgstr ""
+
+#: scripts/club_shift.gd:329
+msgid "J · Начать смену"
+msgstr ""
+
+#: scripts/club_shift.gd:332
+msgid "%d:%02d   •   Танцпол %d   •   Энергия %d%%"
+msgstr ""
+
+#: scripts/club_shift.gd:333
+msgid "Финал: %d гостей, 65%% энергии · %d/%d с"
+msgstr ""
+
+#: scripts/club_shift.gd:335
+msgid "Новый трек от 124 BPM"
+msgstr ""
+
+#: scripts/club_shift.gd:335
+msgid "E у бармена · помочь с очередью"
+msgstr ""
+
+#: scripts/club_shift.gd:335
+msgid "E у охраны · уладить спор"
+msgstr ""
+
+#: scripts/club_shift.gd:336
+msgid "Персонал уже занимается"
+msgstr ""
+
+#: scripts/club_shift.gd:336
+msgid "%s  /  H · поручить"
+msgstr ""
+
+#: scripts/club_shift.gd:337
+msgid "%s\n%s · %d с\n%s"
+msgstr ""
+
+#: scripts/construction.gd:14
+msgid "Строй в пределах плана."
+msgstr ""
+
+#: scripts/construction.gd:21
+msgid "Минимальный размер комнаты — 1,1 × 1,1 м."
+msgstr ""
+
+#: scripts/construction.gd:23
+msgid "Сторона комнаты должна быть не длиннее 70 м."
+msgstr ""
+
+#: scripts/construction.gd:30
+msgid "Здесь уже есть пол. Состыкуй комнаты по краю."
+msgstr ""
+
+#: scripts/construction.gd:42
+msgid "Длина стены должна быть от 0,2 до 70 м."
+msgstr ""
+
+#: scripts/construction.gd:53
+msgid "Под всей стеной нужен пол одного уровня. Можно сначала нарисовать комнату."
+msgstr ""
+
+#: scripts/construction.gd:56
+msgid "На этом отрезке уже есть стена."
+msgstr ""
+
+#: scripts/construction.gd:121
+msgid "Достигнут предел в 700 элементов."
+msgstr ""
+
+#: scripts/dj/dj_controller_face.gd:50
+msgid "Esc / ПКМ · отойти от контроллера"
+msgstr ""
+
+#: scripts/dj/dj_controller_face.gd:121
+msgid "Browse · локальная музыка"
+msgstr ""
+
+#: scripts/dj/dj_controller_face.gd:123
+msgid "Load A · открыть библиотеку"
+msgstr ""
+
+#: scripts/dj/dj_controller_face.gd:124
+msgid "Load B · открыть библиотеку"
+msgstr ""
+
+#: scripts/dj/dj_controller_face.gd:136
+msgid "Укоротить Echo"
+msgstr ""
+
+#: scripts/dj/dj_controller_face.gd:137
+msgid "Удлинить Echo"
+msgstr ""
+
+#: scripts/dj/dj_controller_face.gd:138
+msgid "Уровень Echo"
+msgstr ""
+
+#: scripts/dj/dj_controller_face.gd:143
+msgid "Jog · перемотка"
+msgstr ""
+
+#: scripts/dj/dj_controller_face.gd:150
+msgid "CUE · к точке"
+msgstr ""
+
+#: scripts/dj/dj_controller_face.gd:151
+msgid "IN · начало лупа"
+msgstr ""
+
+#: scripts/dj/dj_controller_face.gd:155
+msgid "OUT · конец лупа"
+msgstr ""
+
+#: scripts/dj/dj_controller_face.gd:159
+msgid "Назад на бит"
+msgstr ""
+
+#: scripts/dj/dj_controller_face.gd:160
+msgid "Вперёд на бит"
+msgstr ""
+
+#: scripts/dj/dj_controller_face.gd:168
+msgid "Пэд %d"
+msgstr ""
+
+#: scripts/dj/dj_library.gd:34
+msgid "Выбрать папку"
+msgstr ""
+
+#: scripts/dj/dj_library.gd:35
+msgid "Обновить"
+msgstr ""
+
+#: scripts/dj/dj_library.gd:37
+msgid "Поиск по названию и подпапке"
+msgstr ""
+
+#: scripts/dj/dj_library.gd:50
+msgid "Включить"
+msgstr ""
+
+#: scripts/dj/dj_library.gd:52
+msgid "Загрузить в %s"
+msgstr ""
+
+#: scripts/dj/dj_library.gd:54
+msgid "Папка с музыкой"
+msgstr ""
+
+#: scripts/dj/dj_library.gd:112
+msgid "Поиск файлов…"
+msgstr ""
+
+#: scripts/dj/dj_library.gd:112
+msgid "%d треков"
+msgstr ""
+
+#: scripts/dj/dj_library.gd:127
+msgid "Выбери трек в списке."
+msgstr ""
+
+#: scripts/dj/dj_library.gd:131
+msgid "Не удалось открыть %s"
+msgstr ""
+
+#: scripts/dj_station.gd:319
+msgid "LOAD %s · двойной щелчок загружает трек"
+msgstr ""
+
+#: scripts/dj_station.gd:397
+msgid " · Короткий файл"
+msgstr ""
+
+#: scripts/dj_station.gd:457
+msgid "Загрузи трек из ноутбука в деку %s."
+msgstr ""
+
+#: scripts/dj_station.gd:568
+msgid "Дека пуста"
+msgstr ""
+
+#: scripts/game_settings.gd:7
+msgid "Системный / System"
+msgstr ""
+
+#: scripts/game_settings.gd:7
+msgid "Русский"
+msgstr ""
+
+#: scripts/home.gd:359
+msgid "Двери, окна и их стены можно перемещать на плане по Tab."
+msgstr ""
+
+#: scripts/home.gd:397 scripts/home.gd:433
+msgid "Пол"
+msgstr ""
+
+#: scripts/home.gd:404
+msgid "Поверхность"
+msgstr ""
+
+#: scripts/home.gd:422
+msgid "Потолок / нижняя сторона"
+msgstr ""
+
+#: scripts/home.gd:433
+msgid "Нет опоры"
+msgstr ""
+
+#: scripts/home.gd:454
+msgid "Наведи на пол или на поверхность, куда хочешь поставить предмет."
+msgstr ""
+
+#: scripts/home.gd:550
+msgid "Сначала вынеси мебель из комнаты."
+msgstr ""
+
+#: scripts/home.gd:601
+msgid "Возврат на пол"
+msgstr ""
+
+#: scripts/home.gd:627
+msgid "Под точкой установки нет пола."
+msgstr ""
+
+#: scripts/home.gd:645
+msgid "Под выбранным объектом нет пола."
+msgstr ""
+
+#: scripts/home.gd:675
+msgid "Размер выходит за границы стены или пересекает соседний проём."
+msgstr ""
+
+#: scripts/home.gd:712
+msgid "Стена слишком мала для установленных дверей или окон."
+msgstr ""
+
+#: scripts/hud.gd:71
+msgid "Открыть сохранённую расстановку"
+msgstr ""
+
+#: scripts/hud.gd:74 scripts/hud.gd:82
+msgid "*.json ; Проект RADION"
+msgstr ""
+
+#: scripts/hud.gd:78
+msgid "Экспорт проекта RADION"
+msgstr ""
+
+#: scripts/hud.gd:159
+msgid "В руках · %s"
+msgstr ""
+
+#: scripts/hud.gd:192
+msgid "Всё"
+msgstr ""
+
+#: scripts/hud.gd:192
+msgid "Комнаты"
+msgstr ""
+
+#: scripts/hud.gd:192
+msgid "Стены"
+msgstr ""
+
+#: scripts/hud.gd:192
+msgid "Двери и окна"
+msgstr ""
+
+#: scripts/hud.gd:192
+msgid "Мебель"
+msgstr ""
+
+#: scripts/hud.gd:202
+msgid "Инвентарь"
+msgstr ""
+
+#: scripts/hud.gd:203
+msgid "Моя схема"
+msgstr ""
+
+#: scripts/hud.gd:207
+msgid "Заделать щели"
+msgstr ""
+
+#: scripts/hud.gd:208
+msgid "Весь дом"
+msgstr ""
+
+#: scripts/hud.gd:209
+msgid "Отменить"
+msgstr ""
+
+#: scripts/hud.gd:210 ui/inventory_window.tscn
+msgid "Сохранить"
+msgstr ""
+
+#: scripts/hud.gd:211
+msgid "В комнату  [Tab]"
+msgstr ""
+
+#: scripts/hud.gd:214 scripts/hud.gd:313
+msgid "Выбери объект"
+msgstr ""
+
+#: scripts/hud.gd:217
+msgid "Магнит"
+msgstr ""
+
+#: scripts/hud.gd:221
+msgid "Привязка стен и комнат. Удерживай Shift, чтобы временно отключить."
+msgstr ""
+
+#: scripts/hud.gd:223
+msgid "На пол"
+msgstr ""
+
+#: scripts/hud.gd:224
+msgid "Рисовать стену"
+msgstr ""
+
+#: scripts/hud.gd:224
+msgid "+ Комната"
+msgstr ""
+
+#: scripts/hud.gd:231
+msgid "Дверь"
+msgstr ""
+
+#: scripts/hud.gd:231
+msgid "Проём"
+msgstr ""
+
+#: assets/layout.json scripts/hud.gd:231
+msgid "Окно"
+msgstr ""
+
+#: scripts/hud.gd:234
+msgid "Удалить"
+msgstr ""
+
+#: scripts/hud.gd:237
+msgid "От пола"
+msgstr ""
+
+#: scripts/hud.gd:237
+msgid "Ширина"
+msgstr ""
+
+#: scripts/hud.gd:237
+msgid "Высота"
+msgstr ""
+
+#: scripts/hud.gd:237
+msgid "Глубина"
+msgstr ""
+
+#: scripts/hud.gd:237
+msgid "Поворот"
+msgstr ""
+
+#: scripts/hud.gd:274 ui/pause_menu.tscn
+msgid "НОЧЬ / HOUSE PARTY"
+msgstr ""
+
+#: scripts/hud.gd:277
+msgid "WASD идти · Shift быстрее · E общаться · F фонарь · Esc пауза"
+msgstr ""
+
+#: scripts/hud.gd:289
+msgid "RADION · Дом"
+msgstr ""
+
+#: scripts/hud.gd:291
+msgid "Выбрано"
+msgstr ""
+
+#: scripts/hud.gd:291
+msgid "В руках"
+msgstr ""
+
+#: scripts/hud.gd:292
+msgid "%s · %s · %.2f × %.2f × %.2f м"
+msgstr ""
+
+#: scripts/hud.gd:300
+msgid "поворот"
+msgstr ""
+
+#: scripts/hud.gd:300
+msgid "размер %s"
+msgstr ""
+
+#: scripts/hud.gd:300
+msgid "высота"
+msgstr ""
+
+#: scripts/hud.gd:301
+msgid "E инвентарь · Tab план · ЛКМ взять / поставить · R/T/X/H режим · колесо — %s · Ctrl+S сохранить"
+msgstr ""
+
+#: scripts/hud.gd:314
+msgid "Жёлтые — двери и проходы   ·   Голубые — окна   ·   Перетаскивание — переместить   ·   Колесо — масштаб   ·   Средняя кнопка — панорама"
+msgstr ""
+
+#: scripts/hud.gd:316
+msgid "Строительство · Комната"
+msgstr ""
+
+#: scripts/hud.gd:316
+msgid "Строительство · Стена"
+msgstr ""
+
+#: scripts/hud.gd:318
+msgid "Зажми ЛКМ и протяни до второй точки · Отпусти для постройки · ПКМ — выйти · Shift — без магнита"
+msgstr ""
+
+#: scripts/hud.gd:320 scripts/hud.gd:348
+msgid "Установка · %s"
+msgstr ""
+
+#: scripts/hud.gd:321
+msgid "Щелчок по стене — установить · ПКМ — отменить"
+msgstr ""
+
+#: scripts/hud.gd:323
+msgid "Середина — перенос · Зелёный угол — размер · Магнит совмещает края комнат · Shift — свободное движение"
+msgstr ""
+
+#: scripts/hud.gd:325
+msgid "Перетащи стену или потяни за голубой конец · R — повернуть стену в руках · Shift — без магнита"
+msgstr ""
+
+#: scripts/hud.gd:349
+msgid "%s · ЛКМ поставить · ПКМ отменить"
+msgstr ""
+
+#: scripts/hud.gd:349
+msgid "Нет опоры · Наведи на пол или поверхность"
+msgstr ""
+
+#: scripts/hud.gd:355
+msgid "Выбрано · %s"
+msgstr ""
+
+#: scripts/hud.gd:355
+msgid "Прицел · %s"
+msgstr ""
+
+#: scripts/hud.gd:356
+msgid "Редактирование на плане · Tab"
+msgstr ""
+
+#: scripts/hud.gd:356
+msgid "ЛКМ взять · ПКМ выделить"
+msgstr ""
+
+#: scripts/hud.gd:356
+msgid "ПКМ выделить"
+msgstr ""
+
+#: scripts/kitchen_fridge.gd:70
+msgid "E · Открыть холодильник"
+msgstr ""
+
+#: scripts/kitchen_fridge.gd:71
+msgid "Холодильник: %d · с собой: %d · E закрыть\n1 взять · 2 положить · 3 убрать упаковку · 4 взять упаковку"
+msgstr ""
+
+#: scripts/kitchen_fridge.gd:89
+msgid "Бутылок недостаточно"
+msgstr ""
+
+#: scripts/kitchen_fridge.gd:92
+msgid "Холодильник заполнен"
+msgstr ""
+
+#: scripts/night_game.gd:42
+msgid "синий"
+msgstr ""
+
+#: scripts/night_game.gd:42
+msgid "фиолетовый"
+msgstr ""
+
+#: scripts/night_game.gd:42
+msgid "тёплый"
+msgstr ""
+
+#: scripts/night_game.gd:212
+msgid "След отмыт"
+msgstr ""
+
+#: scripts/night_game.gd:219
+msgid "Дом убран · заработано $%d"
+msgstr ""
+
+#: scripts/night_game.gd:221
+msgid "Осталось убрать: %d"
+msgstr ""
+
+#: scripts/night_game.gd:243
+msgid "E · Открыть дверь ключом"
+msgstr ""
+
+#: scripts/night_game.gd:246
+msgid "E · Убрать"
+msgstr ""
+
+#: scripts/night_game.gd:250
+msgid "E · Прочитать записку"
+msgstr ""
+
+#: scripts/night_game.gd:263
+msgid "E · Разнять гостей"
+msgstr ""
+
+#: scripts/night_game.gd:267
+msgid "E / ЛКМ · Подойти к пульту"
+msgstr ""
+
+#: scripts/night_game.gd:270
+msgid "E · Ноутбук     C · FLX4"
+msgstr ""
+
+#: scripts/night_game.gd:273 scripts/night_game.gd:283
+msgid "E · Ноутбук     ЛКМ по контроллеру     J · Вечеринка"
+msgstr ""
+
+#: scripts/night_game.gd:281 scripts/subway_station.gd:442
+msgid "E · Поговорить · %s"
+msgstr ""
+
+#: scripts/night_game.gd:285
+msgid "Курилка · N сигарета · K потушить · R энергетик"
+msgstr ""
+
+#: scripts/night_game.gd:412
+msgid "Давай спокойно. Здесь все отдыхают."
+msgstr ""
+
+#: scripts/night_game.gd:418
+msgid "Поставишь «%s»? Под него хочется двигаться."
+msgstr ""
+
+#: scripts/night_game.gd:422
+msgid "Танцпол пока закрыт. Увидимся, когда включишь музыку."
+msgstr ""
+
+#: scripts/night_game.gd:425
+msgid "Я к колонкам. Увидимся на танцполе!"
+msgstr ""
+
+#: scripts/night_game.gd:429
+msgid "Давай чуть позже."
+msgstr ""
+
+#: scripts/night_game.gd:432
+msgid "Я выхожу. Встретимся под навесом."
+msgstr ""
+
+#: scripts/night_game.gd:438
+msgid "Я уже написал. Дай им немного времени."
+msgstr ""
+
+#: scripts/night_game.gd:441
+msgid "Сначала раскачаем танцпол. Тогда будет кого звать."
+msgstr ""
+
+#: scripts/night_game.gd:446
+msgid "Скинул друзьям адрес. Скоро подтянутся."
+msgstr ""
+
+#: scripts/night_game.gd:532
+msgid "Свет · %s"
+msgstr ""
+
+#: scripts/night_world.gd:128
+msgid "КУРИЛКА"
+msgstr ""
+
+#: scripts/nightclub.gd:403
+msgid "Бармен · Лина"
+msgstr ""
+
+#: scripts/nightclub.gd:403
+msgid "Официант · Макс"
+msgstr ""
+
+#: scripts/nightclub.gd:403
+msgid "Охрана · Самир"
+msgstr ""
+
+#: scripts/nightclub.gd:465
+msgid "Привет! Если надо освежиться, у бара есть вода."
+msgstr ""
+
+#: scripts/nightclub.gd:466
+msgid "Сейчас разнесу напитки. У диванов есть свободные места."
+msgstr ""
+
+#: scripts/nightclub.gd:467
+msgid "Заходи. DJ на сцене, ступени справа."
+msgstr ""
+
+#: scripts/openings.gd:12
+msgid "Окно кухни"
+msgstr ""
+
+#: scripts/openings.gd:13
+msgid "Окно ванной"
+msgstr ""
+
+#: scripts/openings.gd:14
+msgid "Окно комнаты с ковром"
+msgstr ""
+
+#: scripts/party.gd:42
+msgid "Привет! Ты давно здесь?"
+msgstr ""
+
+#: scripts/party.gd:42
+msgid "Недавно. Что сейчас играет?"
+msgstr ""
+
+#: scripts/party.gd:42
+msgid "Пойдём ближе к пульту, там лучше слышно."
+msgstr ""
+
+#: scripts/party.gd:43
+msgid "Слышишь, как поменялся бас?"
+msgstr ""
+
+#: scripts/party.gd:43
+msgid "Да. Вот этот трек я бы оставил подольше."
+msgstr ""
+
+#: scripts/party.gd:43
+msgid "Согласен. Пусть пока играет."
+msgstr ""
+
+#: scripts/party.gd:44
+msgid "Ты уже видел комнату с мониторами?"
+msgstr ""
+
+#: scripts/party.gd:44
+msgid "Да, там сейчас все танцуют."
+msgstr ""
+
+#: scripts/party.gd:44
+msgid "Давай тоже заглянем."
+msgstr ""
+
+#: scripts/party.gd:45
+msgid "Здесь уже почти полный дом."
+msgstr ""
+
+#: scripts/party.gd:45
+msgid "Ага, я даже в коридоре встретил знакомых."
+msgstr ""
+
+#: scripts/party.gd:45
+msgid "Пойдём поздороваемся."
+msgstr ""
+
+#: scripts/party.gd:183
+msgid "Открываем двери гостям…"
+msgstr ""
+
+#: scripts/party.gd:185
+msgid "Подойди к DJ-пульту на рабочем столе в спальне-студии."
+msgstr ""
+
+#: scripts/party.gd:211
+msgid "Рядом с пультом мало проходов. Освободи место и попробуй снова."
+msgstr ""
+
+#: scripts/party.gd:263
+msgid "Сведение в бит · атмосфера растёт"
+msgstr ""
+
+#: scripts/party.gd:265
+msgid "Нажимай M, когда в индикаторе загорается БИТ."
+msgstr ""
+
+#: scripts/party.gd:346
+msgid "Аншлаг! Ты удержал полный дом и атмосферу."
+msgstr ""
+
+#: scripts/party.gd:486
+msgid "J · Начать вечеринку    B · Пиво    N · Сигарета"
+msgstr ""
+
+#: scripts/party.gd:486
+msgid "Найди DJ-пульт в спальне-студии    B · Пиво    N · Сигарета"
+msgstr ""
+
+#: scripts/party.gd:490
+msgid "БИТ"
+msgstr ""
+
+#: scripts/party.gd:495
+msgid "Выбери трек на ноутбуке"
+msgstr ""
+
+#: scripts/party.gd:496
+msgid "%s   %d/%d внутри   %d%%"
+msgstr ""
+
+#: scripts/party.gd:496
+msgid "Аншлаг!"
+msgstr ""
+
+#: scripts/party.gd:496
+msgid "Вечеринка"
+msgstr ""
+
+#: scripts/party.gd:497
+msgid "%s%s · запрос %s · %s\n%s\nB пиво · N сигарета · K потушить · R энергетик · V тошнит"
+msgstr ""
+
+#: scripts/party.gd:499
+msgid "E ноутбук · C контроллер · 1–3 хаус"
+msgstr ""
+
+#: scripts/party.gd:499
+msgid "Вернись к пульту, чтобы сменить трек."
+msgstr ""
+
+#: scripts/party.gd:500
+msgid "\nНа улице %d · $%d · сигарет %d"
+msgstr ""
+
+#: scripts/party.gd:504
+msgid "\nУдержи аншлаг ещё %d с"
+msgstr ""
+
+#: scripts/party_consumables.gd:55 scripts/party_consumables.gd:83
+msgid "Сначала потуши сигарету · K"
+msgstr ""
+
+#: scripts/party_consumables.gd:62
+msgid "Пива нет · купи в Night Shop"
+msgstr ""
+
+#: scripts/party_consumables.gd:67
+msgid "Сигареты закончились · купи в Night Shop"
+msgstr ""
+
+#: scripts/party_consumables.gd:291
+msgid "Опьянение · %d%%"
+msgstr ""
+
+#: scripts/party_consumables.gd:637
+msgid "Сигарета потушена · осталось %d"
+msgstr ""
+
+#: scripts/party_events.gd:29
+msgid "Ты охуел? Руки убрал!"
+msgstr ""
+
+#: scripts/party_events.gd:29
+msgid "Какого хуя ты толкаешься?!"
+msgstr ""
+
+#: scripts/party_events.gd:29
+msgid "Пошёл нахуй со своими понтами!"
+msgstr ""
+
+#: scripts/party_events.gd:29
+msgid "Не трогай меня, блядь!"
+msgstr ""
+
+#: scripts/party_events.gd:29
+msgid "Сейчас получишь, сука!"
+msgstr ""
+
+#: scripts/party_events.gd:174
+msgid "Гости сцепились! Подойди и нажми E, чтобы разнять."
+msgstr ""
+
+#: scripts/party_events.gd:277
+msgid "Всё, блядь, хватит!"
+msgstr ""
+
+#: scripts/party_events.gd:303
+msgid "Разнял гостей. Атмосфера восстанавливается."
+msgstr ""
+
+#: scripts/party_guest.gd:5
+msgid "Украина"
+msgstr ""
+
+#: scripts/party_guest.gd:5
+msgid "Марокко"
+msgstr ""
+
+#: scripts/party_guest.gd:5
+msgid "Бразилия"
+msgstr ""
+
+#: scripts/party_guest.gd:5
+msgid "Южная Корея"
+msgstr ""
+
+#: scripts/party_guest.gd:5
+msgid "Египет"
+msgstr ""
+
+#: scripts/party_guest.gd:5
+msgid "Колумбия"
+msgstr ""
+
+#: scripts/party_guest.gd:5
+msgid "Япония"
+msgstr ""
+
+#: scripts/party_guest.gd:5
+msgid "Великобритания"
+msgstr ""
+
+#: scripts/party_guest.gd:5
+msgid "Канада"
+msgstr ""
+
+#: scripts/party_guest.gd:5
+msgid "Турция"
+msgstr ""
+
+#: scripts/party_guest.gd:5
+msgid "Индия"
+msgstr ""
+
+#: scripts/party_guest.gd:5
+msgid "Тайвань"
+msgstr ""
+
+#: scripts/party_guest.gd:5
+msgid "Португалия"
+msgstr ""
+
+#: scripts/party_guest.gd:5
+msgid "Нигерия"
+msgstr ""
+
+#: scripts/party_guest.gd:5
+msgid "Франция"
+msgstr ""
+
+#: scripts/party_guest.gd:5
+msgid "Польша"
+msgstr ""
+
+#: scripts/party_guest.gd:15 scripts/party_guest.gd:8
+msgid "Промоутер"
+msgstr ""
+
+#: scripts/party_guest.gd:8
+msgid "Знакомый диджей из Киева посоветовал послушать твой сет."
+msgstr ""
+
+#: scripts/party_guest.gd:9
+msgid "Подруга хозяина"
+msgstr ""
+
+#: scripts/party_guest.gd:9
+msgid "Мы познакомились на вечеринке в Касабланке. Сегодня привела друзей."
+msgstr ""
+
+#: scripts/party_guest.gd:10 scripts/party_guest.gd:13
+msgid "Танцор"
+msgstr ""
+
+#: scripts/party_guest.gd:10
+msgid "Выступал с друзьями из Сан-Паулу. Они прислали мне адрес этой вечеринки."
+msgstr ""
+
+#: scripts/party_guest.gd:11
+msgid "Фотограф"
+msgstr ""
+
+#: scripts/party_guest.gd:11
+msgid "Снимала клубы в Сеуле. Друг попросил сделать пару кадров твоего сета."
+msgstr ""
+
+#: scripts/party_guest.gd:12
+msgid "Сосед"
+msgstr ""
+
+#: scripts/party_guest.gd:12
+msgid "Переехал из Александрии и теперь живу рядом. Услышал басы и заглянул."
+msgstr ""
+
+#: scripts/party_guest.gd:13
+msgid "Мои друзья из Боготы уже у колонок. Я к ним."
+msgstr ""
+
+#: scripts/party_guest.gd:14
+msgid "Друг хозяина"
+msgstr ""
+
+#: scripts/party_guest.gd:14
+msgid "Мы вместе слушали пластинки в Осаке. Помнишь, какой хаус тогда играли?"
+msgstr ""
+
+#: scripts/party_guest.gd:15
+msgid "Организую ночи в Лондоне. Один из гостей сказал, что здесь стоит послушать диджея."
+msgstr ""
+
+#: scripts/party_guest.gd:18
+msgid "Гость"
+msgstr ""
+
+#: scripts/party_guest.gd:18
+msgid "Друзья из города %s скинули мне адрес. Я зашёл познакомиться."
+msgstr ""
+
+#: scripts/party_guest.gd:19
+msgid "любит хаус"
+msgstr ""
+
+#: scripts/party_guest.gd:19
+msgid "любит общение"
+msgstr ""
+
+#: scripts/party_guest.gd:19
+msgid "танцует всю ночь"
+msgstr ""
+
+#: scripts/party_guest.gd:19
+msgid "ценит спокойные треки"
+msgstr ""
+
+#: scripts/party_guest.gd:21
+msgid "Артём"
+msgstr ""
+
+#: scripts/party_guest.gd:21
+msgid "Киев"
+msgstr ""
+
+#: scripts/party_guest.gd:21
+msgid "Амина"
+msgstr ""
+
+#: scripts/party_guest.gd:21
+msgid "Касабланка"
+msgstr ""
+
+#: scripts/party_guest.gd:21
+msgid "Матеус"
+msgstr ""
+
+#: scripts/party_guest.gd:21
+msgid "Сан-Паулу"
+msgstr ""
+
+#: scripts/party_guest.gd:21
+msgid "Хана"
+msgstr ""
+
+#: scripts/party_guest.gd:21
+msgid "Сеул"
+msgstr ""
+
+#: scripts/party_guest.gd:22
+msgid "Омар"
+msgstr ""
+
+#: scripts/party_guest.gd:22
+msgid "Александрия"
+msgstr ""
+
+#: scripts/party_guest.gd:22
+msgid "Валентина"
+msgstr ""
+
+#: scripts/party_guest.gd:22
+msgid "Богота"
+msgstr ""
+
+#: scripts/party_guest.gd:22
+msgid "Кэндзи"
+msgstr ""
+
+#: scripts/party_guest.gd:22
+msgid "Осака"
+msgstr ""
+
+#: scripts/party_guest.gd:22
+msgid "Зара"
+msgstr ""
+
+#: scripts/party_guest.gd:22
+msgid "Лондон"
+msgstr ""
+
+#: scripts/party_guest.gd:23
+msgid "Даниэль"
+msgstr ""
+
+#: scripts/party_guest.gd:23
+msgid "Торонто"
+msgstr ""
+
+#: scripts/party_guest.gd:23
+msgid "Лейла"
+msgstr ""
+
+#: scripts/party_guest.gd:23
+msgid "Стамбул"
+msgstr ""
+
+#: scripts/party_guest.gd:23
+msgid "Амар"
+msgstr ""
+
+#: scripts/party_guest.gd:23
+msgid "Мумбаи"
+msgstr ""
+
+#: scripts/party_guest.gd:23
+msgid "Мэй"
+msgstr ""
+
+#: scripts/party_guest.gd:23
+msgid "Тайбэй"
+msgstr ""
+
+#: scripts/party_guest.gd:24
+msgid "Лукас"
+msgstr ""
+
+#: scripts/party_guest.gd:24
+msgid "Лиссабон"
+msgstr ""
+
+#: scripts/party_guest.gd:24
+msgid "Ниа"
+msgstr ""
+
+#: scripts/party_guest.gd:24
+msgid "Лагос"
+msgstr ""
+
+#: scripts/party_guest.gd:24
+msgid "Идрис"
+msgstr ""
+
+#: scripts/party_guest.gd:24
+msgid "Париж"
+msgstr ""
+
+#: scripts/party_guest.gd:24
+msgid "София"
+msgstr ""
+
+#: scripts/party_guest.gd:24
+msgid "Варшава"
+msgstr ""
+
+#: scripts/party_guest.gd:69
+msgid "Я %s. Мой родной город — %s (%s)."
+msgstr ""
+
+#: scripts/plan.gd:66
+msgid "Наведи на стену и щёлкни для установки. ПКМ отменяет."
+msgstr ""
+
+#: scripts/plan.gd:225
+msgid "%.2f м"
+msgstr ""
+
+#: scripts/plan.gd:231
+msgid "%.2f × %.2f м"
+msgstr ""
+
+#: scripts/plan.gd:376
+msgid "Нужна стена с достаточным свободным местом."
+msgstr ""
+
+#: scripts/plan.gd:417
+msgid "Перетащи на подходящую стену. Старый проём сохранён."
+msgstr ""
+
+#: scripts/plan.gd:449
+msgid "Стена должна опираться на пол."
+msgstr ""
+
+#: scripts/player.gd:336
+msgid "Тошнит…"
+msgstr ""
+
+#: scripts/project_storage.gd:28
+msgid "Планировка изменилась. Вечеринку можно запустить заново у пульта."
+msgstr ""
+
+#: scripts/project_storage.gd:34
+msgid "Сначала поставь предмет из рук."
+msgstr ""
+
+#: scripts/project_storage.gd:39
+msgid "Узких щелей для заделки не найдено."
+msgstr ""
+
+#: scripts/project_storage.gd:44
+msgid "Заделано стыков: %d"
+msgstr ""
+
+#: scripts/project_storage.gd:51
+msgid "Сначала поставь предмет."
+msgstr ""
+
+#: scripts/project_storage.gd:55
+msgid "Не удалось сохранить проект."
+msgstr ""
+
+#: scripts/project_storage.gd:61
+msgid "Проект сохранён."
+msgstr ""
+
+#: scripts/project_storage.gd:70
+msgid "Этот файл проекта не удалось открыть."
+msgstr ""
+
+#: scripts/street_shop.gd:7
+msgid "Энергетик"
+msgstr ""
+
+#: scripts/street_shop.gd:7
+msgid "+15% к скорости бега на 45 с · R"
+msgstr ""
+
+#: scripts/street_shop.gd:7
+msgid "VOLT Energy, 330 мл. Ледяная банка из холодильника у кассы."
+msgstr ""
+
+#: scripts/street_shop.gd:8
+msgid "Пиво"
+msgstr ""
+
+#: scripts/street_shop.gd:8
+msgid "1 бутылка · B"
+msgstr ""
+
+#: scripts/street_shop.gd:8
+msgid "Night Lager 5,2%. Тёмное стекло, капли конденсата, открывается большим пальцем."
+msgstr ""
+
+#: scripts/street_shop.gd:9
+msgid "Сигареты"
+msgstr ""
+
+#: scripts/street_shop.gd:9
+msgid "5 сигарет · N"
+msgstr ""
+
+#: scripts/street_shop.gd:9
+msgid "Пачка ORION. Зажигалка уже в кармане."
+msgstr ""
+
+#: scripts/street_shop.gd:10
+msgid "Упаковка пива"
+msgstr ""
+
+#: scripts/street_shop.gd:10
+msgid "6 бутылок"
+msgstr ""
+
+#: scripts/street_shop.gd:10
+msgid "Шесть бутылок Night Lager в картонной переноске. Выгоднее, чем по одной."
+msgstr ""
+
+#: scripts/street_shop.gd:325
+msgid "$%d   ·   Пиво %d   ·   Энергетики %d   ·   Сигареты %d"
+msgstr ""
+
+#: scripts/street_shop.gd:335
+msgid "Не хватает денег."
+msgstr ""
+
+#: scripts/street_shop.gd:345
+msgid "Куплено · %s × %d"
+msgstr ""
+
+#: scripts/street_shop.gd:350
+msgid "Энергетиков нет · купи в Night Shop"
+msgstr ""
+
+#: scripts/street_shop.gd:353
+msgid "Энергетик ещё действует · %d с"
+msgstr ""
+
+#: scripts/street_shop.gd:364
+msgid "Энергетик · бег быстрее на 45 с"
+msgstr ""
+
+#: scripts/subway_station.gd:12
+msgid "Эй, дружище. Есть пару долларов на кофе?"
+msgstr ""
+
+#: scripts/subway_station.gd:13
+msgid "Привет. Не найдётся мелочи на что-нибудь поесть?"
+msgstr ""
+
+#: scripts/subway_station.gd:14
+msgid "Если есть пара баксов, я был бы благодарен."
+msgstr ""
+
+#: scripts/subway_station.gd:16
+msgid "Лео"
+msgstr ""
+
+#: scripts/subway_station.gd:16
+msgid "Мара"
+msgstr ""
+
+#: scripts/subway_station.gd:16
+msgid "Фрэнк"
+msgstr ""
+
+#: scripts/subway_station.gd:18
+msgid "Спасибо. Правда, выручил."
+msgstr ""
+
+#: scripts/subway_station.gd:19
+msgid "Спасибо ещё раз. Хорошей ночи."
+msgstr ""
+
+#: scripts/subway_station.gd:20
+msgid "Да пошёл ты нахуй. И не стой надо мной."
+msgstr ""
+
+#: scripts/subway_station.gd:20
+msgid "Тогда чего уставился? Иди нахуй отсюда."
+msgstr ""
+
+#: scripts/subway_station.gd:20
+msgid "Ни цента? Ну и катись нахуй."
+msgstr ""
+
+#: scripts/subway_station.gd:341
+msgid "1 / E · Дать $%d     2 / Esc · Отказать"
+msgstr ""
+
+#: scripts/subway_station.gd:364 scripts/subway_station.gd:429
+msgid "Для помощи нужно $%d"
+msgstr ""
+
+#: scripts/subway_station.gd:435
+msgid "Ты дал $%d · осталось $%d"
+msgstr ""
+
+#: scripts/subway_station.gd:441
+msgid "E · Поговорить"
+msgstr ""
+
+#: ui/main_menu_screen.gd:17 ui/main_menu_screen.tscn ui/pause_menu.tscn
+msgid "Продолжить"
+msgstr ""
+
+#: ui/main_menu_screen.gd:17
+msgid "Начать игру"
+msgstr ""
+
+#: ui/shop_panel.gd:190 ui/shop_panel.tscn
+msgid "Купить"
+msgstr ""
+
+#: ui/shop_panel.gd:190
+msgid "Не хватает денег"
+msgstr ""
+
+#: ui/shop_panel.gd:209
+msgid "есть: %d"
+msgstr ""
+
+#: ui/dj/laptop_panel.tscn
+msgid "Ноутбук / Музыка"
+msgstr ""
+
+#: ui/dj/laptop_panel.tscn
+msgid "К контроллеру"
+msgstr ""
+
+#: ui/dj/laptop_panel.tscn
+msgid "Закрыть · Esc"
+msgstr ""
+
+#: ui/interaction_hints.tscn
+msgid "1  Запросить трек     2  На танцпол     3  В курилку\n4  Как ты сюда попал?     5  Позови друзей     6  Затеять спор     E  Закончить"
+msgstr ""
+
+#: ui/intro_overlay.tscn
+msgid "E / Space · дальше     Esc · пропустить"
+msgstr ""
+
+#: ui/intro_overlay.tscn
+msgid "LATE SET     /     FIRST NIGHT"
+msgstr ""
+
+#: ui/inventory_window.tscn
+msgid "Инвентарь дома"
+msgstr ""
+
+#: ui/inventory_window.tscn ui/shop_panel.tscn
+msgid "Закрыть"
+msgstr ""
+
+#: ui/inventory_window.tscn
+msgid "Поиск по названию"
+msgstr ""
+
+#: ui/inventory_window.tscn
+msgid "Взять выбранное"
+msgstr ""
+
+#: ui/inventory_window.tscn
+msgid "Открыть JSON"
+msgstr ""
+
+#: ui/inventory_window.tscn
+msgid "Экспорт JSON"
+msgstr ""
+
+#: ui/main_menu_screen.tscn
+msgid "Late Set"
+msgstr ""
+
+#: ui/main_menu_screen.tscn
+msgid "DJ Simulator"
+msgstr ""
+
+#: ui/main_menu_screen.tscn
+msgid "Выход"
+msgstr ""
+
+#: ui/pause_menu.tscn
+msgid "Собери 12 гостей внутри и удержи атмосферу."
+msgstr ""
+
+#: ui/pause_menu.tscn
+msgid "J вечеринка · E ноутбук · C контроллер · 1–3 треки · M сведение · E разговор\nB пиво · N сигарета · K потушить · R энергетик · V тошнит"
+msgstr ""
+
+#: ui/pause_menu.tscn
+msgid "Музыка"
+msgstr ""
+
+#: ui/pause_menu.tscn
+msgid "Шаги"
+msgstr ""
+
+#: ui/pause_menu.tscn
+msgid "Чувствительность мыши"
+msgstr ""
+
+#: ui/pause_menu.tscn
+msgid "Язык / Language"
+msgstr ""
+
+#: ui/pause_menu.tscn
+msgid "Смотреть вступление"
+msgstr ""
+
+#: ui/pause_menu.tscn
+msgid "Новая вечеринка"
+msgstr ""
+
+#: ui/pause_menu.tscn
+msgid "Главное меню"
+msgstr ""
+
+#: ui/pause_menu.tscn
+msgid "Начать заново"
+msgstr ""
+
+#: ui/pause_menu.tscn
+msgid "Начать заново?"
+msgstr ""
+
+#: ui/pause_menu.tscn
+msgid "Отмена"
+msgstr ""
+
+#: ui/pause_menu.tscn
+msgid "Прогресс сюжета, деньги и покупки будут сброшены, игра начнётся с начала. Настройки и музыка сохранятся."
+msgstr ""
+
+#: ui/shop_panel.tscn
+msgid "NIGHT SHOP"
+msgstr ""
+
+#: ui/shop_panel.tscn
+msgid "OPEN 24/7"
+msgstr ""
+
+#: ui/shop_panel.tscn
+msgid "$0"
+msgstr ""
+
+#: ui/shop_panel.tscn
+msgid "−"
+msgstr ""
+
+#: ui/shop_panel.tscn
+msgid "1"
+msgstr ""
+
+#: ui/shop_panel.tscn
+msgid "+"
+msgstr ""
+
+#: ui/shop_panel.tscn
+msgid "Стрелки — выбор · −/+ — количество · Enter — купить · Esc — закрыть"
+msgstr ""
+
+#: assets/layout.json
+msgid "Основной монитор"
+msgstr ""
+
+#: assets/layout.json
+msgid "Верхний монитор"
+msgstr ""
+
+#: assets/layout.json
+msgid "Клавиатура"
+msgstr ""
+
+#: assets/layout.json
+msgid "Мышь"
+msgstr ""
+
+#: assets/layout.json
+msgid "Панель A · за креслом"
+msgstr ""
+
+#: assets/layout.json
+msgid "Панель B · за креслом"
+msgstr ""
+
+#: assets/layout.json
+msgid "Передвижная панель · у шкафа"
+msgstr ""
+
+#: assets/layout.json
+msgid "Потолочное облако"
+msgstr ""
+
+#: assets/layout.json
+msgid "Бас-ловушка L1"
+msgstr ""
+
+#: assets/layout.json
+msgid "Бас-ловушка L2"
+msgstr ""
+
+#: assets/layout.json
+msgid "Бас-ловушка L3"
+msgstr ""
+
+#: assets/layout.json
+msgid "Бас-ловушка R1"
+msgstr ""
+
+#: assets/layout.json
+msgid "Бас-ловушка R2"
+msgstr ""
+
+#: assets/layout.json
+msgid "Бас-ловушка R3"
+msgstr ""
+
+#: assets/layout.json
+msgid "Кухонные шкафы и фартук"
+msgstr ""
+
+#: assets/layout.json
+msgid "Плита и духовой шкаф"
+msgstr ""
+
+#: assets/layout.json
+msgid "Холодильник"
+msgstr ""
+
+#: assets/layout.json
+msgid "Посуда на кухне"
+msgstr ""
+
+#: assets/layout.json
+msgid "Обеденный стол"
+msgstr ""
+
+#: assets/layout.json
+msgid "Стулья у стола"
+msgstr ""
+
+#: assets/layout.json
+msgid "Микроволновка"
+msgstr ""
+
+#: assets/layout.json
+msgid "Кухня · деталь"
+msgstr ""
+
+#: assets/layout.json
+msgid "Жалюзийный шкаф"
+msgstr ""
+
+#: assets/layout.json
+msgid "Входная дверь"
+msgstr ""
+
+#: assets/layout.json
+msgid "Зеркало в коридоре"
+msgstr ""
+
+#: assets/layout.json
+msgid "Красный гриль"
+msgstr ""
+
+#: assets/layout.json
+msgid "Коридор · деталь"
+msgstr ""
+
+#: assets/layout.json
+msgid "Плитка на стенах ванной"
+msgstr ""
+
+#: assets/layout.json
+msgid "Ванна"
+msgstr ""
+
+#: assets/layout.json
+msgid "Душевая перегородка"
+msgstr ""
+
+#: assets/layout.json
+msgid "Унитаз"
+msgstr ""
+
+#: assets/layout.json
+msgid "Тумба и раковина"
+msgstr ""
+
+#: assets/layout.json
+msgid "Корпус зеркального шкафа"
+msgstr ""
+
+#: assets/layout.json
+msgid "Ванная · деталь"
+msgstr ""
+
+#: assets/layout.json
+msgid "Круглый ковёр"
+msgstr ""
+
+#: assets/layout.json
+msgid "Шторы и карниз"
+msgstr ""
+
+#: assets/layout.json
+msgid "Люстра"
+msgstr ""
+
+#: assets/layout.json
+msgid "Вешалка с одеждой"
+msgstr ""
+
+#: assets/layout.json
+msgid "Тренировочная скамья"
+msgstr ""
+
+#: assets/layout.json
+msgid "Тумба с ящиками"
+msgstr ""
+
+#: assets/layout.json
+msgid "Комната с ковром · деталь"
+msgstr ""
+
+#: assets/layout.json
+msgid "Пол и потолок — спальня"
+msgstr ""
+
+#: assets/layout.json
+msgid "Ковёр студии"
+msgstr ""
+
+#: assets/layout.json
+msgid "Рабочий стол"
+msgstr ""
+
+#: assets/layout.json
+msgid "Компьютер"
+msgstr ""
+
+#: assets/layout.json
+msgid "Кровать"
+msgstr ""
+
+#: assets/layout.json
+msgid "Комод"
+msgstr ""
+
+#: assets/layout.json
+msgid "Кресло"
+msgstr ""
+
+#: assets/layout.json
+msgid "Встроенный шкаф"
+msgstr ""
+
+#: assets/layout.json
+msgid "Полка над столом"
+msgstr ""
+
+#: assets/layout.json
+msgid "Окна и шторы спальни"
+msgstr ""
+
+#: assets/layout.json
+msgid "Гитара"
+msgstr ""
+
+#: assets/layout.json
+msgid "Колонка KRK"
+msgstr ""
+
+#: assets/layout.json
+msgid "Студия · деталь"
+msgstr ""
+
+#: assets/layout.json
+msgid "Кухонная техника над столешницей"
+msgstr ""
+
+#: assets/layout.json
+msgid "Стена"
+msgstr ""
+
+#: assets/layout.json
+msgid "Перемычка"
+msgstr ""
+
+#: assets/layout.json
+msgid "Косяк"
+msgstr ""
+
+#: assets/layout.json
+msgid "Кухонная арка"
+msgstr ""
+
+#: assets/layout.json
+msgid "Пол и потолок — Комната с ковром"
+msgstr ""
+
+#: assets/layout.json
+msgid "Пол и потолок — Коридор"
+msgstr ""
+
+#: assets/layout.json
+msgid "Пол и потолок — Ванная"
+msgstr ""
+
+#: assets/layout.json
+msgid "Пол и потолок — Кухня"
+msgstr ""
+
+#: assets/layout.json
+msgid "Кухонный светильник"
+msgstr ""
+
+#: assets/layout.json
+msgid "Акустическая панель"
+msgstr ""
+
+#: assets/layout.json
+msgid "Диван"
+msgstr ""
+
+#: assets/layout.json
+msgid "Ковёр"
+msgstr ""
+
+#: assets/layout.json
+msgid "Открытый дверной проём"
+msgstr ""
+
+#: assets/layout.json
+msgid "Стол"
+msgstr ""
+
+#: assets/layout.json
+msgid "Стул"
+msgstr ""
+
+#: assets/layout.json
+msgid "Универсальный блок"
+msgstr ""
+
+#: assets/layout.json
+msgid "Участок пола"
+msgstr ""
+
+#: assets/layout.json
+msgid "Шкаф"
+msgstr ""
+
+#: assets/layout.json
+msgid "Бас-ловушка"
+msgstr ""
+
+#: assets/layout.json
+msgid "Панель за креслом"
+msgstr ""
+
+#: assets/layout.json
+msgid "Комната с ковром"
+msgstr ""
+
+#: assets/layout.json
+msgid "Коридор"
+msgstr ""
+
+#: assets/layout.json
+msgid "Ванная"
+msgstr ""
+
+#: assets/layout.json
+msgid "Кухня"
+msgstr ""
+
+#: assets/layout.json
+msgid "Спальня-студия"
+msgstr ""

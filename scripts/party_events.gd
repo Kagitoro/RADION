@@ -1,6 +1,7 @@
+class_name PartyEvents
 extends Node3D
 
-var home
+var home: Home
 var lights: Array[OmniLight3D] = []
 var fighters: Array[Node3D] = []
 var fight_time := 0.0
@@ -18,26 +19,34 @@ var retching := AudioStreamPlayer3D.new()
 var retch_variants: Array[AudioStreamMP3] = []
 var impact_target: Node3D
 var impact_attacker: Node3D
-var impact_wait := 0.0
+var exchange_time := 0.0
+var exchange_length := .60
+var impact_done := false
+var fight_volume := PhysicsShapeQueryParameters3D.new()
 var hit_counts := {}
 var fight_ending := 0.0
 var streams: Array[Dictionary] = []
 const SHOUTS := ["Ты охуел? Руки убрал!","Какого хуя ты толкаешься?!","Пошёл нахуй со своими понтами!","Не трогай меня, блядь!","Сейчас получишь, сука!"]
 
-func _init(editor) -> void:
-	home = editor
+func _init(game_home: Home) -> void:
+	home = game_home
 
 func setup() -> void:
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = .18
+	capsule.height = 1.56
+	fight_volume.shape = capsule
+	fight_volume.collision_mask = 1
 	add_child(sounds)
 	add_child(grunt)
 	grunt.volume_db = -18
 	grunt.max_distance = 9
-	grunt.stream = AudioStreamMP3.load_from_file("res://assets/sfx/hurt.mp3")
+	grunt.stream = load("res://assets/sfx/hurt.mp3")
 	add_child(retching)
 	retching.volume_db = -16
 	retching.max_distance = 7
 	for filename in ["gagging","retching"]:
-		retch_variants.append(AudioStreamMP3.load_from_file("res://assets/sfx/"+filename+".mp3"))
+		retch_variants.append(load("res://assets/sfx/"+filename+".mp3"))
 	for light in home.scene_lighting.get_children():
 		if light is Light3D:
 			room_lights.append({"node":light,"energy":light.light_energy})
@@ -62,13 +71,13 @@ func setup() -> void:
 	for row in home.records.values():
 		if str(row.kind)!="floor" or str(row.id)==home.night_world.floor_id or bool(row.deleted) or lights.size()>=6:
 			continue
-		var area: Rect2 = home.room_world_bounds(row)
+		var area: Rect2 = home.rooms.room_world_bounds(row)
 		if area.get_area()<4.0:
 			continue
 		if lights.any(func(other): return Vector2(other.position.x,other.position.z).distance_to(area.get_center())<1.5):
 			continue
 		var light := OmniLight3D.new()
-		light.position = Vector3(area.get_center().x,home.floor_surface(row)+2.15,area.get_center().y)
+		light.position = Vector3(area.get_center().x,home.rooms.floor_surface(row)+2.15,area.get_center().y)
 		light.omni_range = clampf(maxf(area.size.x,area.size.y)*.8,2.4,5.2)
 		light.omni_attenuation = 1.6
 		light.light_energy = 0
@@ -133,13 +142,13 @@ func start_fight(preferred: Node3D = null) -> bool:
 	if not fighters.is_empty() or not home.party.active:
 		return false
 	for first in home.party.guests:
-		if first.leaving or (preferred!=null and first!=preferred) or (is_instance_valid(first.partner) and first.partner!=home.player):
+		if first.leaving or not is_instance_valid(first.imported_model) or (preferred!=null and first!=preferred) or (is_instance_valid(first.partner) and first.partner!=home.player):
 			continue
 		for second in home.party.guests:
-			if second==first or second.leaving or is_instance_valid(second.partner):
+			if second==first or second.leaving or not is_instance_valid(second.imported_model) or is_instance_valid(second.partner):
 				continue
 			var distance: float = first.global_position.distance_to(second.global_position)
-			if distance<.65 or distance>1.25:
+			if distance<.56 or distance>(2.15 if preferred!=null else 1.35):
 				continue
 			var query := PhysicsRayQueryParameters3D.create(first.global_position+Vector3.UP,second.global_position+Vector3.UP,1)
 			if not get_world_3d().direct_space_state.intersect_ray(query).is_empty():
@@ -147,7 +156,7 @@ func start_fight(preferred: Node3D = null) -> bool:
 			if home.night_game.guest==first:
 				home.night_game.close_talk(false)
 			fighters.assign([first,second])
-			fight_time = 12.0
+			fight_time = 16.0
 			fight_ending = 0.0
 			hit_counts.clear()
 			next_hit = .85
@@ -156,10 +165,13 @@ func start_fight(preferred: Node3D = null) -> bool:
 				person.follow(PackedVector3Array())
 				person.fighting = true
 				person.imported_model.combat = true
+				person.imported_model.combat_swing = 0.0
+				person.imported_model.combat_guard = 0.0
+				person.imported_model.combat_recoil = 0.0
 				person.dancing = false
-				person.speech.text = SHOUTS[0] if person==first else SHOUTS[3]
+				person.speech.text = tr(SHOUTS[0] if person==first else SHOUTS[3])
 				person.speech.show()
-			home.hud.notice("Гости сцепились! Подойди и нажми E, чтобы разнять.")
+			GameEvents.notify(tr("Гости сцепились! Подойди и нажми E, чтобы разнять."))
 			return true
 	return false
 
@@ -174,56 +186,95 @@ func update_fight(delta: float) -> void:
 		if fight_ending<=0:
 			end_fight(false)
 		return
-	if impact_wait>0:
-		impact_wait -= delta
-		if impact_wait<=0:
-			land_punch()
 	for index in range(2):
-		var person = fighters[index]
-		var other = fighters[1-index]
-		var direction: Vector3 = other.position-person.position
+		var person := fighters[index] as PartyGuest
+		var other := fighters[1-index] as PartyGuest
+		var rig := person.imported_model as GuestModel
+		rig.combat_clock += delta
+		rig.combat_recoil = move_toward(rig.combat_recoil,0,delta*3.7)
+		var direction := other.global_position-person.global_position
+		direction.y = 0
 		person.rotation.y = lerp_angle(person.rotation.y,atan2(-direction.x,-direction.z),minf(1,delta*10))
-		if direction.length()>.84:
-			var next: Vector3 = person.position+direction.normalized()*minf(delta*.65,(direction.length()-.84)*.5)
-			if is_finite(home.ground_height(Vector2(next.x,next.z))):
-				person.position = next
+		var axis := direction.normalized()
+		var side := axis.cross(Vector3.UP)
+		var defending := person == impact_target and hit_index%4 == 2
+		rig.combat_guard = move_toward(rig.combat_guard,1.0 if defending else .16,delta*5)
+		var gap := direction.length()
+		var drift := clampf((gap-.73)*2.7,-.75,1.35)
+		var step := axis*drift + side*sin(rig.combat_clock*3.1)*.30
+		if person == impact_attacker:
+			step = axis*clampf((gap-.68)*3.9,-.5,1.65)
+		elif rig.combat_recoil>.05 or defending:
+			step = -axis*(.58*rig.combat_recoil)+side*(.56 if defending else 0.0)
+		if gap<.61:
+			step -= axis*.7
+		fight_step(person,step*delta)
+	if is_instance_valid(impact_attacker):
+		var rig := impact_attacker.imported_model as GuestModel
+		var defender := impact_target.imported_model as GuestModel
+		exchange_time += delta
+		rig.combat_swing = clampf(exchange_time/exchange_length,0,1)
+		rig.combat_target = defender.mouth_transform().origin - Vector3.UP*(.36 if rig.combat_style==2 else .02)
+		if not impact_done and rig.combat_swing >= .54:
+			impact_done = true
+			land_punch()
+		if rig.combat_swing >= 1.0:
+			rig.combat_swing = 0.0
+			impact_attacker = null
+			impact_target = null
 	home.party.bonus = maxf(-18,home.party.bonus-delta*1.1)
-	if next_hit<=0:
-		next_hit = .92+float(hit_index%3)*.09
-		var attacker = fighters[hit_index%2]
-		var defender = fighters[1-hit_index%2]
-		attacker.imported_model.play_action(&"attack",.72)
-		attacker.imported_model.punch_side = int(hit_index/2)%2
-		attacker.imported_model.combat_target = defender.imported_model.mouth_transform().origin
-		impact_attacker = attacker
-		impact_target = defender
-		impact_wait = .20
-		attacker.speech.text = SHOUTS[hit_index%SHOUTS.size()]
+	if next_hit<=0 and impact_attacker == null and fight_ending <= 0:
+		var attacker_index: int = [0,0,1,1,0,1][hit_index%6]
+		impact_attacker = fighters[attacker_index]
+		impact_target = fighters[1-attacker_index]
+		var rig := impact_attacker.imported_model as GuestModel
+		rig.punch_side = hit_index%2
+		rig.combat_style = hit_index%3
+		exchange_length = [.48,.61,.54][rig.combat_style]
+		exchange_time = 0.0
+		impact_done = false
+		next_hit = exchange_length + (.12 if hit_index%3==0 else .40)
+		impact_attacker.speech.text = tr(SHOUTS[hit_index%SHOUTS.size()])
 		hit_index += 1
 	if fight_time<=0:
 		end_fight(false)
+
+func fight_step(person: PartyGuest, step: Vector3) -> void:
+	var next := person.global_position+step
+	var floor := home.rooms.ground_height(Vector2(next.x,next.z))
+	if not is_finite(floor) or absf(floor-next.y)>.24:
+		return
+	fight_volume.transform.origin = Vector3(next.x,floor+.84,next.z)
+	if get_world_3d().direct_space_state.intersect_shape(fight_volume,1).is_empty():
+		person.global_position = Vector3(next.x,floor,next.z)
 
 func land_punch() -> void:
 	if not is_instance_valid(impact_target) or not is_instance_valid(impact_attacker):
 		return
 	var rig = impact_attacker.imported_model
 	var fist: Vector3 = rig.skeleton.to_global(rig.skeleton.get_bone_global_pose(rig.arms[rig.punch_side].z).origin)
-	var face: Vector3 = impact_target.imported_model.mouth_transform().origin
-	if fist.distance_to(face)>.42:
+	var face: Vector3 = rig.combat_target
+	if fist.distance_to(face)>.36:
 		return
-	impact_target.imported_model.play_action(&"hit",.58)
+	var ray := PhysicsRayQueryParameters3D.create(fist,face,1)
+	if not get_world_3d().direct_space_state.intersect_ray(ray).is_empty():
+		return
+	var blocked: bool = impact_target.imported_model.combat_guard > .56
+	impact_target.imported_model.combat_recoil = .32 if blocked else 1.0
 	sounds.global_position = face
 	sounds.pitch_scale = 0.88+float(hit_index%4)*.08
 	sounds.play()
+	if blocked:
+		return
 	grunt.global_position = face
 	grunt.pitch_scale = 1.10 if impact_target.female else .91
 	grunt.play()
 	hit_counts[impact_target] = int(hit_counts.get(impact_target,0))+1
-	impact_target.speech.text = SHOUTS[(hit_index+2)%SHOUTS.size()]
-	if int(hit_counts[impact_target])>=3:
+	impact_target.speech.text = tr(SHOUTS[(hit_index+2)%SHOUTS.size()])
+	if int(hit_counts[impact_target])>=4:
 		impact_target.imported_model.knockdown_time = 2.3
 		impact_target.imported_model.combat = false
-		impact_target.speech.text = "Всё, блядь, хватит!"
+		impact_target.speech.text = tr("Всё, блядь, хватит!")
 		fight_ending = 1.6
 
 func near_fight() -> bool:
@@ -238,10 +289,10 @@ func end_fight(intervened: bool) -> void:
 		person.imported_model.action_time = 0
 		person.imported_model.combat = false
 		person.rest = 0.0
-		if home.party.active and not home.party.connected.is_empty():
+		if home.party.active and home.party.has_walkable_area():
 			home.party.find_destination(person)
 	fighters.clear()
-	impact_wait = 0
+	exchange_time = 0.0
 	impact_target = null
 	impact_attacker = null
 	hit_counts.clear()
@@ -249,7 +300,7 @@ func end_fight(intervened: bool) -> void:
 	event_wait = 50.0
 	if intervened:
 		home.party.bonus = minf(20,home.party.bonus+8)
-		home.hud.notice("Разнял гостей. Атмосфера восстанавливается.")
+		GameEvents.notify(tr("Разнял гостей. Атмосфера восстанавливается."))
 
 func vomit_burst() -> void:
 	vomit_count += 1
@@ -259,7 +310,7 @@ func vomit_burst() -> void:
 	retching.play()
 	var emitter := CPUParticles3D.new()
 	home.player.mouth_anchor().add_child(emitter)
-	emitter.amount = 32
+	emitter.amount = 46
 	emitter.lifetime = .48
 	emitter.direction = Vector3(0,-.35,-1)
 	emitter.spread = 7
@@ -291,60 +342,106 @@ func vomit_burst() -> void:
 	)
 	var origin: Vector3 = home.player.mouth_anchor().global_position
 	var forward: Vector3 = -home.player.global_basis.z
-	var center := origin+forward*.55
-	var query := PhysicsRayQueryParameters3D.create(center,center+Vector3.DOWN*3.5,1,[home.player.get_rid()])
-	var result := get_world_3d().direct_space_state.intersect_ray(query)
-	if result.is_empty():
+	var space := get_world_3d().direct_space_state
+	var exclude := [home.player.get_rid()]
+	var center := origin + forward * .56
+	var obstruction := space.intersect_ray(PhysicsRayQueryParameters3D.create(origin,center,1,exclude))
+	if not obstruction.is_empty():
+		center = obstruction.position - forward * .09
+	var result := space.intersect_ray(PhysicsRayQueryParameters3D.create(center,center+Vector3.DOWN*3.5,1,exclude))
+	if result.is_empty() or result.normal.y < .88:
 		return
 	var stream := MeshInstance3D.new()
 	stream.mesh = ImmediateMesh.new()
 	stream.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	stream.material_override = surface
 	add_child(stream)
-	streams.append({"node":stream,"age":0.0,"floor":float(result.position.y)+.015})
+	streams.append({"node":stream,"age":0.0,"impact":result.position+Vector3.UP*.015})
+	var impact: Vector3 = result.position
+	get_tree().create_timer(.22).timeout.connect(func():
+		FPEffects.splatter(self,impact)
+		var splash := AudioStreamPlayer3D.new()
+		splash.stream = FPSounds.get_sound("splash")
+		splash.volume_db = -14
+		add_child(splash)
+		splash.global_position = impact
+		splash.play()
+		splash.finished.connect(splash.queue_free)
+	)
 	var puddle := Node3D.new()
 	add_child(puddle)
-	puddle.global_position = result.position+Vector3.UP*.008
-	for index in range(8):
-		var patch := MeshInstance3D.new()
-		patch.mesh = drop
-		patch.scale = Vector3(22+index%3,0.35,18+index%2)
-		patch.position = Vector3(sin(index*2.4)*.15,.001*index,cos(index*2.4)*.12)
-		patch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		puddle.add_child(patch)
-	puddle.scale = Vector3.ONE*.15
-	create_tween().tween_property(puddle,"scale",Vector3.ONE,1.9)
+	puddle.global_position = result.position+Vector3.UP*.009
+	var wet := surface.duplicate() as StandardMaterial3D
+	wet.vertex_color_use_as_albedo = true
+	wet.albedo_color = Color.WHITE
+	var stain := MeshInstance3D.new()
+	var mesh := ImmediateMesh.new()
+	stain.mesh = mesh
+	stain.material_override = wet
+	stain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	puddle.add_child(stain)
+	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	stain_patch(mesh,Vector3.ZERO,.23,.32,Color("#655332"),22)
+	for index in range(20):
+		var angle := index * 2.39996
+		var radius := randf_range(.12,.43)
+		var offset := Vector3(cos(angle)*radius,.0015,sin(angle)*radius)
+		var test: Vector3 = result.position + offset + Vector3.UP * .09
+		var floor_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(test,test+Vector3.DOWN*.15,1,exclude))
+		if floor_hit.is_empty() or absf(floor_hit.position.y-result.position.y) > .02:
+			continue
+		var width := randf_range(.008,.04)
+		stain_patch(mesh,offset,width,width*.76,Color("#938056") if index%3==0 else Color("#715a32"),8)
+	mesh.surface_end()
+	puddle.scale = Vector3(.06,1,.06)
+	var spread := puddle.create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	spread.tween_interval(.23)
+	spread.tween_property(puddle,"scale",Vector3(.72,1,.72),.30)
+	spread.tween_property(puddle,"scale",Vector3.ONE,1.05)
 	puddles.append(puddle)
 	if puddles.size()>6:
 		puddles.pop_front().queue_free()
+
+func stain_patch(mesh: ImmediateMesh, center: Vector3, width: float, length: float, tint: Color, sides: int) -> void:
+	var edge := PackedVector3Array()
+	for index in range(sides):
+		var angle := TAU * index / sides
+		var ripple := randf_range(.72,1.14)
+		edge.append(center + Vector3(cos(angle)*width*ripple,0,sin(angle)*length*ripple))
+	for index in range(sides):
+		mesh.surface_set_normal(Vector3.UP)
+		mesh.surface_set_color(tint.darkened(.25))
+		mesh.surface_add_vertex(center + Vector3.UP*.001)
+		for vertex in [edge[index],edge[(index+1)%sides]]:
+			mesh.surface_set_color(tint)
+			mesh.surface_add_vertex(vertex)
 
 func update_streams(delta: float) -> void:
 	for index in range(streams.size()-1,-1,-1):
 		var entry: Dictionary = streams[index]
 		entry.age += delta
 		var stream := entry.node as MeshInstance3D
-		if entry.age>=2.1:
+		if entry.age>=1.6:
 			stream.queue_free()
 			streams.remove_at(index)
 			continue
 		retching.global_position = home.player.mouth_anchor().global_position
-		var pulse := maxf(0,sin(entry.age*8.5))
+		var pulse := maxf(0,sin(entry.age*11.5)) * (1.0-smoothstep(1.05,1.6,entry.age))
 		stream.visible = pulse>.12
 		var mesh := stream.mesh as ImmediateMesh
 		mesh.clear_surfaces()
 		if not stream.visible:
 			continue
 		var mouth: Transform3D = home.player.mouth_anchor().global_transform
-		var velocity := -mouth.basis.z*1.4+Vector3.DOWN*.2
+		var impact: Vector3 = entry.impact
+		var control := mouth.origin.lerp(impact,.42)+Vector3.UP*.13
 		var previous := PackedVector3Array()
 		var previous_normals := PackedVector3Array()
 		mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 		for ring in range(13):
-			var t := float(ring)*.040
-			var center := mouth.origin+velocity*t+Vector3.DOWN*(3*t*t)
-			if center.y<float(entry.floor):
-				center.y = entry.floor
-			var direction := (velocity+Vector3.DOWN*6*t).normalized()
+			var t := float(ring)/12.0
+			var center := mouth.origin.lerp(control,t).lerp(control.lerp(impact,t),t)
+			var direction := (control-mouth.origin).lerp(impact-control,t).normalized()
 			var right := direction.cross(Vector3.UP).normalized()
 			if right.length_squared()<.01:
 				right = Vector3.RIGHT
@@ -365,6 +462,4 @@ func update_streams(delta: float) -> void:
 						mesh.surface_add_vertex(previous[vertex] if vertex<6 else points[vertex-6])
 			previous = points
 			previous_normals = normals
-			if center.y<=float(entry.floor):
-				break
 		mesh.surface_end()
