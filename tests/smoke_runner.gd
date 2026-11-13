@@ -84,6 +84,9 @@ func run_visual() -> void:
 	var game := home.night_game
 	game.menu.show_menu()
 	await snap("menu")
+	game.menu.screen.show_settings(true)
+	await snap("menu-settings")
+	game.menu.screen.show_settings(false)
 	game.menu.screen.continue_pressed.emit()
 	if game.intro.active:
 		await home.get_tree().create_timer(1.2).timeout
@@ -99,6 +102,14 @@ func run_visual() -> void:
 	await snap("pause-en")
 	GameSettings.set_language("ru")
 	game.toggle_pause()
+	home.shop.beer = 3
+	home.shop.energy = 1
+	home.party.cigarettes = 4
+	game.toggle_backpack()
+	await snap("inventory")
+	game.close_backpack()
+	GameEvents.notify(tr("Энергетик · бег быстрее на 45 с"))
+	await snap("hud")
 	var shop := home.shop
 	home.player.global_position = shop.to_global(Vector3(0, 0, 2))
 	shop.open()

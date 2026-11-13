@@ -19,11 +19,16 @@ const FINGERS := {
 	"pinky": [Vector3(-.004,-.026,-.074), [.032,.020,.018], .0075],
 }
 
+## Furthest each finger joint (base, middle, tip) may close while wrapping an item.
+const WRAP_LIMITS := [1.6,1.75,1.3]
+
 ## Pose name -> finger name -> [curl per joint (radians)], thumb -> [swing, curl1, curl2].
+## Optional "spread": finger -> sideways turn of the base joint (+ toward the index side).
 const POSES := {
 	"relaxed": {
 		"index": [.35,.45,.30], "middle": [.42,.55,.35], "ring": [.50,.62,.38], "pinky": [.58,.68,.40],
 		"thumb": [.35,.20,.25],
+		"spread": {"index": .05, "middle": 0.0, "ring": -.04, "pinky": -.1},
 	},
 	"bottle": {
 		"index": [1.05,.95,.55], "middle": [1.08,1.0,.6], "ring": [1.12,1.02,.62], "pinky": [1.2,1.05,.62],
@@ -33,13 +38,33 @@ const POSES := {
 		"index": [.95,.9,.55], "middle": [1.0,.95,.58], "ring": [1.05,.98,.6], "pinky": [1.12,1.0,.6],
 		"thumb": [.9,.5,.4],
 	},
+	# Cigarette between index and middle finger: both nearly straight and parted
+	# just enough for it (see PartyConsumables.CIG_IN_HAND), the rest tucked in.
 	"pinch": {
-		"index": [.42,.28,.12], "middle": [.48,.34,.16], "ring": [1.15,1.25,.8], "pinky": [1.25,1.3,.85],
-		"thumb": [.75,.55,.35],
+		"index": [.22,.18,.10], "middle": [.26,.22,.12], "ring": [.95,1.15,.75], "pinky": [1.05,1.2,.8],
+		"thumb": [.5,.3,.2],
+		"spread": {"index": .13, "middle": -.1, "ring": -.08, "pinky": -.14},
 	},
 	"lighter": {
 		"index": [.95,.95,.6], "middle": [1.05,1.0,.62], "ring": [1.15,1.05,.62], "pinky": [1.25,1.1,.64],
 		"thumb": [.55,.15,.05],
+	},
+	# Thumb rolled down over the spark wheel (blended in and out for each strike).
+	"lighter_strike": {
+		"index": [1.0,.98,.62], "middle": [1.08,1.02,.63], "ring": [1.17,1.06,.63], "pinky": [1.27,1.1,.64],
+		"thumb": [.9,.65,.55],
+	},
+	# Pinch with the thumb snapped against the filter: knocks the ash off.
+	"pinch_flick": {
+		"index": [.24,.2,.1], "middle": [.3,.24,.14], "ring": [.95,1.15,.75], "pinky": [1.05,1.2,.8],
+		"thumb": [1.0,.7,.5],
+		"spread": {"index": .13, "middle": -.1, "ring": -.08, "pinky": -.14},
+	},
+	# Everything flung open: the moment an item leaves the hand.
+	"open": {
+		"index": [.04,.02,.0], "middle": [.02,.0,.0], "ring": [.06,.03,.02], "pinky": [.1,.05,.03],
+		"thumb": [.05,.0,.0],
+		"spread": {"index": .14, "middle": .02, "ring": -.1, "pinky": -.22},
 	},
 	"fist": {
 		"index": [1.45,1.5,.9], "middle": [1.5,1.55,.95], "ring": [1.5,1.55,.95], "pinky": [1.5,1.5,.9],
@@ -106,8 +131,9 @@ func _init(is_left := false) -> void:
 	skin_material.set_shader_parameter("rim_amount",.14)
 	skin_material.set_shader_parameter("sss",.12)
 	skin_material.set_shader_parameter("uv_scale",Vector2(1,1))
-	nail_material = FPProps.view_material(Color("#e8c2b0"),.25)
-	nail_material.set_shader_parameter("clearcoat_amount",.5)
+	# Close to the skin tone and only lightly glossy: pale, shiny nails read as stuck-on blobs.
+	nail_material = FPProps.view_material(Color("#d8a48c"),.42)
+	nail_material.set_shader_parameter("clearcoat_amount",.18)
 	sleeve_material = FPProps.view_material(SLEEVE,.88,0.0,FPProps.fabric_texture())
 	sleeve_material.set_shader_parameter("uv_scale",Vector2(3,3))
 	cuff_material = FPProps.view_material(CUFF,.9,0.0,FPProps.fabric_texture())
@@ -279,10 +305,12 @@ func apply_pose() -> void:
 	var t := smoothstep(0.0,1.0,blend)
 	for finger in FINGERS:
 		var chain: Array = joints[finger]
+		var spread := lerpf(spread_of(a,finger),spread_of(b,finger),t)
 		for index in range(3):
 			var curl := lerpf(a[finger][index],b[finger][index],t)
-			# Curl toward the palm (-X): positive rotation around +Y.
-			(chain[index] as Node3D).rotation = Vector3(0,curl,0)
+			# Curl toward the palm (-X): positive rotation around +Y. The base joint
+			# also turns around X to part the fingers (applied before the curl).
+			(chain[index] as Node3D).rotation = Vector3(spread if index==0 else 0.0,curl,0)
 	var thumb: Array = joints["thumb"]
 	var swing := lerpf(a.thumb[0],b.thumb[0],t)
 	# The thumb starts pointing forward-down along the palm and swings across it;
@@ -297,6 +325,9 @@ func apply_pose() -> void:
 
 func pose_data(pose_name: String) -> Dictionary:
 	return fitted.get(pose_name,POSES[pose_name])
+
+static func spread_of(pose: Dictionary, finger: String) -> float:
+	return float(pose.get("spread",{}).get(finger,0.0))
 
 ## Re-curls `pose_name` so the hand wraps a cylinder (hand-local `center`,
 ## `axis`, `radius`) and rests on its surface instead of sinking into it.
@@ -313,21 +344,21 @@ func fit_cylinder(pose_name: String, center: Vector3, axis: Vector3, radius: flo
 		var data: Array = FINGERS[finger]
 		var chain: Array = joints[finger]
 		var natural: Array = pose[finger]
-		var best := 0.0
-		var amount := 0.0
-		while amount<=1.35:
-			var hit := false
-			for index in range(3):
-				(chain[index] as Node3D).rotation = Vector3(0,natural[index]*amount,0)
-			for index in range(3):
-				if touches(chain[index],data[1][index],data[2]*(1.0-index*.09),center,axis,radius):
-					hit = true
-					break
-			if hit:
-				break
-			best = amount
-			amount += .02
-		pose[finger] = [natural[0]*best,natural[1]*best,natural[2]*best]
+		# Wrap joint by joint, like a real grip: the base segment closes until it
+		# meets the item, then the middle one, then the tip, so every phalanx
+		# lies on the surface instead of the whole finger stopping at first contact.
+		for index in range(3):
+			(chain[index] as Node3D).rotation = Vector3.ZERO
+		var curls := []
+		for index in range(3):
+			var finger_radius: float = data[2]*(1.0-index*.09)
+			var curl := fit_joint(chain[index],data[1][index],finger_radius,center,axis,radius,WRAP_LIMITS[index],0.0)
+			# Nothing to wrap within reach: fall back to the pose's own curl.
+			if curl>=WRAP_LIMITS[index]-.03:
+				curl = maxf(float(natural[index]),.0)
+				(chain[index] as Node3D).rotation = Vector3(0,curl,0)
+			curls.append(curl)
+		pose[finger] = curls
 	var thumb: Array = joints["thumb"]
 	var lengths := [.036,.030,.024]
 	var natural_thumb: Array = pose.thumb
@@ -364,10 +395,10 @@ func set_thumb_swing(swing: float) -> void:
 	thumb_base.basis = thumb_frame(swing)
 	(joints["thumb"][0] as Node3D).rotation = Vector3(0,swing*.3,0)
 
-## Largest curl (scanning from open, up to `limit`) at which the segment still clears the item.
-func fit_joint(joint: Node3D, length: float, finger_radius: float, center: Vector3, axis: Vector3, radius: float, limit := 1.7) -> float:
-	var best := -.35
-	var curl := -.35
+## Largest curl (scanning from `start`, up to `limit`) at which the segment still clears the item.
+func fit_joint(joint: Node3D, length: float, finger_radius: float, center: Vector3, axis: Vector3, radius: float, limit := 1.7, start := -.35) -> float:
+	var best := start
+	var curl := start
 	while curl<=limit:
 		joint.rotation = Vector3(0,curl,0)
 		if touches(joint,length,finger_radius,center,axis,radius):

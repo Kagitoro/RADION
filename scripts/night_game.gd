@@ -14,6 +14,9 @@ var hint_time := 0.0
 const PAUSE_MENU := preload("res://ui/pause_menu.tscn")
 const HINTS := preload("res://ui/interaction_hints.tscn")
 var pause_panel: PauseMenu
+const BACKPACK := preload("res://ui/backpack_panel.tscn")
+## Player inventory (Tab).
+var backpack: BackpackPanel
 var guest: Node3D
 var interact_hint: Label
 var flashlight: SpotLight3D
@@ -68,12 +71,22 @@ func setup() -> void:
 		home.party.starting = true
 	)
 	pause_panel.main_menu_requested.connect(func(): menu.show_menu())
-	pause_panel.music_volume_changed.connect(func(value: float): home.party.music_gain = value)
-	pause_panel.steps_volume_changed.connect(func(value: float): home.player.step_audio.volume_db = -16.0+linear_to_db(maxf(.0001,value)))
+	pause_panel.music_volume_changed.connect(func(value: float): set_level("music",value))
+	pause_panel.steps_volume_changed.connect(func(value: float): set_level("steps",value))
 	pause_panel.language_changed.connect(GameSettings.set_language)
+	pause_panel.graphics_changed.connect(set_graphics)
+	# Applied by VisualQuality.apply once the scene is built.
+	VisualQuality.level = GameSettings.graphics()
 	pause_panel.restart_requested.connect(restart_game)
-	pause_panel.mouse_sensitivity_changed.connect(func(value: float): home.player.mouse_sensitivity = .0008+value*.0038)
+	pause_panel.mouse_sensitivity_changed.connect(func(value: float): set_level("mouse",value))
 	pause_panel.hide()
+	for key in GameSettings.DEFAULTS:
+		apply_level(key,GameSettings.level(key))
+	backpack = BACKPACK.instantiate()
+	root.add_child(backpack)
+	backpack.close_requested.connect(close_backpack)
+	backpack.use_requested.connect(use_from_backpack)
+	backpack.hide()
 	flashlight = SpotLight3D.new()
 	flashlight.spot_range = 12
 	flashlight.spot_angle = 25
@@ -229,9 +242,15 @@ func clean(target: Node3D) -> void:
 	target.hide()
 	target.queue_free()
 
+var shadow_timer := 0.0
+
 func _process(delta: float) -> void:
 	if interact_hint==null:
 		return
+	shadow_timer -= delta
+	if shadow_timer<=0.0:
+		shadow_timer = .3
+		VisualQuality.update_shadow_budget(home.player.camera)
 	if reply_time > 0.0:
 		reply_time -= delta
 		if reply_time <= 0.0:
@@ -239,11 +258,16 @@ func _process(delta: float) -> void:
 	if talk_actions.visible and (not is_instance_valid(guest) or guest.leaving or guest.global_position.distance_squared_to(home.player.global_position)>TALK_RANGE*TALK_RANGE):
 		close_talk()
 	interact_hint.visible = not home.modal and not talk_actions.visible
+	# The hint is a chip: invisible while there is nothing to say.
+	interact_hint.self_modulate.a = 0.0 if interact_hint.text.is_empty() else 1.0
 	hint_time -= delta
 	if not interact_hint.visible or hint_time > 0.0:
 		return
 	hint_time = .10
-	interact_hint.offset_top = -79
+	# Zero width, so the chip shrinks back around the new text (it grows from the centre).
+	interact_hint.offset_left = 0
+	interact_hint.offset_right = 0
+	interact_hint.offset_top = -96
 	if intro.entry_aimed():
 		interact_hint.text = tr("E · Открыть дверь ключом")
 		return
@@ -254,7 +278,7 @@ func _process(delta: float) -> void:
 		if intro.entry_opened and not intro.note_read:
 			interact_hint.text = tr("E · Прочитать записку")
 			return
-		interact_hint.offset_top = -101 if fridge.opened else -79
+		interact_hint.offset_top = -118 if fridge.opened else -96
 		interact_hint.text = fridge.hint()
 		return
 	for store in home.night_world.retail:
@@ -477,6 +501,60 @@ func close_talk(wander: bool = true) -> void:
 func restart_game() -> void:
 	GameReset.restart(get_tree())
 
+## A settings slider moved (pause menu or main menu): apply it and remember it.
+func set_level(key: String, value: float) -> void:
+	apply_level(key,value)
+	GameSettings.set_level(key,value)
+
+func set_graphics(value: int) -> void:
+	VisualQuality.set_level(value)
+	VisualQuality.update_shadow_budget(home.player.camera)
+	GameSettings.set_graphics(value)
+
+func apply_level(key: String, value: float) -> void:
+	match key:
+		"music": home.party.music_gain = value
+		"steps": home.player.step_audio.volume_db = -16.0+linear_to_db(maxf(.0001,value))
+		"mouse": home.player.mouse_sensitivity = .0008+value*.0038
+
+# --- inventory (Tab) --------------------------------------------------------------
+
+## Always in the pocket; shown in the inventory (name, description).
+const LIGHTER := ["Зажигалка","Красная одноразовая. Щёлкает со второго раза."]
+
+## What the player carries: [id, name, count, key, description, model].
+func backpack_items() -> Array:
+	var shop := home.shop
+	var items := []
+	items.append(["beer","Пиво",shop.beer,"B",StreetShop.ITEMS[1][4],"beer_bottle"])
+	items.append(["energy","Энергетик",shop.energy,"R",StreetShop.ITEMS[0][4],"energy_can"])
+	items.append(["cigarettes","Сигареты",home.party.cigarettes,"N",StreetShop.ITEMS[2][4],"cigarette_pack"])
+	items.append(["lighter",LIGHTER[0],1,"",LIGHTER[1],"lighter"])
+	return items
+
+func backpack_open() -> bool:
+	return is_instance_valid(backpack) and backpack.visible
+
+func toggle_backpack() -> void:
+	if backpack_open():
+		close_backpack()
+	elif not home.modal and not home.player.collapsed and not home.player.vomiting:
+		backpack.open(backpack_items(),home.party.cash)
+		home.set_modal(true)
+
+func close_backpack() -> void:
+	if not backpack_open():
+		return
+	backpack.close()
+	home.set_modal(false)
+
+func use_from_backpack(id: String) -> void:
+	close_backpack()
+	match id:
+		"beer": home.party.consume(true)
+		"energy": home.shop.drink_energy()
+		"cigarettes": home.party.consume(false)
+
 func toggle_pause() -> void:
 	if talk_actions.visible:
 		close_talk()
@@ -506,6 +584,10 @@ func handle_input(event: InputEvent) -> void:
 		if event.is_action_pressed("pause"):
 			home.shop.close()
 		return
+	if backpack_open():
+		if event.is_action_pressed("pause") or event.is_action_pressed("inventory"):
+			close_backpack()
+		return
 	var station := current_dj()
 	if station.panel.visible:
 		if event.is_action_pressed("pause") and not station.music_library.chooser.visible:
@@ -527,7 +609,9 @@ func handle_input(event: InputEvent) -> void:
 		if event.is_action_pressed("interact"):
 			close_talk()
 		return
-	if event.is_action_pressed("interact"):
+	if event.is_action_pressed("inventory"):
+		toggle_backpack()
+	elif event.is_action_pressed("interact"):
 		interact()
 	elif is_instance_valid(fridge) and fridge.opened and fridge.aimed() and fridge_stock_input(event):
 		return

@@ -140,7 +140,8 @@ func setup(game_home: Home, night_game: NightGame) -> void:
 		note_read = config.get_value("story","note_read",opening_completed)
 	if home.game_mode:
 		build_entrance()
-	objective = UIKit.label("",15)
+	objective = UIKit.label("",14)
+	objective.theme_type_variation = &"HudObjective"
 	home.hud.root.add_child(objective)
 	objective.position = Vector2(20,150)
 	objective.mouse_filter = Control.MOUSE_FILTER_IGNORE

@@ -96,6 +96,7 @@ func _ready() -> void:
 	openings.install_studio_windows()
 	for id in records:
 		apply_item(id)
+	bind_lights_to_fixtures()
 	scene_finish.sync_ceilings()
 	if not SavePaths.is_test_run():
 		var loaded := storage.load_project(storage.SAVE_PATH, false)
@@ -118,6 +119,8 @@ func _ready() -> void:
 	night_game.setup()
 	VisualQuality.plaster(scene_finish.paint)
 	VisualQuality.apply(self)
+	if game_mode:
+		HouseOcclusion.build(self)
 	if not SavePaths.is_test_run():
 		GameSettings.apply_language(GameSettings.language())
 	go_room("hall")
@@ -156,6 +159,26 @@ func quit_game(code: int = 0) -> void:
 func vector(value: Array) -> Vector3:
 	return Vector3(float(value[0]), float(value[1]), float(value[2]))
 
+const HOUSE_LIGHTS := preload("res://assets/house_lights.tscn")
+
+## Lamps with a `fixture` item id ride on that item (chandelier, PC LEDs…), so they
+## follow it when the item or its room is moved. Called once items are placed.
+func bind_lights_to_fixtures() -> void:
+	for light in scene_lighting.get_children():
+		var fixture := str(light.get_meta("fixture",""))
+		if fixture.is_empty():
+			continue
+		if not nodes.has(fixture):
+			push_warning("Светильник %s не найден для %s" % [fixture,light.name])
+			rooms.register_room_attachment(light,light.global_position)
+			continue
+		var anchor := RemoteTransform3D.new()
+		anchor.name = "Light_"+str(light.name)
+		anchor.update_scale = false
+		nodes[fixture].add_child(anchor)
+		anchor.global_transform = (light as Node3D).global_transform
+		anchor.remote_path = anchor.get_path_to(light)
+
 func setup_lighting() -> void:
 	var world := WorldEnvironment.new()
 	var env := Environment.new()
@@ -179,7 +202,10 @@ func setup_lighting() -> void:
 	grass_noise.frequency = .04
 	grass_texture.noise = grass_noise
 	var grass_ramp := Gradient.new()
-	grass_ramp.colors = PackedColorArray([Color("#a7b7a1"),Color("#f5f6e5")])
+	grass_ramp.offsets = PackedFloat32Array([0.0,.45,.7])
+	grass_ramp.colors = PackedColorArray([Color("#a7b7a1"),Color("#cfd8c4"),Color("#f5f6e5")])
+	# Flat patches of grass rather than a smooth blur (low-poly ground).
+	grass_ramp.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CONSTANT
 	grass_texture.color_ramp = grass_ramp
 	landscape_surface.set_shader_parameter("grass",grass_texture)
 	site.mesh = plane
@@ -188,30 +214,20 @@ func setup_lighting() -> void:
 	site.position.y = -.055
 	add_child(site)
 	scene_finish.landscape(env)
-	for entry in data.lights:
-		var light: Light3D
-		if bool(entry.get("spot",false)):
-			var spot := SpotLight3D.new()
-			spot.spot_range = 7.5
-			spot.spot_angle = minf(82.0, float(entry.angle))
-			spot.spot_attenuation = 1.1
-			spot.shadow_enabled = false
-			light = spot
-		else:
-			var omni := OmniLight3D.new()
-			omni.omni_range = maxf(0.28, float(entry.range))
-			omni.omni_attenuation = 1.35
-			light = omni
-		var rgb := int(entry.color)
-		light.light_color = Color8((rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255)
-		light.light_energy = float(entry.energy) * (0.048 if bool(entry.get("spot",false)) else 0.047)
+	# House lamps come from an editable scene: open assets/house_lights.tscn in
+	# the Godot editor and drag them with the house shown underneath.
+	var lamps := HOUSE_LIGHTS.instantiate() as Node3D
+	for light in lamps.get_children():
+		if not light is Light3D:
+			continue
+		var place: Transform3D = lamps.transform*(light as Light3D).transform
+		lamps.remove_child(light)
+		light.owner = null
 		scene_lighting.add_child(light)
-		light.global_position = vector(entry.p)
-		if bool(entry.get("spot",false)):
-			var target := vector(entry.target)
-			var up := Vector3.FORWARD if absf((target - light.global_position).normalized().dot(Vector3.UP)) > 0.98 else Vector3.UP
-			light.look_at(target, up)
-		rooms.register_room_attachment(light,light.global_position)
+		light.global_transform = place
+		if str(light.get_meta("fixture","")).is_empty():
+			rooms.register_room_attachment(light,light.global_position)
+	lamps.free()
 
 func dimensions(s: Dictionary) -> Vector3:
 	return Vector3(float(s.w), float(s.h), float(s.d))

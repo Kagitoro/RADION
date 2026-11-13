@@ -9,39 +9,39 @@ _data = {
 &"beer": ExtResource("3_rv73k")
 }
 
-[node name="Preview_beer" type="Node3D" unique_id=2082633299]
+[node name="Preview_beer" type="Node3D" unique_id=233564409]
 
-[node name="Sway" type="Node3D" parent="." unique_id=358243821]
+[node name="Sway" type="Node3D" parent="." unique_id=7860889]
 
-[node name="Right" type="Node3D" parent="Sway" unique_id=1620061417]
+[node name="Right" type="Node3D" parent="Sway" unique_id=1516498322]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, -0.6, -0.3)
 
-[node name="RightHand" type="Node3D" parent="Sway/Right" unique_id=1858760070]
+[node name="RightHand" type="Node3D" parent="Sway/Right" unique_id=346251767]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.047, 0.004, 0.046)
 
-[node name="Arm" type="Node3D" parent="Sway/Right/RightHand" unique_id=458097135 instance=ExtResource("1_4pw13")]
+[node name="Arm" type="Node3D" parent="Sway/Right/RightHand" unique_id=1407739651 instance=ExtResource("1_4pw13")]
 
-[node name="Bottle" type="Node3D" parent="Sway/Right" unique_id=1541772995 instance=ExtResource("2_q8hcw")]
+[node name="Bottle" type="Node3D" parent="Sway/Right" unique_id=1261985274 instance=ExtResource("2_q8hcw")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.085, 0)
 
-[node name="Left" type="Node3D" parent="Sway" unique_id=1955242997]
+[node name="Left" type="Node3D" parent="Sway" unique_id=1025797349]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, -0.6, -0.3)
 visible = false
 
-[node name="LeftHand" type="Node3D" parent="Sway/Left" unique_id=1943697105]
+[node name="LeftHand" type="Node3D" parent="Sway/Left" unique_id=1472154487]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
-[node name="Arm" type="Node3D" parent="Sway/Left/LeftHand" unique_id=403914035 instance=ExtResource("1_4pw13")]
+[node name="Arm" type="Node3D" parent="Sway/Left/LeftHand" unique_id=177888622 instance=ExtResource("1_4pw13")]
 
-[node name="Mouth" type="Node3D" parent="Sway" unique_id=780851209]
+[node name="Mouth" type="Node3D" parent="Sway" unique_id=2023839532]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.072, -0.13)
 
-[node name="PlayerCamera" type="Camera3D" parent="." unique_id=1643026917]
+[node name="PlayerCamera" type="Camera3D" parent="." unique_id=2017260974]
 fov = 71.9996
 near = 0.01
 
-[node name="Light" type="DirectionalLight3D" parent="." unique_id=2050544311]
+[node name="Light" type="DirectionalLight3D" parent="." unique_id=1338540484]
 transform = Transform3D(0.87758255, -0.3088544, 0.36668488, 0, 0.7648422, 0.64421767, -0.47942555, -0.56535417, 0.6712122, 0, 0, 0)
 
-[node name="Actions" type="AnimationPlayer" parent="." unique_id=1905968188]
+[node name="Actions" type="AnimationPlayer" parent="." unique_id=97864069]
 libraries/ = SubResource("AnimationLibrary_pruy7")

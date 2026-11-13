@@ -31,6 +31,8 @@ var base_rotations: Array[Quaternion] = []
 var base_positions: Array[Vector3] = []
 var base_scales: Array[Vector3] = []
 var player_body := false
+## Skinned copies made by `make_first_person` (what the player sees of their own body).
+var first_person_parts: Array[MeshInstance3D] = []
 var service_tray: Node3D
 var service_time := 0.0
 
@@ -464,6 +466,78 @@ func make_first_person(visible_bones := PackedStringArray(), hidden_bones := Pac
 		visible_body.layers = 16
 		visible_body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		part.get_parent().add_child(visible_body)
+		first_person_parts.append(visible_body)
+
+## Moves the triangles skinned to each limb of the first-person body into their own
+## meshes on their own render layers, so one arm can be hidden while the rest of the
+## body stays visible. limbs: root bone index -> layer bits.
+func split_limbs(limbs: Dictionary) -> void:
+	for part: MeshInstance3D in first_person_parts.duplicate():
+		var meshes := {-1: ArrayMesh.new()}
+		for limb in limbs:
+			meshes[limb] = ArrayMesh.new()
+		for surface in range(part.mesh.get_surface_count()):
+			var arrays := part.mesh.surface_get_arrays(surface)
+			var surface_material := part.mesh.surface_get_material(surface)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+			var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+			@warning_ignore("integer_division")
+			var stride := bones.size() / vertices.size()
+			# Which limb (or -1, the body) carries most of each vertex.
+			var owners := PackedInt32Array()
+			owners.resize(vertices.size())
+			for vertex in range(vertices.size()):
+				var share := {}
+				for influence in range(stride):
+					var index := vertex * stride + influence
+					var bone := part.skin.get_bind_bone(bones[index])
+					if bone < 0:
+						bone = skeleton.find_bone(part.skin.get_bind_name(bones[index]))
+					while bone >= 0 and not limbs.has(bone):
+						bone = skeleton.get_bone_parent(bone)
+					if bone >= 0:
+						share[bone] = share.get(bone,0.0) + weights[index]
+				owners[vertex] = -1
+				for limb in share:
+					if share[limb] > .5:
+						owners[vertex] = limb
+			var source: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+			var lists := {}
+			for key in meshes:
+				lists[key] = PackedInt32Array()
+			for triangle in range(0,source.size(),3):
+				var key := -1
+				for limb in limbs:
+					var count := 0
+					for corner in range(3):
+						if owners[source[triangle+corner]] == limb:
+							count += 1
+					if count >= 2:
+						key = limb
+				lists[key].append_array(source.slice(triangle,triangle+3))
+			for key in lists:
+				if (lists[key] as PackedInt32Array).is_empty():
+					continue
+				arrays[Mesh.ARRAY_INDEX] = lists[key]
+				var target: ArrayMesh = meshes[key]
+				target.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+				target.surface_set_material(target.get_surface_count()-1,surface_material)
+		part.mesh = meshes[-1]
+		for limb in limbs:
+			var limb_mesh: ArrayMesh = meshes[limb]
+			if limb_mesh.get_surface_count() == 0:
+				continue
+			var piece := MeshInstance3D.new()
+			piece.name = part.name + "_" + skeleton.get_bone_name(limb)
+			piece.mesh = limb_mesh
+			piece.skin = part.skin
+			piece.skeleton = part.skeleton
+			piece.transform = part.transform
+			piece.layers = limbs[limb]
+			piece.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			part.get_parent().add_child(piece)
+			first_person_parts.append(piece)
 
 func pocket(arm: Vector3i, side: float) -> void:
 	var target := Vector3(side*.16,.87,.10) if psx else Vector3(side*.32,1.06,.27)

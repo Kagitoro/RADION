@@ -11,9 +11,18 @@ const LENGTHS := {
 }
 static var cache := {}
 
+## Recorded foley (assets/sfx, CC0, see Credits.txt) used instead of the synthesized version.
+const RECORDED := {
+	"gulp": "res://assets/sfx/gulp_a.wav",
+	"gulp_b": "res://assets/sfx/gulp_b.wav",
+	"gulp_c": "res://assets/sfx/gulp_c.wav",
+	"burp": "res://assets/sfx/burp.wav",
+}
+
 static func get_sound(sound_name: String) -> AudioStreamWAV:
 	if not cache.has(sound_name):
-		cache[sound_name] = render(LENGTHS[sound_name],Callable(FPSounds,"gen_"+sound_name),sound_name.hash())
+		var recorded := load(RECORDED[sound_name]) as AudioStreamWAV if RECORDED.has(sound_name) else null
+		cache[sound_name] = recorded if recorded!=null else render(LENGTHS[sound_name],Callable(FPSounds,"gen_"+sound_name),sound_name.hash())
 	return cache[sound_name]
 
 static func render(seconds: float, generator: Callable, seed_value: int) -> AudioStreamWAV:

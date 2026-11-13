@@ -18,7 +18,8 @@ from mathutils import Vector, Matrix, Quaternion
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SRC = os.path.join(ROOT, "assets", "fp", "source")
-OUT = os.path.join(ROOT, "assets", "fp")
+# FP_OUT overrides the output folder (test builds); names after "--" pick builders.
+OUT = os.environ.get("FP_OUT") or os.path.join(ROOT, "assets", "fp")
 TAU = math.pi * 2
 IMAGES = {}
 
@@ -267,169 +268,242 @@ def all_children(obj):
     return out
 
 
+# --- low-poly building blocks ------------------------------------------------------
+# Everything below is deliberately faceted (flat shaded, few sides): the hands and
+# consumables share a stylised low-poly look with crisp silhouettes.
+
+class Skinned:
+    """bmesh under construction whose vertices carry bone weights and faces materials."""
+
+    def __init__(self, groups):
+        self.bm = bmesh.new()
+        self.deform = self.bm.verts.layers.deform.verify()
+        self.groups = {name: i for i, name in enumerate(groups)}
+
+    def vert(self, co_g, weights):
+        v = self.bm.verts.new(g2b(co_g))
+        total = sum(weights.values())
+        for name, w in weights.items():
+            if w > 0:
+                v[self.deform][self.groups[name]] = w / total
+        return v
+
+    def face(self, verts, material=0):
+        f = self.bm.faces.new(verts)
+        f.material_index = material
+        return f
+
+    def tube(self, rings, material=0, tip=None, closed_start=False):
+        """Rings: lists of verts with the same count; quads between them, optional tip fan."""
+        n = len(rings[0])
+        for a, b in zip(rings, rings[1:]):
+            for s in range(n):
+                t = (s + 1) % n
+                self.face((a[s], a[t], b[t], b[s]), material)
+        if tip is not None:
+            last = rings[-1]
+            for s in range(n):
+                self.face((last[s], last[(s + 1) % n], tip), material)
+        if closed_start:
+            self.face(list(reversed(rings[0])), material)
+
+    def mesh(self, name, materials):
+        bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces)
+        mesh = bpy.data.meshes.new(name)
+        self.bm.to_mesh(mesh)
+        self.bm.free()
+        for mat in materials:
+            mesh.materials.append(mat)
+        return mesh
+
+
+def frame_of(head, tail, up):
+    """Godot-space bone frame: z points back toward the head, x is the back of the finger."""
+    z = (Vector(head) - Vector(tail)).normalized()
+    y = Vector(up).normalized()
+    x = y.cross(z).normalized()
+    y = z.cross(x).normalized()
+    return x, y, z
+
+
+def polygon_ring(center, x, y, rx, ry, sides, turn=0.0, squash=None):
+    """Points of a flat-sided ring. With turn = pi/sides a flat face looks along +x."""
+    out = []
+    for s in range(sides):
+        a = turn + TAU * s / sides
+        k = squash(a) if squash else 1.0
+        out.append(center + x * (math.cos(a) * rx * k) + y * (math.sin(a) * ry * k))
+    return out
+
+
+def box_uv(mesh, scale=9.0):
+    """Box-projected UVs; the skin and fabric textures are soft noise, so seams never show."""
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    uv = bm.loops.layers.uv.verify()
+    for face in bm.faces:
+        n = face.normal
+        axis = max(range(3), key=lambda k: abs(n[k]))
+        pair = [(1, 2), (0, 2), (0, 1)][axis]
+        for loop in face.loops:
+            co = loop.vert.co
+            loop[uv].uv = (co[pair[0]] * scale, co[pair[1]] * scale)
+    bm.to_mesh(mesh)
+    bm.free()
+
+
 # --- arm -----------------------------------------------------------------------
+
+BONE_ORDER = ["hand", "forearm"] + ["%s_%d" % (f, i) for f in ("index", "middle", "ring", "pinky", "thumb") for i in (1, 2, 3)]
+
 
 def build_arm():
     reset()
     col = collection("Arm")
     rig = json.load(open(os.path.join(SRC, "hand_rig.json")))
     bones = {b["name"]: b for b in rig["bones"]}
+    names = [b["name"] for b in rig["bones"]]
 
-    # Plain colours: the game swaps in its own skin/fabric shaders, and glTF drops
-    # the colour factor when a texture is linked (white hands in the editor previews).
+    # Plain colours: the game swaps in its own skin/fabric shaders by material name.
     skin = material("Skin", (0.79, 0.58, 0.44, 1), .55)
     nail = material("Nail", (0.9, 0.72, 0.64, 1), .25)
     sleeve = material("Sleeve", (0.23, 0.25, 0.34, 1), .88)
     cuff = material("Cuff", (0.17, 0.18, 0.25, 1), .9)
 
-    # Metaball families fuse only with themselves, so every finger is its own
-    # family (no webbing between fingers); the voxel remesh then welds them to the palm.
-    pieces = []
+    body = Skinned(names)
+    SKIN, NAIL = 0, 1
 
-    def family(name):
-        mb = bpy.data.metaballs.new(name)
-        mb.resolution = .0011
-        mb.render_resolution = .0011
-        mb.threshold = .6
-        obj = bpy.data.objects.new(name, mb)
-        col.objects.link(obj)
-        pieces.append(obj)
-        return mb
-
-    surface = .672  # metaball radius -> surface radius at threshold .6, stiffness 2
-
-    def capsule(mb, a_g, b_g, radius):
-        a = g2b(a_g); b = g2b(b_g)
-        el = mb.elements.new(type="CAPSULE")
-        el.co = (a + b) / 2
-        el.radius = radius / surface
-        el.size_x = (b - a).length / 2
-        el.rotation = Vector((1, 0, 0)).rotation_difference((b - a).normalized())
-        el.stiffness = 2.0
-
-    def blob(mb, center_g, semi_g, turn=None):
-        el = mb.elements.new(type="ELLIPSOID")
-        el.co = g2b(center_g)
-        base = max(semi_g)
-        el.radius = base / surface
-        s = [semi_g[0] / base, semi_g[2] / base, semi_g[1] / base]  # Godot x,z,y -> Blender x,y,z sizes
-        el.size_x, el.size_y, el.size_z = s
-        if turn:
-            el.rotation = turn
-        el.stiffness = 2.0
-
-    palm = family("SkinPalm")
-    blob(palm, (.004, 0.0, -.047), (.0165, .036, .043))
-    blob(palm, (.005, 0.0, -.074), (.014, .038, .016))
-    blob(palm, (.002, -.010, -.020), (.017, .029, .026))
-    blob(palm, (-.007, .021, -.032), (.013, .015, .023))   # thenar (thumb muscle)
-    blob(palm, (-.004, -.024, -.045), (.011, .011, .03))   # hypothenar
-    for finger in ("index", "middle", "ring", "pinky"):
-        b = bones[finger + "_1"]
-        head = Vector(b["head"]); tail = Vector(b["tail"])
-        blob(palm, head + Vector((.008, 0, .006)), (.0088, .0086, .0095))
-        # Skin web: the first third of each finger grows out of the palm smoothly.
-        capsule(palm, head + Vector((0, 0, .008)), head + (tail - head) * .32, b["radius"] * 1.08)
-    # Wrist: flattened oval tapering into the forearm (hidden by the cuff further back).
-    for z, wy in ((.0, .029), (.035, .027), (.075, .026), (.11, .026)):
-        blob(palm, (.004, -.004, z), (.0215, wy, .03))
-
+    # Fingers: one hexagonal tube per finger with a flat back and a flat pad,
+    # a ring at every knuckle shared by the two bones so bends fold cleanly.
     for finger in ("index", "middle", "ring", "pinky", "thumb"):
-        mb = family("Skin" + finger.capitalize())
-        for i in (1, 2, 3):
-            b = bones["%s_%d" % (finger, i)]
-            r = b["radius"] * (1.04 if finger != "thumb" else 1.0)
-            head = Vector(b["head"]); tail = Vector(b["tail"])
-            if i == 3:
-                tail = head + (tail - head) * .82  # rounded tip ends where the old fingertip did
-            capsule(mb, head, tail, r)
+        b1, b2, b3 = (bones["%s_%d" % (finger, i)] for i in (1, 2, 3))
+        x, y, z = frame_of(b1["head"], b1["tail"], b1["up"])
+        fwd = -z
+        h1, h2, h3 = Vector(b1["head"]), Vector(b2["head"]), Vector(b3["head"])
+        end = Vector(b3["tail"])
+        r1, r2, r3 = b1["radius"], b2["radius"], b3["radius"]
+        n1, n2, n3 = b1["name"], b2["name"], b3["name"]
+        thumb = finger == "thumb"
+        root_w = {"hand": .65, n1: .35} if not thumb else {"hand": .45, n1: .55}
+        flat = .86  # fingers are a little flatter than they are wide
+        sides = 6
+        turn = math.pi / sides
 
-    bpy.context.view_layer.update()
-    meshes = []
-    for obj in pieces:
-        if "." in obj.name:
-            continue
-        mesh = evaluated_mesh(obj, obj.name + "Mesh")
-        holder = bpy.data.objects.new(obj.name + "Poly", mesh)
-        col.objects.link(holder)
-        meshes.append(holder)
-    for obj in pieces:
-        bpy.data.objects.remove(obj)
-    fused = bpy.data.objects.new("ArmSkinRaw", join(meshes, "ArmSkinRaw"))
-    col.objects.link(fused)
-    for obj in meshes:
-        bpy.data.objects.remove(obj)
-    remesh = fused.modifiers.new("Remesh", "REMESH")
-    remesh.mode = "VOXEL"
-    remesh.voxel_size = .0009
-    remesh.adaptivity = 0.0
-    smooth = fused.modifiers.new("Smooth", "SMOOTH")
-    smooth.factor = .7
-    smooth.iterations = 12
-    decimate = fused.modifiers.new("Decimate", "DECIMATE")
-    decimate.ratio = .16
-    bpy.context.view_layer.update()
-    skin_mesh = evaluated_mesh(fused, "ArmSkin")
-    bpy.data.objects.remove(fused)
-    skin_mesh.materials.clear()
-    skin_mesh.materials.append(skin)
+        def ring(center, r, weights, knuckle=0.0, pad=0.0):
+            def squash(a):
+                c = math.cos(a)
+                # +x (back) gets the knuckle bump, -x (palm side) the pad.
+                return 1.0 + (knuckle * max(c, 0.0)) + (pad * max(-c, 0.0))
+            pts = polygon_ring(center, x, y, r * flat * 1.08, r * 1.08, sides, turn, squash)
+            return [body.vert(p, weights) for p in pts]
+
+        stations = [
+            ring(h1 - fwd * (.014 if not thumb else .016), r1 * 1.12, root_w),
+            ring(h1 + fwd * .002, r1 * 1.08, {"hand": .25, n1: .75}, knuckle=.12),
+            ring(h1 + (h2 - h1) * .55, r1 * .98, {n1: 1}),
+            ring(h2, r2 * 1.06, {n1: .5, n2: .5}, knuckle=.1),
+            ring(h2 + (h3 - h2) * .5, r2 * .96, {n2: 1}, pad=.06),
+            ring(h3, r3 * 1.04, {n2: .5, n3: .5}, knuckle=.06),
+            ring(h3 + (end - h3) * .5, r3 * 1.0, {n3: 1}, pad=.1),
+            ring(h3 + (end - h3) * .8, r3 * .8, {n3: 1}, pad=.05),
+        ]
+        tip = body.vert(h3 + (end - h3) * .93 - x * (r3 * .15), {n3: 1})
+        body.tube(stations, SKIN, tip=tip)
+
+        # Nail: a thin faceted plate on the back of the last segment.
+        length = (end - h3).length
+        lift = r3 * flat * 1.08 * math.cos(turn) + .0004
+        base = h3 + fwd * (length * .32) + x * lift
+        front = h3 + fwd * (length * .86) + x * (lift - r3 * .12)
+        w = r3 * (.72 if not thumb else .8)
+        outline = [base - y * w * .85, base + y * w * .85, base + (front - base) * .55 + y * w,
+                   front + y * w * .55, front - y * w * .55, base + (front - base) * .55 - y * w]
+        top = [body.vert(p + x * .0007, {n3: 1}) for p in outline]
+        low = [body.vert(p - x * .0004, {n3: 1}) for p in outline]
+        body.face(top, NAIL)
+        body.face(list(reversed(low)), NAIL)
+        for s in range(len(outline)):
+            t = (s + 1) % len(outline)
+            body.face((top[t], top[s], low[s], low[t]), NAIL)
+
+    # Palm: a convex hull of hand-placed landmarks (knuckles, heel, thumb mound),
+    # then nearly coplanar triangles are merged into larger flat facets.
+    palm_pts = []
+    for finger, back, front in (("index", (.0085, .002, .004), (-.0105, .002, .006)),
+                                ("middle", (.0095, 0, .004), (-.0105, 0, .006)),
+                                ("ring", (.009, 0, .004), (-.0105, 0, .006)),
+                                ("pinky", (.0075, -.002, .004), (-.0095, -.002, .006))):
+        head = Vector(bones[finger + "_1"]["head"])
+        palm_pts.append(head + Vector(back))
+        palm_pts.append(head + Vector(front))
+    palm_pts += [Vector(p) for p in (
+        (.002, .037, -.066), (-.004, .035, -.074),          # index edge
+        (.001, -.035, -.058), (-.006, -.032, -.064),         # pinky edge
+        (.0195, .022, -.038), (.0205, -.018, -.040),         # back of the hand
+        (-.0145, -.026, -.030), (-.0135, -.006, -.050),      # heel / hypothenar
+        (-.021, .026, -.030), (-.018, .036, -.042), (-.006, .042, -.036),  # thumb mound
+        (-.016, .015, -.012),
+    )]
+    for p in polygon_ring(Vector((.003, -.002, -.004)), Vector((1, 0, 0)), Vector((0, 1, 0)), .0135, .022, 8, math.pi / 8):
+        palm_pts.append(p)
+    thumb_root = Vector(bones["thumb_1"]["head"])
+    palm_bm = bmesh.new()
+    for p in palm_pts:
+        palm_bm.verts.new(p)
+    hull = bmesh.ops.convex_hull(palm_bm, input=list(palm_bm.verts))
+    bmesh.ops.delete(palm_bm, geom=list({v for v in hull["geom_interior"] + hull["geom_unused"] if isinstance(v, bmesh.types.BMVert)}), context="VERTS")
+    bmesh.ops.dissolve_limit(palm_bm, angle_limit=math.radians(7), verts=list(palm_bm.verts), edges=list(palm_bm.edges))
+    bmesh.ops.triangulate(palm_bm, faces=[f for f in palm_bm.faces if len(f.verts) > 4])
+    palm_map = {}
+    for v in palm_bm.verts:
+        p = Vector(v.co)
+        weights = {"hand": 1.0}
+        if p.z > -.012:
+            weights["forearm"] = min(max((p.z + .012) / .03, 0), 1) * .6
+        d = (p - thumb_root).length
+        if d < .018:
+            weights["thumb_1"] = .4 * (1 - d / .018)
+        palm_map[v] = body.vert(p, weights)
+    for f in palm_bm.faces:
+        body.face([palm_map[v] for v in f.verts], SKIN)
+    palm_bm.free()
+
+    # Wrist and forearm: an octagonal tube tapering into the sleeve.
+    wrist = []
+    for zpos, rx, ry, w in ((-.016, .0148, .0235, {"hand": .9, "forearm": .1}),
+                            (.018, .0168, .0255, {"hand": .4, "forearm": .6}),
+                            (.06, .0185, .027, {"forearm": 1}),
+                            (.16, .021, .029, {"forearm": 1})):
+        pts = polygon_ring(Vector((.003, -.002, zpos)), Vector((1, 0, 0)), Vector((0, 1, 0)), rx, ry, 8, math.pi / 8)
+        wrist.append([body.vert(p, w) for p in pts])
+    body.tube(wrist, SKIN)
+
+    skin_mesh = body.mesh("ArmSkin", [skin, nail])
+    box_uv(skin_mesh)
+    finish(skin_mesh)
     print("skin triangles", sum(len(p.vertices) - 2 for p in skin_mesh.polygons))
-
-    # Box-projected UVs: the skin texture is soft noise, so seams do not show.
-    bm = bmesh.new()
-    bm.from_mesh(skin_mesh)
-    uv = bm.loops.layers.uv.new()
-    for face in bm.faces:
-        n = face.normal
-        axis = max(range(3), key=lambda k: abs(n[k]))
-        for loop in face.loops:
-            co = loop.vert.co
-            pair = [(1, 2), (0, 2), (0, 1)][axis]
-            loop[uv].uv = (co[pair[0]] * 9, co[pair[1]] * 9)
-    bm.to_mesh(skin_mesh)
-    bm.free()
-    finish(skin_mesh, 180)
-
-    # Nails: thin shells on the back (+X) of the fingertips.
-    nails = []
-    for finger in ("index", "middle", "ring", "pinky", "thumb"):
-        b = bones[finger + "_3"]
-        head = Vector(b["head"]); tail = Vector(b["tail"])
-        z = (head - tail).normalized()
-        y = Vector(b["up"]).normalized()
-        x = y.cross(z).normalized()
-        y = z.cross(x).normalized()
-        length = (tail - head).length
-        r = b["radius"] * 1.04
-        center = head + x * (r * .66) - z * (length * .58)
-        mesh = ellipsoid("Nail_" + finger, center, (r * .30, r * .72, length * .30), basis_g=(x, y, z))
-        mesh.materials.append(nail)
-        finish(mesh, 180)
-        nails.append(bpy.data.objects.new("Nail_" + finger, mesh))
-        col.objects.link(nails[-1])
-
-    # Sleeve with soft folds and a ribbed cuff.
-    def fold(a, h):
-        return 1.0 + .035 * math.sin(3 * a + h * 40) + .02 * math.sin(7 * a - h * 25)
-    sleeve_mesh = lathe("Sleeve", [(.0345, 0), (.0355, .12), (.037, .3), (.038, .44)], 32, radial=fold)
-    sleeve_mesh.transform(Matrix.Translation(g2b((.002, -.002, .085))) @ Matrix.Rotation(math.pi / 2, 4, "X") @ Matrix.Diagonal((1, .9, 1, 1)))
-    # lathe axis is Blender +Z; rotate +90 deg about X so it runs along Blender -Y = Godot +Z.
-    sleeve_mesh.materials.append(sleeve)
-    finish(sleeve_mesh, 60, flip=False)
-    cuff_profile = [(.0335, -.001), (.0385, 0), (.0395, .006), (.0392, .044), (.0382, .05), (.0335, .05)]
-    def rib(a, h):
-        return 1.0 + .012 * math.cos(a * 36)
-    cuff_mesh = lathe("Cuff", cuff_profile, 72, radial=rib)
-    cuff_mesh.transform(Matrix.Translation(g2b((.002, -.002, .05))) @ Matrix.Rotation(math.pi / 2, 4, "X") @ Matrix.Diagonal((1, .9, 1, 1)))
-    cuff_mesh.materials.append(cuff)
-    finish(cuff_mesh, 50)
-
-    skin_obj = bpy.data.objects.new("ArmSkin", join([bpy.data.objects.new("tmp", skin_mesh)] + nails, "ArmSkin"))
+    skin_obj = bpy.data.objects.new("ArmSkin", skin_mesh)
     col.objects.link(skin_obj)
-    for obj in nails:
-        bpy.data.objects.remove(obj)
+
+    # Sleeve: chunky octagon with a few hard folds and a thick cuff.
+    def fold(a, h):
+        return 1.0 + .05 * math.sin(3 * a + h * 30) + .03 * math.cos(5 * a - h * 18)
+    sleeve_mesh = lathe("Sleeve", [(.0335, 0), (.0345, .1), (.036, .22), (.0375, .34), (.0385, .44)], 9, radial=fold)
+    sleeve_mesh.transform(Matrix.Translation(g2b((.003, -.002, .085))) @ Matrix.Rotation(math.pi / 2, 4, "X") @ Matrix.Diagonal((1, .9, 1, 1)))
+    sleeve_mesh.materials.append(sleeve)
+    cuff_mesh = lathe("Cuff", [(.031, -.002), (.0385, -.001), (.0405, .007), (.040, .042), (.0385, .05), (.0325, .051)], 9)
+    cuff_mesh.transform(Matrix.Translation(g2b((.003, -.002, .047))) @ Matrix.Rotation(math.pi / 2, 4, "X") @ Matrix.Diagonal((1, .9, 1, 1)))
+    cuff_mesh.materials.append(cuff)
     sleeve_obj = bpy.data.objects.new("Sleeve", join([bpy.data.objects.new("s", sleeve_mesh), bpy.data.objects.new("c", cuff_mesh)], "Sleeve"))
     col.objects.link(sleeve_obj)
+    box_uv(sleeve_obj.data, 6.0)
+    finish(sleeve_obj.data)
+    group = sleeve_obj.vertex_groups.new(name="forearm")
+    group.add(list(range(len(sleeve_obj.data.vertices))), 1.0, "REPLACE")
+
+    # Vertex groups of the skin in skeleton order (the deform layer stored indices).
+    for name in names:
+        skin_obj.vertex_groups.new(name=name)
 
     # Armature built from the exported rest skeleton.
     arm_data = bpy.data.armatures.new("ArmRig")
@@ -447,63 +521,6 @@ def build_arm():
             arm_data.edit_bones[b["name"]].parent = arm_data.edit_bones[b["parent"]]
     bpy.ops.object.mode_set(mode="OBJECT")
 
-    # Skin weights: inverse distance to each bone segment (palm box for the hand bone).
-    segs = {b["name"]: (g2b(b["head"]), g2b(b["tail"])) for b in rig["bones"]}
-
-    def seg_distance(p, a, b, behind_penalty):
-        ab = b - a
-        t = (p - a).dot(ab) / ab.length_squared
-        closest = a + ab * min(max(t, 0.0), 1.0)
-        d = (p - closest).length
-        if t < 0:
-            d += -t * ab.length * behind_penalty
-        return d
-
-    palm_lo = g2b((-.016, -.034, 0.0)); palm_hi = g2b((.022, .034, -.08))
-    lo = Vector((min(palm_lo.x, palm_hi.x), min(palm_lo.y, palm_hi.y), min(palm_lo.z, palm_hi.z)))
-    hi = Vector((max(palm_lo.x, palm_hi.x), max(palm_lo.y, palm_hi.y), max(palm_lo.z, palm_hi.z)))
-
-    def box_distance(p):
-        d = Vector((max(lo.x - p.x, 0, p.x - hi.x), max(lo.y - p.y, 0, p.y - hi.y), max(lo.z - p.z, 0, p.z - hi.z)))
-        return d.length
-
-    def weigh(obj, only=None):
-        groups = {name: obj.vertex_groups.new(name=name) for name in segs}
-        for v in obj.data.vertices:
-            p = v.co
-            scores = {}
-            if only:
-                scores[only(p)] = 1.0
-            else:
-                for name, (a, b) in segs.items():
-                    if name == "hand":
-                        d = box_distance(p) + .003
-                    elif name == "forearm":
-                        d = seg_distance(p, a, b, 4.0) + .002
-                    else:
-                        d = seg_distance(p, a, b, 2.5 if name.endswith("_1") else 1.2)
-                    scores[name] = 1.0 / (d + .0025) ** 5
-                best = sorted(scores.items(), key=lambda kv: -kv[1])[:3]
-                total = sum(w for _, w in best)
-                scores = {n: w / total for n, w in best if w / total > .02}
-            for name, w in scores.items():
-                groups[name].add([v.index], w, "REPLACE")
-
-    weigh(skin_obj)
-    # Nails ride rigidly on their fingertip bones.
-    nail_index = [i for i, m in enumerate(skin_obj.data.materials) if m.name.startswith("Nail")]
-    for v in skin_obj.data.vertices:
-        pass
-    for poly in skin_obj.data.polygons:
-        if poly.material_index in nail_index:
-            for vid in poly.vertices:
-                p = skin_obj.data.vertices[vid].co
-                name = min((n for n in segs if n.endswith("_3")), key=lambda n: seg_distance(p, *segs[n], 1.0))
-                for g in skin_obj.vertex_groups:
-                    g.remove([vid])
-                skin_obj.vertex_groups[name].add([vid], 1.0, "REPLACE")
-    weigh(sleeve_obj, only=lambda p: "forearm")
-
     for obj in (skin_obj, sleeve_obj):
         obj.parent = arm_obj
         mod = obj.modifiers.new("Armature", "ARMATURE")
@@ -516,8 +533,28 @@ def build_arm():
 
 # --- props ---------------------------------------------------------------------
 
-BOTTLE_PROFILE = [(.0, .0), (.026, .0), (.031, .003), (.0325, .010), (.0325, .128), (.031, .142), (.025, .160),
-                  (.017, .176), (.0132, .190), (.0125, .226), (.0138, .229), (.0140, .236), (.0125, .239)]
+def low(name, profile, segments, mat, col, parent=None, at=(0, 0, 0), **kw):
+    """Faceted surface of revolution as a ready object."""
+    mesh = lathe(name, profile, segments, **kw)
+    mesh.materials.append(mat)
+    return new_object(name, finish(mesh), col, parent, at)
+
+
+def gem(name, center_g, size_g, sides=4):
+    """Tiny faceted droplet (condensation beads, sparks of foam)."""
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=sides, v_segments=3, radius=1.0)
+    for v in bm.verts:
+        v.co = Vector((v.co.x * size_g[0], v.co.y * size_g[2], v.co.z * size_g[1])) + g2b(center_g)
+    mesh = bpy.data.meshes.new(name)
+    bm.to_mesh(mesh)
+    bm.free()
+    return mesh
+
+
+BOTTLE_SIDES = 10
+BOTTLE_PROFILE = [(.0, .0), (.027, .0), (.0325, .006), (.0325, .128), (.029, .146), (.019, .172),
+                  (.0135, .190), (.0128, .226), (.0142, .229), (.0142, .236), (.0125, .239)]
 
 
 def build_bottle():
@@ -530,58 +567,42 @@ def build_bottle():
     foil = material("NeckFoil", (.54, .16, .12, 1), .5, .2)
     gold = material("CapMetal", (.79, .64, .29, 1), .32, .85)
     wet = material("Condensation", (1, .96, .9, 1), .02, alpha=.45)
+    n = BOTTLE_SIDES
 
-    outer = refine(BOTTLE_PROFILE, 4)
-    mesh = lathe("Glass", outer, 48, cap_bottom=False)
-    mesh.materials.append(glass)
-    new_object("Glass", finish(mesh, 50), col)
-    # Punt (domed bottom) seen when the bottle is tipped up.
-    punt = lathe("Punt", [(.026, .0), (.018, .004), (.008, .007), (0, .008)], 48)
-    punt.materials.append(glass)
-    new_object("Punt", finish(punt, 60), col)
+    low("Glass", BOTTLE_PROFILE, n, glass, col)
+    low("Punt", [(.027, .0), (.017, .004), (0, .009)], n, glass, col)
 
     liquid_root = empty("Liquid", col, at=(0, .005, 0))
-    inner = [(max(r - .0035, .002), h - .005) for r, h in outer if .004 < h < .205]
-    liquid = lathe("LiquidMesh", inner, 40, cap_bottom=True, cap_top=True)
-    liquid.materials.append(beer)
-    new_object("LiquidMesh", finish(liquid, 50), col, liquid_root)
-    foam_mesh = lathe("Foam", [(0, -.002), (.0118, -.002), (.0118, .002), (.009, .0026), (0, .0028)], 32)
-    foam_mesh.materials.append(foam)
-    new_object("Foam", finish(foam_mesh, 50), col, liquid_root, (0, .196, 0))
+    inner = [(max(r - .0035, .002), h - .005) for r, h in BOTTLE_PROFILE if .004 < h < .205]
+    low("LiquidMesh", inner, n, beer, col, liquid_root, cap_bottom=True, cap_top=True)
+    low("Foam", [(0, -.002), (.0105, -.002), (.0108, .0015), (.007, .0035), (0, .004)], n, foam, col, liquid_root, (0, .196, 0))
 
-    label_mesh = lathe("Label", [(.0331, .030), (.0331, .102)], 64, v_range=(.030, .102))
-    label_mesh.materials.append(label)
-    new_object("Label", finish(label_mesh, 30), col)
-    neck = lathe("NeckLabel", [(.01425, .192), (.0133, .205), (.0129, .218)], 40)
-    neck.materials.append(foil)
-    new_object("NeckLabel", finish(neck, 40), col)
+    # Label and neck foil share the bottle's facets, standing just proud of the glass.
+    low("Label", [(.0338, .030), (.0338, .102)], n, label, col, v_range=(.030, .102))
+    low("NeckLabel", [(.0146, .189), (.0137, .205), (.0134, .218)], n, foil, col)
 
     cap_root = empty("Cap", col, at=(0, .239, 0))
     def crimp(a, h):
-        return 1.0 + (.05 * math.cos(a * 21) if h < .0015 else 0.0)
-    cap = lathe("CapMesh", [(.0128, -.0045), (.0158, -.0045), (.0158, .0005), (.0150, .0022), (.0135, .0032), (0, .0034)], 84, radial=crimp)
-    cap.materials.append(gold)
-    new_object("CapMesh", finish(cap, 35), col, cap_root)
+        return 1.0 + (.075 * (1 if math.cos(a * n) > 0 else -1) if h < .0005 else 0.0)
+    low("CapMesh", [(.0128, -.0045), (.0158, -.0045), (.0158, .0004), (.0142, .0026), (0, .0034)], n * 2, gold, col, cap_root, radial=crimp)
 
     beads = []
-    for index in range(26):
+    for index in range(18):
         angle = index * 2.39996 + .4
-        height = .02 + math.fmod(index * .0371, .10)
-        size = .0011 + math.fmod(index * .00029, .0008)
-        r = .0338
-        center = (math.cos(angle) * r, height, math.sin(angle) * r)
-        bead = ellipsoid("Bead", center, (size, size * 1.6, size), segments=8, rings=6)
-        holder = bpy.data.objects.new("b", bead)
-        beads.append(holder)
+        height = .022 + math.fmod(index * .0371, .10)
+        size = .0012 + math.fmod(index * .00029, .0008)
+        r = .0332
+        beads.append(bpy.data.objects.new("b", gem("Bead", (math.cos(angle) * r, height, math.sin(angle) * r), (size, size * 1.7, size))))
     bead_mesh = join(beads, "Beads")
     bead_mesh.materials.clear()
     bead_mesh.materials.append(wet)
-    new_object("Beads", finish(bead_mesh, 180), col)
+    new_object("Beads", finish(bead_mesh), col)
     export(os.path.join(OUT, "bottle.glb"), list(col.objects))
 
 
-CAN_PROFILE = [(.0, .006), (.020, .006), (.026, .0), (.0305, .004), (.0325, .014), (.0325, .112), (.0300, .124),
-               (.0265, .130), (.0268, .133)]
+CAN_SIDES = 12
+CAN_PROFILE = [(.0, .006), (.020, .006), (.026, .0), (.0315, .005), (.0325, .014), (.0325, .112),
+               (.0298, .124), (.0265, .130), (.0268, .133)]
 
 
 def build_can():
@@ -591,34 +612,48 @@ def build_can():
     alu = material("Aluminium", (.78, .8, .82, 1), .25, .9)
     dark = material("Opening", (.04, .05, .05, 1), .6)
     rivet = material("Rivet", (.23, .24, .26, 1), .4, .6)
-    body = lathe("Body", refine(CAN_PROFILE, 3), 64, v_range=(0.0, .133))
-    body.materials.append(wrap)
-    new_object("Body", finish(body, 40), col)
-    lid = lathe("Lid", [(.0262, .1305), (.0255, .1300), (.0215, .1296), (.0205, .1302), (.0, .1302)], 48)
-    lid.materials.append(alu)
-    new_object("Lid", finish(lid, 30), col)
-    hole = ellipsoid("Hole", (0, .1309, -.012), (.0055, .0005, .0072), segments=20, rings=6)
+    n = CAN_SIDES
+    # The wall gets extra rings so the crush shape key has something to fold.
+    profile = CAN_PROFILE[:5] + [(.0325, .014 + (.112 - .014) * k / 6) for k in range(1, 6)] + CAN_PROFILE[5:]
+    body = new_object("Body", finish(lathe("Body", profile, n, v_range=(0.0, .133))), col)
+    body.data.materials.append(wrap)
+
+    # "Crushed": the middle of the can buckles in, with an off-centre dent and a twist.
+    body.shape_key_add(name="Basis", from_mix=False)
+    crushed = body.shape_key_add(name="Crushed", from_mix=False)
+    crushed.value = 0.0
+    for i, v in enumerate(body.data.vertices):
+        co = v.co.copy()
+        h = co.z
+        if .012 < h < .116:
+            t = (h - .012) / .104
+            pinch = math.sin(math.pi * t)
+            a = math.atan2(co.y, co.x)
+            dent = .5 + .5 * math.cos(a - .8)
+            squeeze = 1 - pinch * (.20 + .32 * dent) - .06 * pinch * (1 if (i // 1) % 2 else 0)
+            twist = .45 * pinch
+            r = math.hypot(co.x, co.y) * squeeze
+            a += twist
+            co.x, co.y = r * math.cos(a), r * math.sin(a)
+            co.z = h - .006 * pinch
+        crushed.data[i].co = co
+
+    low("Lid", [(.0262, .1305), (.0255, .1300), (.0215, .1296), (.0205, .1302), (.0, .1302)], n, alu, col)
+    hole = gem("Hole", (0, .1309, -.012), (.0055, .0005, .0072), sides=8)
     hole.materials.append(dark)
-    new_object("Hole", finish(hole, 180), col)
+    new_object("Hole", finish(hole), col)
+
     hinge = empty("Tab", col, at=(0, .1314, 0))
-    # Pull tab: a rounded plate with a finger ring at the far end.
     bm = bmesh.new()
-    outline = []
-    for s in range(32):
-        a = TAU * s / 32
-        x = .0055 * math.cos(a)
-        z = .006 + .0118 * math.sin(a) * (1 if math.sin(a) > 0 else .55)
-        outline.append((x, z))
-    ring = []
-    for s in range(32):
-        a = TAU * s / 32
-        ring.append((.0032 * math.cos(a), .0105 + .0032 * math.sin(a)))
+    k = 10
+    outline = [(.0055 * math.cos(TAU * s / k), .006 + .0118 * math.sin(TAU * s / k) * (1 if math.sin(TAU * s / k) > 0 else .55)) for s in range(k)]
+    ring = [(.0032 * math.cos(TAU * s / k), .0105 + .0032 * math.sin(TAU * s / k)) for s in range(k)]
     top = [bm.verts.new(g2b((x, .0006, z))) for x, z in outline]
     bot = [bm.verts.new(g2b((x, -.0006, z))) for x, z in outline]
     itop = [bm.verts.new(g2b((x, .0006, z))) for x, z in ring]
     ibot = [bm.verts.new(g2b((x, -.0006, z))) for x, z in ring]
-    for i in range(32):
-        j = (i + 1) % 32
+    for i in range(k):
+        j = (i + 1) % k
         bm.faces.new((top[i], top[j], itop[j], itop[i]))
         bm.faces.new((bot[j], bot[i], ibot[i], ibot[j]))
         bm.faces.new((top[j], top[i], bot[i], bot[j]))
@@ -628,10 +663,10 @@ def build_can():
     bm.to_mesh(tab)
     bm.free()
     tab.materials.append(alu)
-    new_object("TabPlate", finish(tab, 45), col, hinge)
-    rivet_mesh = ellipsoid("Rivet", (0, .0007, 0), (.0024, .0009, .0024), segments=12, rings=6)
+    new_object("TabPlate", finish(tab), col, hinge)
+    rivet_mesh = gem("Rivet", (0, .0007, 0), (.0024, .0009, .0024), sides=6)
     rivet_mesh.materials.append(rivet)
-    new_object("Rivet", finish(rivet_mesh, 180), col, hinge)
+    new_object("Rivet", finish(rivet_mesh), col, hinge)
     export(os.path.join(OUT, "can.glb"), list(col.objects))
 
 
@@ -644,25 +679,29 @@ def build_cigarette():
     ash = material("Ash", (.55, .53, .51, 1), .98, texture="ash")
     ember = material("Ember", (.23, .09, .04, 1), .9, emission=(1, .35, .1, 1), strength=0.0)
     tobacco = material("Tobacco", (.36, .22, .11, 1), .95)
-    filt = tube_along("Filter", (0, 0, 0), (0, 0, -.022), .0042, 20)
+    n = 8
+    filt = tube_along("Filter", (0, 0, 0), (0, 0, -.022), .0042, n)
     filt.materials.append(cork)
-    new_object("Filter", finish(filt, 50), col)
-    band = tube_along("Ring", (0, 0, -.021), (0, 0, -.0222), .00428, 20, caps=False)
+    new_object("Filter", finish(filt), col)
+    band = tube_along("Ring", (0, 0, -.0208), (0, 0, -.0224), .00435, n, caps=False)
     band.materials.append(ring)
-    new_object("Ring", finish(band, 50), col)
+    new_object("Ring", finish(band), col)
     pivot = empty("Paper", col, at=(0, 0, -.022))
-    tube = tube_along("PaperMesh", (0, 0, 0), (0, 0, -.062), .0041, 20, caps=False)
+    tube = tube_along("PaperMesh", (0, 0, 0), (0, 0, -.062), .0041, n, caps=False)
     tube.materials.append(paper)
-    new_object("PaperMesh", finish(tube, 50), col, pivot)
-    end = tube_along("Tobacco", (0, 0, -.0615), (0, 0, -.062), .0040, 20)
+    new_object("PaperMesh", finish(tube), col, pivot)
+    end = tube_along("Tobacco", (0, 0, -.0615), (0, 0, -.062), .0040, n)
     end.materials.append(tobacco)
-    new_object("Tobacco", finish(end, 50), col, pivot)
-    ash_mesh = tube_along("Ash", (0, 0, .003), (0, 0, -.003), .0039, 12, end_radius=.0033)
+    new_object("Tobacco", finish(end), col, pivot)
+    def flaky(a, h):
+        return 1.0 + .08 * math.sin(a * 3 + h * 900)
+    ash_mesh = lathe("Ash", [(0, -.003), (.0039, -.003), (.0037, .0), (.0034, .003), (0, .0032)], 7, radial=flaky)
+    ash_mesh.transform(Matrix.Rotation(-math.pi / 2, 4, "X"))
     ash_mesh.materials.append(ash)
-    new_object("Ash", finish(ash_mesh, 180), col, None, (0, 0, -.087))
-    ember_mesh = tube_along("Ember", (0, 0, .0011), (0, 0, -.0011), .0040, 14, end_radius=.0034)
+    new_object("Ash", finish(ash_mesh), col, None, (0, 0, -.087))
+    ember_mesh = tube_along("Ember", (0, 0, .0011), (0, 0, -.0011), .0040, n, end_radius=.0033)
     ember_mesh.materials.append(ember)
-    new_object("Ember", finish(ember_mesh, 180), col, None, (0, 0, -.0846))
+    new_object("Ember", finish(ember_mesh), col, None, (0, 0, -.0846))
     export(os.path.join(OUT, "cigarette.glb"), list(col.objects))
 
 
@@ -673,19 +712,17 @@ def build_lighter():
     steel = material("Steel", (.73, .74, .75, 1), .28, .9)
     wheel_mat = material("WheelSteel", (.33, .35, .36, 1), .45, .8)
     black = material("Button", (.11, .11, .12, 1), .6)
-    # Stadium-shaped body (rounded sides), bevelled.
+    # Faceted stadium body: three flats round each side.
     bm = bmesh.new()
     outline = []
-    for s in range(24):
-        a = math.pi * s / 23 - math.pi / 2
+    for s in range(4):
+        a = math.pi * s / 3 - math.pi / 2
         outline.append((.012 + .006 * math.cos(a), .006 * math.sin(a)))
-    for s in range(24):
-        a = math.pi * s / 23 + math.pi / 2
+    for s in range(4):
+        a = math.pi * s / 3 + math.pi / 2
         outline.append((-.012 + .006 * math.cos(a), .006 * math.sin(a)))
-    levels = [(.0, .9), (.002, 1.0), (.060, 1.0), (.062, .96)]
-    rings = []
-    for h, k in levels:
-        rings.append([bm.verts.new(g2b((x * k, h, z * k))) for x, z in outline])
+    levels = [(.0, .88), (.003, 1.0), (.059, 1.0), (.062, .95)]
+    rings = [[bm.verts.new(g2b((x * k, h, z * k))) for x, z in outline] for h, k in levels]
     n = len(outline)
     for i in range(len(rings) - 1):
         for s in range(n):
@@ -698,28 +735,27 @@ def build_lighter():
     bm.to_mesh(body)
     bm.free()
     body.materials.append(plastic)
-    new_object("Body", finish(body, 40), col)
-    hood = box("Hood", (.026, .015, .0132), (0, .069, 0), bevel=.0012)
+    new_object("Body", finish(body), col)
+    hood = box("Hood", (.026, .015, .0132), (0, .069, 0))
     hood.materials.append(steel)
-    new_object("Hood", finish(hood, 40), col)
+    new_object("Hood", finish(hood), col)
     for i in range(4):
         slot = box("Slot", (.0035, .007, .0134), (-.008 + i * .0055, .070, 0))
         slot.materials.append(black)
         new_object("Slot%d" % i, finish(slot), col)
-    # Knurled spark wheel, axis along its local Y (Godot), turned to X by the node rotation.
     def knurl(a, h):
-        return 1.0 + .08 * (1 if math.cos(a * 24) > 0 else -1) * (1 if .0015 < h < .0075 else 0)
-    wheel = lathe("Wheel", [(0, 0), (.0052, 0), (.0055, .0015), (.0055, .0075), (.0052, .009), (0, .009)], 48, radial=knurl)
+        return 1.0 + .1 * (1 if math.cos(a * 6) > 0 else -1) * (1 if .0015 < h < .0075 else 0)
+    wheel = lathe("Wheel", [(0, 0), (.0052, 0), (.0055, .0015), (.0055, .0075), (.0052, .009), (0, .009)], 12, radial=knurl)
     wheel.transform(Matrix.Translation((0, 0, -.0045)))
     wheel.materials.append(wheel_mat)
-    w = new_object("Wheel", finish(wheel, 30), col, None, (.004, .078, 0))
+    w = new_object("Wheel", finish(wheel), col, None, (.004, .078, 0))
     w.rotation_euler = (0, -math.pi / 2, 0)
-    button = box("Button", (.012, .004, .011), (-.006, .075, 0), bevel=.0008)
+    button = box("Button", (.012, .004, .011), (-.006, .075, 0))
     button.materials.append(black)
-    new_object("Button", finish(button, 40), col)
-    nozzle = tube_along("Nozzle", (-.004, .076, 0), (-.004, .081, 0), .0016, 10)
+    new_object("Button", finish(button), col)
+    nozzle = tube_along("Nozzle", (-.004, .076, 0), (-.004, .081, 0), .0016, 6)
     nozzle.materials.append(steel)
-    new_object("Nozzle", finish(nozzle, 40), col)
+    new_object("Nozzle", finish(nozzle), col)
     export(os.path.join(OUT, "lighter.glb"), list(col.objects))
 
 
@@ -795,11 +831,9 @@ def build_six_pack():
 
 
 if __name__ == "__main__":
-    build_arm()
-    build_bottle()
-    build_can()
-    build_cigarette()
-    build_lighter()
-    build_pack()
-    build_six_pack()
+    import sys
+    picked = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    for name in ("arm", "bottle", "can", "cigarette", "lighter", "pack", "six_pack"):
+        if not picked or name in picked:
+            globals()["build_" + name]()
     print("FP_ASSETS done")

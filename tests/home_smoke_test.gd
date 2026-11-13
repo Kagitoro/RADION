@@ -11,6 +11,7 @@ func run(errors: Array[String]) -> void:
 	var stock_size := home.records.size()
 	if home.records.size() < 180 or home.inventory.size() < 35 or home.catalog.size() < 10:
 		errors.append("Неполная сцена или библиотека")
+	check_house_lights(errors)
 	var stove := ""
 	for id in home.originals:
 		if str(home.originals[id].label) == "Плита и духовой шкаф":
@@ -90,6 +91,26 @@ func run(errors: Array[String]) -> void:
 	await check_floor_plan(errors)
 	check_inventory(errors)
 	check_input_actions(errors)
+
+## Lamps come from assets/house_lights.tscn, where they are placed by hand, and
+## the ones tied to a fixture ride on it.
+func check_house_lights(errors: Array[String]) -> void:
+	var source := (load("res://assets/house_lights.tscn") as PackedScene).instantiate() as Node3D
+	var placed := home.scene_lighting.get_children()
+	var lamps := source.get_children().filter(func(node): return node is Light3D)
+	if placed.size() != lamps.size():
+		errors.append("Свет дома: %d ламп вместо %d из house_lights.tscn" % [placed.size(), lamps.size()])
+	for lamp in lamps:
+		var light := home.scene_lighting.get_node_or_null(NodePath(lamp.name)) as Light3D
+		if light == null:
+			errors.append("Свет дома: нет лампы " + lamp.name)
+			continue
+		if light.global_position.distance_to((lamp as Node3D).position) > .01:
+			errors.append("Свет дома: %s не там, где в сцене" % lamp.name)
+		var fixture := str(lamp.get_meta("fixture", ""))
+		if not fixture.is_empty() and home.nodes[fixture].get_node_or_null("Light_" + lamp.name) == null:
+			errors.append("Свет дома: %s не привязан к светильнику %s" % [lamp.name, fixture])
+	source.free()
 
 func check_inventory(errors: Array[String]) -> void:
 	var hud := home.hud
@@ -174,6 +195,14 @@ func check_input_actions(errors: Array[String]) -> void:
 	home._unhandled_input(key_event(KEY_ESCAPE))
 	if game.pause_panel.visible or home.modal:
 		errors.append("Повторный Esc не закрывает паузу")
+	home._unhandled_input(key_event(KEY_TAB))
+	if not game.backpack_open() or not home.modal:
+		errors.append("Tab не открывает инвентарь")
+	elif game.backpack.slots.size() != game.backpack_items().size():
+		errors.append("Инвентарь: не все предметы показаны")
+	home._unhandled_input(key_event(KEY_TAB))
+	if game.backpack_open() or home.modal:
+		errors.append("Повторный Tab не закрывает инвентарь")
 	for action in ["interact", "pause", "jump", "run", "open_mixer", "track_1", "talk_6"]:
 		if not InputMap.has_action(action) or InputMap.action_get_events(action).is_empty():
 			errors.append("Нет привязки для " + action)

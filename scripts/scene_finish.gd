@@ -107,6 +107,8 @@ func setup_mirror() -> void:
 	mirror_camera.set_cull_mask_value(MIRROR_LAYER,false)
 	mirror_camera.set_cull_mask_value(4,false)
 	mirror_camera.set_cull_mask_value(5,false)
+	mirror_camera.set_cull_mask_value(Player.RIGHT_ARM_LAYER,false)
+	mirror_camera.set_cull_mask_value(Player.LEFT_ARM_LAYER,false)
 	mirror_camera.current = true
 	mirror_view.add_child(mirror_camera)
 	mirror = MeshInstance3D.new()

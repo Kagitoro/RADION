@@ -1,51 +1,19 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Theme" path="res://ui/theme.tres" id="1_theme"]
 [ext_resource type="Script" path="res://ui/main_menu_screen.gd" id="2_script"]
+[ext_resource type="Script" path="res://ui/low_poly_backdrop.gd" id="3_backdrop"]
+[ext_resource type="Script" path="res://ui/low_poly_equalizer.gd" id="4_equalizer"]
+[ext_resource type="Script" path="res://ui/settings_box.gd" id="5_settings"]
 
 [sub_resource type="Gradient" id="Gradient_shade"]
-offsets = PackedFloat32Array(0, 0.48, 1)
-colors = PackedColorArray(0.0431373, 0.0627451, 0.105882, 1, 0.038, 0.062, 0.105, 0.86, 0.03, 0.05, 0.09, 0.1)
+offsets = PackedFloat32Array(0, 0.5, 1)
+colors = PackedColorArray(0.0352941, 0.0470588, 0.0901961, 0.9, 0.0352941, 0.0470588, 0.0901961, 0.55, 0.0352941, 0.0470588, 0.0901961, 0.05)
 
 [sub_resource type="GradientTexture2D" id="GradientTexture2D_shade"]
 gradient = SubResource("Gradient_shade")
 width = 512
 height = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_normal"]
-content_margin_left = 16.0
-content_margin_right = 12.0
-bg_color = Color(0.0941176, 0.137255, 0.2, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.254902, 0.376471, 0.443137, 1)
-corner_radius_top_left = 5
-corner_radius_top_right = 5
-corner_radius_bottom_right = 5
-corner_radius_bottom_left = 5
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_active"]
-content_margin_left = 16.0
-content_margin_right = 12.0
-bg_color = Color(0.14902, 0.258824, 0.329412, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.501961, 0.843137, 0.890196, 1)
-corner_radius_top_left = 5
-corner_radius_top_right = 5
-corner_radius_bottom_right = 5
-corner_radius_bottom_left = 5
-
-[sub_resource type="Theme" id="Theme_menu"]
-Button/font_sizes/font_size = 20
-Button/styles/focus = SubResource("StyleBoxFlat_active")
-Button/styles/hover = SubResource("StyleBoxFlat_active")
-Button/styles/normal = SubResource("StyleBoxFlat_normal")
-Button/styles/pressed = SubResource("StyleBoxFlat_active")
 
 [node name="MainMenuScreen" type="Control"]
 layout_mode = 3
@@ -68,47 +36,171 @@ mouse_filter = 2
 texture = SubResource("GradientTexture2D_shade")
 expand_mode = 1
 
+[node name="Shard" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_backdrop")
+top_color = Color(0.129412, 0.168627, 0.309804, 1)
+bottom_color = Color(0.0352941, 0.0470588, 0.0901961, 1)
+accent_share = 0.08
+coverage = 0.44
+cell = 92.0
+opacity = 0.93
+
 [node name="Column" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 4
 anchor_top = 0.5
 anchor_bottom = 0.5
-offset_left = 76.0
-offset_top = -162.0
-offset_right = 397.0
-offset_bottom = 162.0
+offset_left = 84.0
+offset_top = -250.0
+offset_right = 474.0
+offset_bottom = 230.0
 grow_vertical = 2
-theme = SubResource("Theme_menu")
 theme_override_constants/separation = 12
 
-[node name="Title" type="Label" parent="Column"]
-unique_name_in_owner = true
-modulate = Color(0.862745, 0.94902, 0.980392, 1)
+[node name="Tag" type="Label" parent="Column"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 64
-text = "Late Set"
+size_flags_horizontal = 0
+theme_type_variation = &"HudObjective"
+theme_override_colors/font_color = Color(0.262745, 0.878431, 1, 1)
+theme_override_font_sizes/font_size = 13
+text = "DJ SIMULATOR · NIGHT 01"
 auto_translate_mode = 2
 
-[node name="Subtitle" type="Label" parent="Column"]
-modulate = Color(0.529412, 0.862745, 0.905882, 1)
+[node name="Logo" type="Control" parent="Column"]
+custom_minimum_size = Vector2(0, 92)
 layout_mode = 2
-theme_override_font_sizes/font_size = 17
-text = "DJ Simulator"
+
+[node name="Echo" type="Label" parent="Column/Logo"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 6.0
+offset_top = 6.0
+offset_right = 420.0
+offset_bottom = 98.0
+theme_type_variation = &"DisplayLabel"
+theme_override_colors/font_color = Color(1, 0.309804, 0.603922, 0.85)
+theme_override_constants/shadow_offset_y = 0
+theme_override_font_sizes/font_size = 76
+text = "LATE SET"
+auto_translate_mode = 2
+
+[node name="Title" type="Label" parent="Column/Logo"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 420.0
+offset_bottom = 92.0
+theme_type_variation = &"DisplayLabel"
+theme_override_colors/font_color = Color(1, 0.705882, 0.235294, 1)
+theme_override_font_sizes/font_size = 76
+text = "LATE SET"
+auto_translate_mode = 2
+
+[node name="Meter" type="Control" parent="Column"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+script = ExtResource("4_equalizer")
+bars = 24
+blocks = 6
+opacity = 0.75
 
 [node name="Gap" type="Control" parent="Column"]
-custom_minimum_size = Vector2(0, 13)
+custom_minimum_size = Vector2(0, 14)
 layout_mode = 2
 
 [node name="ContinueButton" type="Button" parent="Column"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 49)
+custom_minimum_size = Vector2(0, 56)
 layout_mode = 2
+theme_type_variation = &"MenuButtonBig"
+theme_override_font_sizes/font_size = 23
 text = "Продолжить"
+alignment = 0
+
+[node name="SettingsButton" type="Button" parent="Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_type_variation = &"MenuButtonBig"
+text = "Настройки"
 alignment = 0
 
 [node name="QuitButton" type="Button" parent="Column"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 49)
+custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
+theme_type_variation = &"MenuButtonBig"
 text = "Выход"
 alignment = 0
+
+[node name="SettingsPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -560.0
+offset_top = -170.0
+offset_right = -70.0
+offset_bottom = 170.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="Column" type="VBoxContainer" parent="SettingsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Settings" type="VBoxContainer" parent="SettingsPanel/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("5_settings")
+
+[node name="BackButton" type="Button" parent="SettingsPanel/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 42)
+layout_mode = 2
+size_flags_horizontal = 8
+text = "Назад"
+
+[node name="Footer" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 84.0
+offset_top = -58.0
+offset_right = 700.0
+offset_bottom = -26.0
+grow_vertical = 0
+theme_override_constants/separation = 8
+
+[node name="Version" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -52.0
+offset_right = -30.0
+offset_bottom = -28.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.560784, 0.607843, 0.768627, 0.8)
+theme_override_font_sizes/font_size = 13
+horizontal_alignment = 2
+auto_translate_mode = 2

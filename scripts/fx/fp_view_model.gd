@@ -89,8 +89,9 @@ func hold(hand: FPHand, at: Vector3, turn: Vector3, bend: Vector3, pose: String,
 	hand.fitted.clear()
 	if wrap_radius>0.0:
 		var to_hand := hand.transform.affine_inverse()
-		# The thumb wraps the far side of the item, away from the camera.
-		hand.fit_cylinder(pose,to_hand*Vector3.ZERO,to_hand.basis*Vector3.UP,wrap_radius,to_hand.basis*Vector3.FORWARD)
+		# The thumb opposes the fingers: they curl round the far side of the item,
+		# the thumb wraps the near side, toward the camera.
+		hand.fit_cylinder(pose,to_hand*Vector3.ZERO,to_hand.basis*Vector3.UP,wrap_radius,to_hand.basis*Vector3.BACK)
 	hand.set_pose(pose)
 
 ## Removes everything except the hand from a pivot.

@@ -96,6 +96,8 @@ func wood_texture() -> Texture2D:
 	var ramp := Gradient.new()
 	ramp.offsets = PackedFloat32Array([0,.3,.5,.7,1])
 	ramp.colors = PackedColorArray([Color("#4a2c18"),Color("#7a4e2c"),Color("#5c3820"),Color("#8a5c34"),Color("#4f301a")])
+	# Hard bands instead of a blend: flat low-poly grain.
+	ramp.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CONSTANT
 	texture.color_ramp = ramp
 	return texture
 

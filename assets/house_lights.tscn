@@ -1,0 +1,125 @@
+[gd_scene format=3 uid="uid://d11pkd22lmb"]
+
+[ext_resource type="Script" uid="uid://ca5rlq138p5rt" path="res://assets/house_lights.gd" id="1_b52ye"]
+
+[node name="HouseLights" type="Node3D" unique_id=353087800]
+script = ExtResource("1_b52ye")
+
+[node name="Studio_PC_LED_Low" type="OmniLight3D" parent="." unique_id=746720642]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.88468, 0.227, -0.8874)
+light_color = Color(1, 0.47058824, 0.30980393, 1)
+light_energy = 0.002115
+omni_range = 0.37
+omni_attenuation = 1.35
+metadata/fixture = "base-142"
+
+[node name="Studio_PC_LED_Mid" type="OmniLight3D" parent="." unique_id=925198003]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.88468, 0.397, -0.8874)
+light_color = Color(0.7882353, 0.9019608, 0.3764706, 1)
+light_energy = 0.002115
+omni_range = 0.37
+omni_attenuation = 1.35
+metadata/fixture = "base-142"
+
+[node name="Studio_PC_LED_High" type="OmniLight3D" parent="." unique_id=491895451]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.88468, 0.567, -0.8874)
+light_color = Color(0.5019608, 0.85490197, 1, 1)
+light_energy = 0.002115
+omni_range = 0.37
+omni_attenuation = 1.35
+metadata/fixture = "base-142"
+
+[node name="Kitchen_Fill" type="OmniLight3D" parent="." unique_id=792000294]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3873246, 1.8468666, -0.68323195)
+light_color = Color(0.8392157, 0.9019608, 1, 1)
+light_energy = 1.151
+light_indirect_energy = 0.0
+omni_range = 6.0
+omni_attenuation = 1.35
+
+[node name="Kitchen_CeilingSpot" type="SpotLight3D" parent="." unique_id=760791165]
+transform = Transform3D(-0.92847675, -0.31343994, 0.1992145, 0, 0.5364015, 0.8439629, -0.37139067, 0.7835999, -0.4980363, 2.3698666, 2.58, -0.7395)
+light_color = Color(0.92941177, 0.95686275, 1, 1)
+light_energy = 1.296
+spot_range = 7.5
+spot_attenuation = 1.1
+spot_angle = 60.73353
+metadata/fixture = "base-42"
+
+[node name="Bath_Fill" type="OmniLight3D" parent="." unique_id=1847870487]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.9306438, 1.75706, 1.114395)
+light_color = Color(1, 0.90588236, 0.79607844, 1)
+light_energy = 0.188
+omni_range = 6.0
+omni_attenuation = 1.35
+
+[node name="Bath_CeilingSpot" type="SpotLight3D" parent="." unique_id=1009860395]
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, -2.4390283, 2.6376307, 1.5447491)
+light_color = Color(1, 0.9411765, 0.84313726, 1)
+light_energy = 0.912
+spot_range = 7.5
+spot_attenuation = 1.1
+spot_angle = 60.73353
+metadata/fixture = "base-90"
+
+[node name="Living_Chandelier" type="OmniLight3D" parent="." unique_id=1872155530]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.923172, 2.123611, 2.0217743)
+light_color = Color(1, 0.8235294, 0.6039216, 1)
+light_energy = 0.282
+omni_range = 6.0
+omni_attenuation = 1.35
+metadata/fixture = "base-117"
+
+[node name="Living_ChandelierSpot" type="SpotLight3D" parent="." unique_id=497199509]
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, -5.8952456, 2.6188228, 2.0850437)
+light_color = Color(1, 0.8784314, 0.6745098, 1)
+light_energy = 1.104
+spot_range = 7.5
+spot_attenuation = 1.1
+spot_angle = 60.73353
+metadata/fixture = "base-117"
+
+[node name="Studio_Fill" type="OmniLight3D" parent="." unique_id=651939017]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.6850967, 1.9561497, -0.23222712)
+light_color = Color(0.8901961, 0.9372549, 1, 1)
+light_energy = 1.245
+omni_range = 6.0
+omni_attenuation = 1.35
+
+[node name="Studio_CloudSpot" type="SpotLight3D" parent="." unique_id=296362244]
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 6.3075, 2.4114113, -0.4785)
+light_color = Color(0.95686275, 0.8901961, 0.80784315, 1)
+light_energy = 0.912
+spot_range = 7.5
+spot_attenuation = 1.1
+spot_angle = 60.73353
+metadata/fixture = "base-155"
+
+[node name="Hall_Fill_West" type="OmniLight3D" parent="." unique_id=550486585]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.134, 2.47, -1.1136)
+light_color = Color(1, 0.85490197, 0.6666667, 1)
+light_energy = 0.1645
+omni_range = 6.0
+omni_attenuation = 1.35
+
+[node name="Hall_Fill_Middle" type="OmniLight3D" parent="." unique_id=640480850]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.698, 2.47, -1.1136)
+light_color = Color(1, 0.85490197, 0.6666667, 1)
+light_energy = 0.1645
+omni_range = 6.0
+omni_attenuation = 1.35
+
+[node name="Hall_Fill_East" type="OmniLight3D" parent="." unique_id=545268115]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.001, 2.47, -1.1136)
+light_color = Color(1, 0.85490197, 0.6666667, 1)
+light_energy = 0.1645
+omni_range = 6.0
+omni_attenuation = 1.35
+
+[node name="Hall_CeilingSpot" type="SpotLight3D" parent="." unique_id=1633836134]
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, -4.698516, 2.6457589, -1.0875)
+light_color = Color(1, 0.8745098, 0.7058824, 1)
+light_energy = 0.72
+spot_range = 7.5
+spot_attenuation = 1.1
+spot_angle = 60.73353

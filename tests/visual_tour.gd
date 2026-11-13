@@ -16,6 +16,9 @@ func _init(target: Home) -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--visual-tour="):
 			groups = arg.trim_prefix("--visual-tour=").split(",")
+		if arg=="--no-baked":
+			# Shows the code-built clips, to check pose changes before re-baking.
+			FPViewModel.use_baked = false
 
 func wants(group: String) -> bool:
 	return groups.is_empty() or group in groups
@@ -50,8 +53,10 @@ func run() -> void:
 	if "bake" in groups:
 		await bake_actions()
 	if wants("sounds"):
+		# Synthesized sounds only: the recorded ones are already files in assets/sfx.
 		for sound_name in FPSounds.LENGTHS:
-			FPSounds.get_sound(sound_name).save_to_wav(SavePaths.file("sound-%s.wav" % sound_name))
+			if not FPSounds.RECORDED.has(sound_name):
+				FPSounds.get_sound(sound_name).save_to_wav(SavePaths.file("sound-%s.wav" % sound_name))
 	if wants("plan"):
 		for ceiling in home.scene_finish.ceilings.values():
 			ceiling.hide()
@@ -79,6 +84,7 @@ func run() -> void:
 		home.shop.beer = 5
 		var rig := home.player.view_model
 		for t in [.4,1.0,1.7]:
+			home.player.intoxication = 0.0
 			home.party.consume(true)
 			await home.get_tree().create_timer(t).timeout
 			rig.anim.pause()
@@ -134,15 +140,79 @@ func run() -> void:
 		await action_frames("beer", func(): home.party.consume(true), [.15,.35,.6,.9,1.3,1.8])
 		await action_frames("smoke", func(): home.party.consume(false), [.2,.5,.9,1.3,1.8,2.4,3.2])
 		await action_frames("puff", func(): home.party.consume(false), [.3,.7,1.1,1.6])
-		while home.party.hands_busy():
-			await home.get_tree().process_frame
-		home.party.extinguish()
-		await home.get_tree().create_timer(2.5).timeout
+		await action_frames("stub", func(): home.party.extinguish(), [.5,.86,.98,1.1,1.4])
 		home.player.energy_boost = 0.0
 		await action_frames("energy", func(): home.shop.drink_energy(), [.4,.8,1.4,2.0,2.5,3.0])
 		home.player.intoxication = .9
 		home.player.nausea_cooldown = 0
 		await action_frames("vomit", func(): home.player.vomit(), [.5,1.0,1.95,2.15,2.5,3.6,4.6])
+	if "perf" in groups:
+		await measure_performance()
+	if "body" in groups:
+		# The player's own body seen from the eyes: looking down, walking, and during actions.
+		home.go_room("living")
+		await home.get_tree().create_timer(.3).timeout
+		home.shop.beer = 5
+		home.shop.energy = 3
+		home.party.cigarettes = 5
+		home.player.paused = false
+		var actor := home.player
+		actor.pitch = -1.15
+		await snap("body-idle-down")
+		actor.pitch = -.7
+		await snap("body-idle-low")
+		Input.action_press("move_forward")
+		await home.get_tree().create_timer(.5).timeout
+		actor.pitch = -1.15
+		await snap("body-walk-down")
+		actor.pitch = -.45
+		await snap("body-walk-low")
+		Input.action_release("move_forward")
+		await home.get_tree().create_timer(.6).timeout
+		home.go_room("living")
+		await home.get_tree().create_timer(.3).timeout
+		actor.pitch = -1.1
+		for spec in [["beer",func(): home.party.consume(true),[.3,1.0,1.8,2.7]],
+				["energy",func(): home.shop.drink_energy(),[.5,1.6,2.5,3.0]],
+				["smoke",func(): home.party.consume(false),[.5,1.2,2.0,3.2]]]:
+			actor.intoxication = 0.0
+			actor.energy_boost = 0.0
+			spec[1].call()
+			var elapsed := 0.0
+			for t in spec[2]:
+				await home.get_tree().create_timer(t-elapsed).timeout
+				elapsed = t
+				await grab("body-%s-%04d" % [spec[0],int(t*1000)])
+			while home.party.hands_busy():
+				await home.get_tree().process_frame
+			await home.get_tree().create_timer(.3).timeout
+		home.party.extinguish()
+		await home.get_tree().create_timer(2.2).timeout
+		# In front of the bathroom mirror: the reflection must drink with the right hand.
+		var mirror: Node3D = home.scene_finish.mirror
+		if is_instance_valid(mirror):
+			var normal := mirror.global_basis.z.normalized()
+			var eye := mirror.global_position+normal*.75
+			eye.y = mirror.global_position.y+.05
+			actor.move_to(eye,mirror.global_position)
+			await home.get_tree().create_timer(.5).timeout
+			for spec in [["beer",func(): home.party.consume(true),[.4,.7,1.6,2.6]],
+					["energy",func(): home.shop.drink_energy(),[.75,1.6,2.45,3.0]],
+					["light",func(): home.party.consume(false),[.55,1.45,2.7]]]:
+				actor.intoxication = 0.0
+				actor.energy_boost = 0.0
+				actor.move_to(eye,mirror.global_position)
+				spec[1].call()
+				var elapsed := 0.0
+				for t in spec[2]:
+					await home.get_tree().create_timer(t-elapsed).timeout
+					elapsed = t
+					await grab("body-mirror-%s-%04d" % [spec[0],int(t*1000)])
+				while home.party.hands_busy():
+					await home.get_tree().process_frame
+				await home.get_tree().create_timer(.3).timeout
+			home.party.extinguish()
+			await home.get_tree().create_timer(2.2).timeout
 	if wants("pose"):
 		home.go_room("living")
 		await home.get_tree().create_timer(.3).timeout
@@ -154,6 +224,8 @@ func run() -> void:
 			var times: Array = spec[2]
 			for t in times:
 				home.player.energy_boost = 0.0
+				# Keep the drunk sway and nausea out of the pose shots.
+				home.player.intoxication = 0.0
 				spec[1].call()
 				await home.get_tree().create_timer(t).timeout
 				rig.anim.pause()
@@ -215,7 +287,166 @@ func action_frames(prefix: String, start: Callable, times: Array) -> void:
 		elapsed = times[index]
 		await RenderingServer.frame_post_draw
 		home.get_viewport().get_texture().get_image().save_png(SavePaths.file("tour-%s-%d.png" % [prefix,index]))
-	await home.get_tree().create_timer(1.5).timeout
+	# The next action needs free hands, however long this one runs.
+	while home.party.hands_busy():
+		await home.get_tree().process_frame
+	await home.get_tree().create_timer(.5).timeout
+
+## Frame cost per room and per effect, uncapped (no vsync):
+##   godot --path . -- --visual-tour=perf
+## Prints "PERF ..." lines: GPU/CPU render ms, process/physics ms, draw calls.
+func measure_performance() -> void:
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	Engine.max_fps = 0
+	var viewport := home.get_viewport().get_viewport_rid()
+	RenderingServer.viewport_set_measure_render_time(viewport,true)
+	home.player.paused = true
+	var shadowed := 0
+	var lights := 0
+	for light in home.find_children("*","Light3D",true,false):
+		if (light as Light3D).is_visible_in_tree():
+			lights += 1
+			if (light as Light3D).shadow_enabled:
+				shadowed += 1
+	print("PERF lights=%d shadowed=%d nodes=%d occluders=%d" % [lights,shadowed,Performance.get_monitor(Performance.OBJECT_NODE_COUNT),
+		home.get_node(HouseOcclusion.NAME).get_child_count() if home.has_node(HouseOcclusion.NAME) else 0])
+	for id in home.data.rooms.keys():
+		home.go_room(id)
+		await sample_frames("room-%s" % id,viewport)
+		var casting := VisualQuality.shadow_lamps.filter(func(light): return light.shadow_enabled and light.shadow_opacity>.99).size()
+		print("PERF   %s shadow lamps on: %d" % [id,casting])
+		visible_breakdown(id)
+	home.go_room("living")
+	await sample_frames("living-baseline",viewport)
+	for quality in [1,0,2]:
+		VisualQuality.set_level(quality)
+		VisualQuality.update_shadow_budget(home.player.camera)
+		await sample_frames("living-graphics-%s" % VisualQuality.LEVEL_NAMES[quality],viewport)
+	home.go_room("hall")
+	for quality in [1,0,2]:
+		VisualQuality.set_level(quality)
+		VisualQuality.update_shadow_budget(home.player.camera)
+		await sample_frames("hall-graphics-%s" % VisualQuality.LEVEL_NAMES[quality],viewport)
+	home.go_room("living")
+	var env: Environment = home.get_viewport().world_3d.environment
+	if env==null:
+		for node in home.find_children("*","WorldEnvironment",true,false):
+			env = (node as WorldEnvironment).environment
+	for effect in ["ssao_enabled","ssil_enabled","ssr_enabled","volumetric_fog_enabled","glow_enabled"]:
+		env.set(effect,false)
+		await sample_frames("living-no-"+effect,viewport)
+		env.set(effect,true)
+	var lamps := VisualQuality.shadow_lamps.duplicate()
+	var lit := lamps.filter(func(light): return light.shadow_enabled).size()
+	VisualQuality.shadow_lamps.clear()
+	for light in lamps:
+		light.shadow_enabled = false
+	await sample_frames("living-no-lamp-shadows(%d)" % lit,viewport)
+	VisualQuality.shadow_lamps.assign(lamps)
+	VisualQuality.update_shadow_budget(home.player.camera)
+	# Script cost of the outside world while the player is in the house.
+	var paused_nodes := []
+	for node in home.night_world.street.get_children()+[home.party,home.night_game]:
+		if node.is_processing() or node.is_physics_processing():
+			paused_nodes.append([node,node.is_processing(),node.is_physics_processing()])
+			node.set_process(false)
+			node.set_physics_process(false)
+	await sample_frames("living-no-world-logic",viewport)
+	for entry in paused_nodes:
+		entry[0].set_process(entry[1])
+		entry[0].set_physics_process(entry[2])
+	await sample_frames("living-baseline-again",viewport)
+	# Cheaper variants of the same look, one at a time.
+	var sizes := {}
+	for light in lamps:
+		sizes[light] = light.light_size
+		light.light_size = 0.0
+	await sample_frames("living-shadows-no-pcss",viewport)
+	RenderingServer.positional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_LOW)
+	await sample_frames("living-shadows-no-pcss-soft-low",viewport)
+	RenderingServer.positional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_HIGH)
+	for light in lamps:
+		light.light_size = sizes[light]
+	var root_viewport := home.get_viewport()
+	var msaa := root_viewport.msaa_3d
+	root_viewport.msaa_3d = Viewport.MSAA_DISABLED
+	await sample_frames("living-no-msaa",viewport)
+	root_viewport.msaa_3d = msaa
+	RenderingServer.environment_set_ssao_quality(RenderingServer.ENV_SSAO_QUALITY_LOW,true,.5,2,50,300)
+	RenderingServer.environment_set_ssil_quality(RenderingServer.ENV_SSIL_QUALITY_LOW,true,.5,4,50,300)
+	await sample_frames("living-ssao-ssil-low",viewport)
+	RenderingServer.environment_set_volumetric_fog_volume_size(48,32)
+	await sample_frames("living-+fog-small",viewport)
+	home.party.toggle()
+	await home.get_tree().create_timer(4.0).timeout
+	await sample_frames("living-party",viewport)
+	home.party.stop()
+
+## What the camera can see, grouped by the top two node levels under Home:
+## surfaces (≈ draw calls before instancing) and triangles.
+func visible_breakdown(label: String) -> void:
+	var camera := home.player.camera
+	var groups := {}
+	for node in home.find_children("*","MeshInstance3D",true,false):
+		var model := node as MeshInstance3D
+		if model.mesh==null or not model.is_visible_in_tree() or (model.layers & camera.cull_mask)==0:
+			continue
+		var box := model.global_transform*model.get_aabb()
+		var seen := camera.is_position_in_frustum(box.get_center())
+		for corner in range(8):
+			seen = seen or camera.is_position_in_frustum(box.get_endpoint(corner))
+		if not seen:
+			continue
+		var path := str(home.get_path_to(model)).split("/")
+		var key := "/".join(path.slice(0,mini(2,path.size()-1)))
+		var entry: Array = groups.get(key,[0,0,0])
+		entry[0] += 1
+		entry[1] += model.mesh.get_surface_count()
+		var triangles := 0
+		for surface in model.mesh.get_surface_count():
+			var arrays := model.mesh.surface_get_arrays(surface) if model.mesh is ArrayMesh else []
+			if not arrays.is_empty():
+				var index = arrays[Mesh.ARRAY_INDEX]
+				var vertices = arrays[Mesh.ARRAY_VERTEX]
+				triangles += ((index as PackedInt32Array).size() if index!=null and not (index as PackedInt32Array).is_empty() else (vertices as PackedVector3Array).size())/3
+		entry[2] += triangles
+		groups[key] = entry
+	var keys := groups.keys()
+	keys.sort_custom(func(a,b): return groups[a][1]>groups[b][1])
+	for key in keys.slice(0,2):
+		var holder := home.get_node(NodePath(key))
+		print("PERF   %s %s is %s script=%s parent=%s" % [label,key,holder.get_class(),holder.get_script().resource_path if holder.get_script() else "",holder.get_parent().get_script().resource_path if holder.get_parent().get_script() else holder.get_parent().name])
+	for key in keys.slice(0,8):
+		print("PERF   %s %-40s meshes=%5d surfaces=%5d tris=%7dk" % [label,key,groups[key][0],groups[key][1],groups[key][2]/1000])
+
+func sample_frames(label: String, viewport: RID) -> void:
+	await home.get_tree().create_timer(1.2).timeout
+	var gpu := 0.0
+	var cpu := 0.0
+	var process := 0.0
+	var physics := 0.0
+	var draws := 0.0
+	var primitives := 0.0
+	var count := 0
+	var started := Time.get_ticks_usec()
+	while Time.get_ticks_usec()-started<1500000:
+		await RenderingServer.frame_post_draw
+		gpu += RenderingServer.viewport_get_measured_render_time_gpu(viewport)
+		cpu += RenderingServer.viewport_get_measured_render_time_cpu(viewport)
+		process += Performance.get_monitor(Performance.TIME_PROCESS)*1000.0
+		physics += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)*1000.0
+		draws += Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
+		primitives += Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)
+		count += 1
+	var seconds := (Time.get_ticks_usec()-started)/1000000.0
+	count = maxi(count,1)
+	print("PERF %-34s fps=%5.1f gpu=%6.2fms render_cpu=%5.2fms process=%5.2fms physics=%5.2fms draws=%5d prims=%7dk" % [
+		label,count/seconds,gpu/count,cpu/count,process/count,physics/count,int(draws/count),int(primitives/count/1000.0)])
+
+## Saves the next drawn frame right away (snap waits first, for things to settle).
+func grab(shot_name: String) -> void:
+	await RenderingServer.frame_post_draw
+	home.get_viewport().get_texture().get_image().save_png(SavePaths.file("tour-%s.png" % shot_name))
 
 func snap(shot_name: String) -> void:
 	await home.get_tree().create_timer(.7).timeout

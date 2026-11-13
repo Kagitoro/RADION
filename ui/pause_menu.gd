@@ -1,5 +1,5 @@
 class_name PauseMenu
-extends PanelContainer
+extends Control
 ## Pause overlay for the night game. It only reports what the player chose;
 ## NightGame decides what each choice does.
 
@@ -14,6 +14,16 @@ signal steps_volume_changed(value: float)
 signal mouse_sensitivity_changed(value: float)
 ## Locale code from GameSettings.LANGUAGES ("" = system language).
 signal language_changed(code: String)
+signal graphics_changed(level: int)
+
+## Key, action shown in the controls cheat sheet.
+const CONTROLS := [
+	["J","Вечеринка"],["E","Ноутбук / разговор"],["C","Контроллер"],["1–3","Треки"],
+	["M","Сведение"],["Tab","Инвентарь"],["B","Пиво"],["N","Сигарета"],
+	["K","Потушить"],["R","Энергетик"],["F","Фонарь"],["V","Тошнит"],
+]
+
+@onready var settings: SettingsBox = $Window/Content/Body/Side/Settings
 
 func _ready() -> void:
 	%ResumeButton.pressed.connect(resume_requested.emit)
@@ -22,15 +32,25 @@ func _ready() -> void:
 	%MainMenuButton.pressed.connect(main_menu_requested.emit)
 	%RestartButton.pressed.connect(func(): %RestartConfirm.popup_centered())
 	%RestartConfirm.confirmed.connect(restart_requested.emit)
-	%MusicSlider.value_changed.connect(music_volume_changed.emit)
-	%StepsSlider.value_changed.connect(steps_volume_changed.emit)
-	%MouseSlider.value_changed.connect(mouse_sensitivity_changed.emit)
-	var languages: OptionButton = %LanguageOption
-	var current := GameSettings.language()
-	for index in GameSettings.LANGUAGES.size():
-		var entry: Array = GameSettings.LANGUAGES[index]
-		languages.add_item(entry[1])
-		languages.set_item_metadata(index, entry[0])
-		if entry[0] == current:
-			languages.select(index)
-	languages.item_selected.connect(func(index: int): language_changed.emit(str(languages.get_item_metadata(index))))
+	settings.level_changed.connect(func(key: String, value: float):
+		match key:
+			"music": music_volume_changed.emit(value)
+			"steps": steps_volume_changed.emit(value)
+			"mouse": mouse_sensitivity_changed.emit(value)
+	)
+	settings.language_changed.connect(language_changed.emit)
+	settings.graphics_changed.connect(graphics_changed.emit)
+	var grid: GridContainer = %Controls
+	for entry in CONTROLS:
+		grid.add_child(UIKit.keycap(str(entry[0])))
+		var caption := UIKit.label(str(entry[1]),13)
+		caption.add_theme_color_override("font_color",UIKit.MUTED)
+		grid.add_child(caption)
+	for button in [%ResumeButton,%IntroButton,%NewPartyButton,%MainMenuButton]:
+		MenuFx.light_on_focus(button)
+	visibility_changed.connect(func():
+		if visible:
+			settings.sync()
+			MenuFx.pop_in(%Window)
+			%ResumeButton.grab_focus.call_deferred()
+	)

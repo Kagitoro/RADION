@@ -26,6 +26,9 @@ func setup(game_home: Home, night_game: NightGame) -> void:
 	layer.add_child(screen)
 	screen.continue_pressed.connect(resume)
 	screen.quit_pressed.connect(quit_game)
+	screen.level_changed.connect(game.set_level)
+	screen.language_changed.connect(GameSettings.set_language)
+	screen.graphics_changed.connect(game.set_graphics)
 	layer.hide()
 
 func show_menu() -> void:
@@ -53,7 +56,7 @@ func show_menu() -> void:
 	camera.make_current()
 	screen.set_continue_label(game.intro.opening_completed)
 	layer.show()
-	screen.continue_button.grab_focus()
+	screen.play_intro()
 
 func leave_menu() -> void:
 	opened = false
@@ -112,6 +115,11 @@ func quit_game() -> void:
 	home.quit_game()
 
 func _input(event: InputEvent) -> void:
-	if opened and entered and event.is_action_pressed("pause"):
+	if not opened or not event.is_action_pressed("pause"):
+		return
+	if screen.settings_open():
+		screen.show_settings(false)
+		get_viewport().set_input_as_handled()
+	elif entered:
 		resume()
 		get_viewport().set_input_as_handled()

@@ -9,38 +9,38 @@ _data = {
 &"energy": ExtResource("3_xw8g4")
 }
 
-[node name="Preview_energy" type="Node3D" unique_id=2088982334]
+[node name="Preview_energy" type="Node3D" unique_id=1907324919]
 
-[node name="Sway" type="Node3D" parent="." unique_id=92443855]
+[node name="Sway" type="Node3D" parent="." unique_id=176533240]
 
-[node name="Right" type="Node3D" parent="Sway" unique_id=330725614]
-transform = Transform3D(0.96105546, 0.27635565, 0, -0.26401263, 0.91813135, -0.29552022, -0.08166868, 0.2840113, 0.9553365, 0.32, -0.52, -0.3)
+[node name="Right" type="Node3D" parent="Sway" unique_id=1195711752]
+transform = Transform3D(0.9197898, 0.38197616, 0.08989472, -0.30876133, 0.8458555, -0.43496552, -0.2421844, 0.37232083, 0.89594865, 0.33, -0.56, -0.28)
 
-[node name="RightHand" type="Node3D" parent="Sway/Right" unique_id=2095653668]
+[node name="RightHand" type="Node3D" parent="Sway/Right" unique_id=1935577765]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.045, 0.006, 0.044)
 
-[node name="Arm" type="Node3D" parent="Sway/Right/RightHand" unique_id=458097135 instance=ExtResource("1_6y6g1")]
+[node name="Arm" type="Node3D" parent="Sway/Right/RightHand" unique_id=1407739651 instance=ExtResource("1_6y6g1")]
 
-[node name="Can" type="Node3D" parent="Sway/Right" unique_id=2038867305 instance=ExtResource("2_764v5")]
+[node name="Can" type="Node3D" parent="Sway/Right" unique_id=85339437 instance=ExtResource("2_764v5")]
 transform = Transform3D(0.87758255, 0, -0.47942555, 0, 1, 0, 0.47942555, 0, 0.87758255, 0, -0.062, 0)
 
-[node name="Left" type="Node3D" parent="Sway" unique_id=298119253]
+[node name="Left" type="Node3D" parent="Sway" unique_id=439772453]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, -0.6, -0.3)
 
-[node name="LeftHand" type="Node3D" parent="Sway/Left" unique_id=358818721]
+[node name="LeftHand" type="Node3D" parent="Sway/Left" unique_id=2037114791]
 transform = Transform3D(-0.44670737, 0.7001401, -0.5570066, 0.85087126, 0.14002796, -0.5063697, 0.27653325, 0.70014, 0.6582806, -0.11784139, -0.07864041, 0.09500576)
 
-[node name="Arm" type="Node3D" parent="Sway/Left/LeftHand" unique_id=2110733654 instance=ExtResource("1_6y6g1")]
+[node name="Arm" type="Node3D" parent="Sway/Left/LeftHand" unique_id=2135507473 instance=ExtResource("1_6y6g1")]
 
-[node name="Mouth" type="Node3D" parent="Sway" unique_id=1847861303]
+[node name="Mouth" type="Node3D" parent="Sway" unique_id=1694954694]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.072, -0.13)
 
-[node name="PlayerCamera" type="Camera3D" parent="." unique_id=1275084402]
+[node name="PlayerCamera" type="Camera3D" parent="." unique_id=2013084846]
 fov = 71.999954
 near = 0.01
 
-[node name="Light" type="DirectionalLight3D" parent="." unique_id=1912901106]
+[node name="Light" type="DirectionalLight3D" parent="." unique_id=419970753]
 transform = Transform3D(0.87758255, -0.3088544, 0.36668488, 0, 0.7648422, 0.64421767, -0.47942555, -0.56535417, 0.6712122, 0, 0, 0)
 
-[node name="Actions" type="AnimationPlayer" parent="." unique_id=187523010]
+[node name="Actions" type="AnimationPlayer" parent="." unique_id=1289518684]
 libraries/ = SubResource("AnimationLibrary_pqss7")

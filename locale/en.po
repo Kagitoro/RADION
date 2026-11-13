@@ -1416,3 +1416,102 @@ msgstr "Bought · %s × %d"
 
 msgid "Купить"
 msgstr "Buy"
+
+msgid "WASD идти · Shift быстрее · E общаться · Tab инвентарь · F фонарь · Esc пауза"
+msgstr "WASD move · Shift faster · E talk · Tab inventory · F flashlight · Esc pause"
+
+msgid "закрыть"
+msgstr "close"
+
+msgid "ЛКМ"
+msgstr "LMB"
+
+msgid "выбрать"
+msgstr "select"
+
+msgid "использовать"
+msgstr "use"
+
+msgid "В кармане: %d"
+msgstr "In pocket: %d"
+
+msgid "Нет в кармане · купи в Night Shop"
+msgstr "None on you · buy at the Night Shop"
+
+msgid "Использовать · %s"
+msgstr "Use · %s"
+
+msgid "Всегда с собой"
+msgstr "Always on you"
+
+msgid "меню"
+msgstr "menu"
+
+msgid "назад"
+msgstr "back"
+
+msgid "Ноутбук / разговор"
+msgstr "Laptop / talk"
+
+msgid "Контроллер"
+msgstr "Controller"
+
+msgid "Треки"
+msgstr "Tracks"
+
+msgid "Сведение"
+msgstr "Beatmatch"
+
+msgid "Сигарета"
+msgstr "Cigarette"
+
+msgid "Потушить"
+msgstr "Put out"
+
+msgid "Фонарь"
+msgstr "Flashlight"
+
+msgid "Тошнит"
+msgstr "Throw up"
+
+msgid "Настройки"
+msgstr "Settings"
+
+msgid "Tab"
+msgstr "Tab"
+
+msgid "Использовать"
+msgstr "Use"
+
+msgid "DJ SIMULATOR · NIGHT 01"
+msgstr "DJ SIMULATOR · NIGHT 01"
+
+msgid "LATE SET"
+msgstr "LATE SET"
+
+msgid "Назад"
+msgstr "Back"
+
+msgid "ПАУЗА"
+msgstr "PAUSED"
+
+msgid "Управление"
+msgstr "Controls"
+
+msgid "Зажигалка"
+msgstr "Lighter"
+
+msgid "Красная одноразовая. Щёлкает со второго раза."
+msgstr "A red disposable. Lights on the second click."
+
+msgid "Графика"
+msgstr "Graphics"
+
+msgid "Низкая"
+msgstr "Low"
+
+msgid "Средняя"
+msgstr "Medium"
+
+msgid "Высокая"
+msgstr "High"

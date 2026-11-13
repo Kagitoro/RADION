@@ -14,7 +14,16 @@ const DECELERATION := 14.0
 const WALK_STRIDE := .57
 const RUN_STRIDE := .75
 
+## Render layers of the first-person body's arms: an action hides the arm its
+## viewmodel hand replaces, the rest of the body stays in view.
+const RIGHT_ARM_LAYER := 6
+const LEFT_ARM_LAYER := 7
+
 var dj_rig: GuestModel
+## Index in dj_rig.arms of the arm on the player's right (the one that drinks and smokes),
+## and the sign of its side in skeleton space (the model is turned around).
+var drink_arm := 1
+var arm_side := -1.0
 var dj_mouth: Node3D
 var avatar: Node3D
 var action_grip: Node3D
@@ -223,6 +232,16 @@ func make_body() -> void:
 		add_child(avatar)
 		avatar.position.z = .075
 		rig.make_first_person()
+		var skeleton := rig.skeleton
+		for index in range(rig.arms.size()):
+			var fist := skeleton.get_bone_global_pose(rig.arms[index].z).origin
+			if to_local(skeleton.to_global(fist)).x>0.0:
+				drink_arm = index
+				arm_side = signf(fist.x)
+		var limbs := {rig.arms[drink_arm].x: 1<<(RIGHT_ARM_LAYER-1)}
+		if rig.arms.size()==2:
+			limbs[rig.arms[1-drink_arm].x] = 1<<(LEFT_ARM_LAYER-1)
+		rig.split_limbs(limbs)
 		dj_mouth = Node3D.new()
 		avatar.add_child(dj_mouth)
 		action_grip = Node3D.new()
@@ -250,7 +269,10 @@ func set_action_pose(amount: float) -> void:
 
 func held_item_offset(beer: bool) -> Vector3:
 	if is_instance_valid(dj_rig):
-		return Vector3(.081,.008,-.032) if beer else Vector3(.067,.006,-.036)
+		var offset := Vector3(.081,.008,-.032) if beer else Vector3(.067,.006,-.036)
+		# Tuned for an arm on the +x side of the skeleton; mirrored for the other one.
+		offset.x *= arm_side
+		return offset
 	return Vector3(-.018,0,-.015) if beer else Vector3(-.012,0,-.017)
 
 func update_body(delta: float) -> void:
@@ -294,24 +316,36 @@ func update_dj_body(delta: float, moving: bool) -> void:
 	if kneel_amount>0:
 		dj_rig.kneel(kneel_amount,sin(retch_clock*12))
 	else:
-		dj_rig.rotate_local("Head",Vector3(-pitch*.65,0,0))
+		dj_rig.rotate_local("Head",Vector3(-(pitch+action_look.x)*.65,0,0))
 	dj_mouth.global_transform = dj_rig.mouth_transform()
 	if kneel_amount>.01:
 		return
-	var arm := dj_rig.arms[0]
+	var arm := dj_rig.arms[drink_arm]
+	# Arms follow the idle/walk clip (so they swing in step with the legs), carried a
+	# little forward and in, so the hands show at the bottom of the view when looking down.
 	for index in range(dj_rig.arms.size()):
-		var side := 1.0 if index == 0 else -1.0
-		var swing := sin(head_bob + index * PI) * .07 if moving else 0.0
-		dj_rig.point_arm(dj_rig.arms[index], Vector3(side * .27, .94, .19 + swing), Vector3(side,-.6,-.45))
-	var idle := Vector3(.25,1.09,.33) if action_amount > .001 else skeleton.get_bone_global_pose(arm.z).origin
-	var tilt := Vector3(1.17*action_amount if action_beer else 0.0,0,-.10*action_amount)
+		var fist := skeleton.get_bone_global_pose(dj_rig.arms[index].z).origin
+		var side := signf(fist.x)
+		var lift := .02+.012*sin(head_bob*2.0+index*PI) if moving else .02+.004*sin(Time.get_ticks_msec()*.0017)
+		dj_rig.point_arm(dj_rig.arms[index],fist+Vector3(-side*.025,lift,.075),Vector3(side,-.6,-.25))
+	if view_model!=null and view_model.active:
+		# During a hand action the body copies the viewmodel hands, so the mirror shows
+		# the same motion as the first-person view.
+		follow_view_hand(view_model.right,view_model.right_pivot,drink_arm,arm_side)
+		if dj_rig.arms.size()==2:
+			follow_view_hand(view_model.left,view_model.left_pivot,1-drink_arm,-arm_side)
+		action_grip.global_position = skeleton.to_global(skeleton.get_bone_global_pose(arm.z).origin)
+		return
+	var idle := Vector3(.25*arm_side,1.09,.33) if action_amount > .001 else skeleton.get_bone_global_pose(arm.z).origin
+	# Tuned for the +x arm (x mirrored for the other side: roll flips, pitch stays).
+	var tilt := Vector3(1.17*action_amount if action_beer else 0.0,0,-.10*action_amount*arm_side)
 	var contact := held_item_offset(action_beer)
 	contact += Vector3(0,.158,0) if action_beer else Vector3(0,.018,.011)
 	var mouth_target := skeleton.to_local(dj_mouth.global_position-avatar.global_basis*Basis.from_euler(tilt)*contact)
 	if action_amount>.001:
-		dj_rig.point_arm(arm,idle.lerp(mouth_target,action_amount),Vector3(.72,-1,-.28))
+		dj_rig.point_arm(arm,idle.lerp(mouth_target,action_amount),Vector3(.72*arm_side,-1,-.28))
 		var grip_basis := skeleton.global_basis.inverse()*avatar.global_basis*Basis.from_euler(tilt)
-		var palm_y := (grip_basis*Vector3(.94,.05,-.34)).normalized()
+		var palm_y := (grip_basis*Vector3(.94*arm_side,.05,-.34)).normalized()
 		var wrist := skeleton.get_bone_global_pose(arm.z).basis.orthonormalized()
 		# Bend from the animated wrist and preserve its roll around the forearm.
 		var bend := Quaternion(wrist.y,palm_y)
@@ -320,6 +354,28 @@ func update_dj_body(delta: float, moving: bool) -> void:
 		dj_rig.set_joint_rotation(arm.z,Basis(Quaternion.IDENTITY.slerp(bend,blend))*wrist)
 	action_grip.global_position = skeleton.to_global(skeleton.get_bone_global_pose(arm.z).origin)
 	action_grip.rotation = tilt
+
+## World point of the viewmodel moved onto the body: the viewmodel brings items to a
+## presentation "mouth" a little below and in front of the real one, so near the
+## lips (action_amount) points are shifted by that difference.
+func view_to_body(point: Vector3) -> Vector3:
+	if not is_instance_valid(dj_mouth) or view_model==null:
+		return point
+	return point+(dj_mouth.global_position-view_model.mouth.global_position)*clampf(action_amount,0.0,1.0)
+
+## Reaches a body arm to where a viewmodel hand is, with the hand bone aimed along its fingers.
+func follow_view_hand(hand: FPHand, pivot: Node3D, index: int, side: float) -> void:
+	if not pivot.is_visible_in_tree():
+		return
+	var skeleton: Skeleton3D = dj_rig.skeleton
+	var arm := dj_rig.arms[index]
+	var wrist := view_to_body(hand.global_position)
+	dj_rig.point_arm(arm,skeleton.to_local(wrist),Vector3(.72*side,-1,-.28))
+	# Fingers run along -Z of the hand; the hand bone runs along its own +Y.
+	var fingers := -hand.global_basis.z.normalized()
+	var want := (skeleton.global_basis.orthonormalized().inverse()*fingers).normalized()
+	var current := skeleton.get_bone_global_pose(arm.z).basis.orthonormalized()
+	dj_rig.set_joint_rotation(arm.z,Basis(Quaternion(current.y.normalized(),want))*current)
 
 func vomit() -> void:
 	if vomiting or collapsed or intoxication<.65 or nausea_cooldown>0:

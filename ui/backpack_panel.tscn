@@ -1,0 +1,164 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Theme" path="res://ui/theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://ui/backpack_panel.gd" id="2_script"]
+[ext_resource type="Script" path="res://ui/low_poly_backdrop.gd" id="3_backdrop"]
+[ext_resource type="Script" path="res://ui/low_poly_equalizer.gd" id="4_equalizer"]
+
+[node name="BackpackPanel" type="Control"]
+z_index = 9
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_theme")
+script = ExtResource("2_script")
+
+[node name="Dim" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0352941, 0.0470588, 0.0901961, 0.55)
+
+[node name="Shards" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_backdrop")
+top_color = Color(0.105882, 0.137255, 0.25098, 1)
+bottom_color = Color(0.0352941, 0.0470588, 0.0901961, 1)
+accent = Color(1, 0.705882, 0.235294, 1)
+cell = 130.0
+opacity = 0.4
+
+[node name="Window" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -450.0
+offset_top = -262.0
+offset_right = 450.0
+offset_bottom = 262.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Content" type="VBoxContainer" parent="Window"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Header" type="HBoxContainer" parent="Window/Content"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Key" type="Label" parent="Window/Content/Header"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"KeyCap"
+text = "Tab"
+auto_translate_mode = 2
+
+[node name="Title" type="Label" parent="Window/Content/Header"]
+layout_mode = 2
+theme_type_variation = &"DisplayLabel"
+theme_override_font_sizes/font_size = 30
+text = "Инвентарь"
+
+[node name="Meter" type="Control" parent="Window/Content/Header"]
+custom_minimum_size = Vector2(120, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+script = ExtResource("4_equalizer")
+bars = 22
+blocks = 5
+opacity = 0.35
+
+[node name="Cash" type="Label" parent="Window/Content/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"HudBadge"
+theme_override_colors/font_color = Color(1, 0.705882, 0.235294, 1)
+theme_override_font_sizes/font_size = 22
+text = "$0"
+auto_translate_mode = 2
+
+[node name="Rule" type="ColorRect" parent="Window/Content"]
+custom_minimum_size = Vector2(0, 3)
+layout_mode = 2
+color = Color(0.203922, 0.258824, 0.478431, 1)
+
+[node name="Body" type="HBoxContainer" parent="Window/Content"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 20
+
+[node name="Slots" type="GridContainer" parent="Window/Content/Body"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+columns = 2
+
+[node name="Detail" type="PanelContainer" parent="Window/Content/Body"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Column" type="VBoxContainer" parent="Window/Content/Body/Detail"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Preview" type="SubViewportContainer" parent="Window/Content/Body/Detail/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 170)
+layout_mode = 2
+stretch = true
+
+[node name="Name" type="Label" parent="Window/Content/Body/Detail/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"DisplayLabel"
+theme_override_font_sizes/font_size = 24
+text = "Пиво"
+
+[node name="Count" type="Label" parent="Window/Content/Body/Detail/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.705882, 0.235294, 1)
+theme_override_font_sizes/font_size = 15
+
+[node name="Description" type="Label" parent="Window/Content/Body/Detail/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.560784, 0.607843, 0.768627, 1)
+theme_override_font_sizes/font_size = 14
+autowrap_mode = 3
+
+[node name="UseButton" type="Button" parent="Window/Content/Body/Detail/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+theme_type_variation = &"MenuButtonBig"
+theme_override_font_sizes/font_size = 18
+text = "Использовать"
+
+[node name="Footer" type="HBoxContainer" parent="Window/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8

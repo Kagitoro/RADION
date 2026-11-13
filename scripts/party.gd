@@ -267,6 +267,7 @@ func beat_mix() -> void:
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(home.player) or not is_instance_valid(status):
 		return
+	consumables.sync_mirror()
 	if not home.modal:
 		consumables.update_falling_bits(delta)
 	if consumables.smoking() and not home.modal:

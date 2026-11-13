@@ -8,7 +8,7 @@ const TARGET_CARD := preload("res://ui/target_card.tscn")
 var game: Home
 var root: Control
 var badge: Label
-var hint: Label
+var hint: KeyHints
 var held_panel: PanelContainer
 var held_name: Label
 var held_view: SubViewport
@@ -30,7 +30,7 @@ var export_dialog: FileDialog
 var notice_label: Label
 var last_message := 0
 var last_badge := ""
-var crosshair: Label
+var crosshair: Crosshair
 var target_card: PanelContainer
 var target_title: Label
 var target_hint: Label
@@ -43,27 +43,28 @@ func _ready() -> void:
 	add_child(root)
 	UIKit.anchor_fill(root)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	crosshair = UIKit.label("+", 27)
-	crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	crosshair = Crosshair.new()
 	root.add_child(crosshair)
-	crosshair.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	crosshair.position -= Vector2(8,18)
+	crosshair.set_anchors_and_offsets_preset(Control.PRESET_CENTER,Control.PRESET_MODE_KEEP_SIZE)
 	build_target_card()
-	badge = UIKit.label("", 16)
+	badge = UIKit.label("", 15)
+	badge.theme_type_variation = &"HudBadge"
 	root.add_child(badge)
 	badge.position = Vector2(20,18)
-	hint = UIKit.label("", 14)
+	hint = KeyHints.new()
 	root.add_child(hint)
 	hint.anchor_top = 1
 	hint.anchor_bottom = 1
 	hint.offset_left = 20
-	hint.offset_top = -43
-	hint.offset_bottom = -12
-	notice_label = UIKit.label("", 15)
+	hint.offset_top = -44
+	hint.offset_bottom = -16
+	notice_label = UIKit.label("", 14)
+	notice_label.theme_type_variation = &"HudNotice"
 	root.add_child(notice_label)
-	notice_label.position = Vector2(20,47)
+	notice_label.position = Vector2(20,56)
 	notice_label.z_index = 2
 	notice_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	notice_label.hide()
 	build_held()
 	build_inventory()
 	build_plan()
@@ -171,8 +172,22 @@ func clear_held() -> void:
 	held_panel.hide()
 
 func notice(text: String) -> void:
+	var fresh := text!=notice_label.text or not notice_label.visible
 	notice_label.text = text
+	notice_label.visible = not text.is_empty()
+	notice_label.reset_size()
 	last_message = Time.get_ticks_msec()
+	if fresh and notice_label.visible:
+		# Slides in from the left edge and fades up.
+		notice_label.modulate.a = 0.0
+		notice_label.position.x = 0
+		var motion := notice_label.create_tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		motion.tween_property(notice_label,"modulate:a",1.0,.18)
+		motion.tween_property(notice_label,"position:x",20.0,.25)
+
+func clear_notice() -> void:
+	notice_label.text = ""
+	notice_label.hide()
 
 func build_plan() -> void:
 	plan = FloorPlan.new()
@@ -274,16 +289,16 @@ func refresh() -> void:
 		badge.text = tr("НОЧЬ / HOUSE PARTY")
 		badge.visible = not game.modal
 		hint.visible = not game.modal
-		hint.text = tr("WASD идти · Shift быстрее · E общаться · F фонарь · Esc пауза")
+		hint.text = tr("WASD идти · Shift быстрее · E общаться · Tab инвентарь · F фонарь · Esc пауза")
 		crosshair.visible = not game.modal and not game.player.collapsed
 		target_card.hide()
 		held_panel.hide()
 		game.frames.update_target_frames()
 		if not notice_label.text.is_empty() and Time.get_ticks_msec()-last_message>4200:
-			notice_label.text = ""
+			clear_notice()
 		return
 	if not notice_label.text.is_empty() and Time.get_ticks_msec() - last_message > 3600:
-		notice_label.text = ""
+		clear_notice()
 	var current: Dictionary = game.held if not game.held.is_empty() else game.records.get(game.selected,{})
 	var targeted: Dictionary = game.records.get(game.aimed_id(),{})
 	var text := tr("RADION · Дом")

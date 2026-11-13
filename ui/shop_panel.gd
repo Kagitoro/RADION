@@ -7,13 +7,14 @@ extends Control
 signal buy_requested(index: int, quantity: int)
 signal close_requested
 
-const MINT := Color("#a9f6de")
-const AMBER := Color("#ffc66b")
-const INK := Color("#0d1315")
-const CARD := Color("#162024")
-const CARD_HOVER := Color("#1d2c31")
-const MUTED := Color("#8aa39b")
-const DANGER := Color("#ff7b6b")
+# Shop colours follow the shared low-poly palette (UIKit); the neon sign is cyan.
+const MINT := UIKit.CYAN
+const AMBER := UIKit.AMBER
+const INK := UIKit.INK
+const CARD := UIKit.DUSK
+const CARD_HOVER := UIKit.RAISED
+const MUTED := UIKit.MUTED
+const DANGER := UIKit.BAD
 const MAX_QUANTITY := 9
 
 var items: Array = []
@@ -36,23 +37,11 @@ func _ready() -> void:
 	set_process(false)
 
 func style() -> void:
-	var window := StyleBoxFlat.new()
-	window.bg_color = Color(INK,.97)
-	window.border_color = Color(MINT,.55)
-	window.set_border_width_all(1)
-	window.border_width_top = 3
-	window.set_corner_radius_all(14)
-	window.set_content_margin_all(22)
-	window.shadow_color = Color(MINT,.12)
-	window.shadow_size = 24
+	var window := UIKit.window_style()
+	window.border_color = Color(MINT,.7)
 	%Window.add_theme_stylebox_override("panel",window)
-	var detail := StyleBoxFlat.new()
-	detail.bg_color = Color("#111a1d")
-	detail.border_color = Color("#23353a")
-	detail.set_border_width_all(1)
-	detail.set_corner_radius_all(10)
-	detail.set_content_margin_all(14)
-	%Detail.add_theme_stylebox_override("panel",detail)
+	%Detail.add_theme_stylebox_override("panel",UIKit.facet(Color(INK,.75),UIKit.EDGE,UIKit.CUT,3))
+	%Title.theme_type_variation = &"DisplayLabel"
 	%Title.add_theme_color_override("font_color",MINT)
 	%Title.add_theme_color_override("font_shadow_color",Color(MINT,.45))
 	%Title.add_theme_constant_override("shadow_offset_x",0)
@@ -66,18 +55,16 @@ func style() -> void:
 	%Total.add_theme_color_override("font_color",AMBER)
 	%Hint.add_theme_color_override("font_color",MUTED)
 	for button in [%Minus,%Plus,%CloseButton]:
-		dress_button(button,Color("#1b272b"),Color("#2a3b40"),Color("#e7f2ee"))
-	dress_button(%BuyButton,Color("#2a8f78"),Color("#36b195"),Color("#04120e"))
+		dress_button(button,UIKit.DUSK,UIKit.RAISED,UIKit.TEXT)
+	dress_button(%BuyButton,UIKit.AMBER,Color("#ffc96e"),UIKit.INK)
 
 func dress_button(button: Button, fill: Color, hover: Color, text: Color) -> void:
 	for state in ["normal","hover","pressed","focus","disabled"]:
-		var box := StyleBoxFlat.new()
-		box.bg_color = {"normal":fill,"hover":hover,"pressed":hover.darkened(.15),"focus":hover,"disabled":fill.darkened(.4)}[state]
-		box.set_corner_radius_all(8)
+		var color: Color = {"normal":fill,"hover":hover,"pressed":hover.darkened(.15),"focus":hover,"disabled":fill.darkened(.4)}[state]
+		var box := UIKit.button_style(color,color.darkened(.35),4 if state!="pressed" else 2)
 		box.set_content_margin_all(6)
 		if state=="focus":
-			box.border_color = MINT
-			box.set_border_width_all(2)
+			box.border_color = AMBER
 		button.add_theme_stylebox_override(state,box)
 	button.add_theme_color_override("font_color",text)
 	button.add_theme_color_override("font_hover_color",text)
@@ -106,11 +93,8 @@ func make_card(index: int) -> Button:
 	card.pivot_offset = Vector2(125,100)
 	card.clip_contents = true
 	for state in ["normal","hover","pressed","focus"]:
-		var box := StyleBoxFlat.new()
-		box.bg_color = CARD_HOVER if state!="normal" else CARD
-		box.set_corner_radius_all(12)
-		box.border_color = MINT if state in ["pressed","focus"] else Color("#26363b")
-		box.set_border_width_all(2 if state in ["pressed","focus"] else 1)
+		var lit: bool = state in ["pressed","focus"]
+		var box := UIKit.facet(CARD_HOVER if state!="normal" else Color(CARD,.92),AMBER if lit else UIKit.EDGE,UIKit.CUT,4)
 		card.add_theme_stylebox_override(state,box)
 	card.add_theme_stylebox_override("hover_pressed",card.get_theme_stylebox("pressed"))
 	var icon := TextureRect.new()
@@ -124,6 +108,7 @@ func make_card(index: int) -> Button:
 	var title := Label.new()
 	title.text = tr(item[0])
 	title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	title.theme_type_variation = &"DisplayLabel"
 	title.add_theme_font_size_override("font_size",17)
 	title.position = Vector2(14,140)
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -131,6 +116,7 @@ func make_card(index: int) -> Button:
 	var price := Label.new()
 	price.name = "Price"
 	price.text = "$%d" % item[1]
+	price.theme_type_variation = &"DisplayLabel"
 	price.add_theme_font_size_override("font_size",20)
 	price.add_theme_color_override("font_color",AMBER)
 	price.position = Vector2(14,164)
@@ -319,6 +305,7 @@ static func stage_model(view: SubViewport, model: String) -> Node3D:
 	var builders := {
 		"energy_can": FPProps.energy_can, "beer_bottle": FPProps.beer_bottle,
 		"cigarette_pack": FPProps.cigarette_pack, "six_pack": FPProps.six_pack,
+		"lighter": FPProps.lighter,
 	}
 	if not builders.has(model):
 		return pivot
