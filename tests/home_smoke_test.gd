@@ -105,9 +105,17 @@ func check_house_lights(errors: Array[String]) -> void:
 		if light == null:
 			errors.append("Свет дома: нет лампы " + lamp.name)
 			continue
-		if light.global_position.distance_to((lamp as Node3D).position) > .01:
-			errors.append("Свет дома: %s не там, где в сцене" % lamp.name)
 		var fixture := str(lamp.get_meta("fixture", ""))
+		var expected := (lamp as Node3D).position
+		if str(lamp.name).begins_with("Studio_"):
+			if fixture.is_empty():
+				expected = home.rooms.room_point("studio", expected)
+			else:
+				var before: Dictionary = home.originals[fixture]
+				var after: Dictionary = home.records[fixture]
+				expected += Vector3(after.x - before.x, after.y - before.y, after.z - before.z)
+		if light.global_position.distance_to(expected) > .01:
+			errors.append("Свет дома: %s не там, где в сцене" % lamp.name)
 		if not fixture.is_empty() and home.nodes[fixture].get_node_or_null("Light_" + lamp.name) == null:
 			errors.append("Свет дома: %s не привязан к светильнику %s" % [lamp.name, fixture])
 	source.free()

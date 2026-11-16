@@ -10,6 +10,17 @@ const BPM := [122.0,128.0,126.0]
 
 var home: Home
 var deck_light := OmniLight3D.new()
+const PARTY_FILL_ENERGY := {
+	"Studio_Fill": 1.75,
+	"Living_Chandelier": 0.95,
+	"Kitchen_Fill": 1.42,
+	"Bath_Fill": 0.52,
+	"Hall_Fill_West": 0.46,
+	"Hall_Fill_Middle": 0.46,
+	"Hall_Fill_East": 0.46,
+}
+var house_light_energy: Dictionary[Light3D, float] = {}
+var party_light_mix := 0.0
 var crowd := Node3D.new()
 var tracks: Array[AudioStreamMP3] = []
 var outside_filter := AudioEffectLowPassFilter.new()
@@ -140,11 +151,15 @@ func setup() -> void:
 	consumables.breath_audio = consumables.action_sound(false)
 	add_child(deck)
 	add_child(crowd)
-	DJStation.build_laptop(self)
+	DJStation.build_laptop(self, true)
 	deck.add_child(deck_light)
 	deck_light.position = Vector3(0,.32,.15)
 	deck_light.omni_range = 2.6
 	deck_light.light_energy = 0.0
+	for node in home.scene_lighting.get_children():
+		var light := node as Light3D
+		if light is SpotLight3D or (light is OmniLight3D and PARTY_FILL_ENERGY.has(str(light.name))):
+			house_light_energy[light] = light.light_energy
 	for index in range(2):
 		var channel := AudioStreamPlayer.new()
 		channel.bus = "Night music"
@@ -287,7 +302,7 @@ func _physics_process(delta: float) -> void:
 		hud_elapsed = 0.0
 		refresh_hud()
 	var dj = home.night_game.dj
-	var pause_music: bool = home.modal and not dj.is_open()
+	var pause_music: bool = home.modal and not dj.is_open() and not home.night_game.gestures.visible
 	if music_paused != pause_music:
 		music_paused = pause_music
 		for index in range(music.size()):
@@ -299,6 +314,7 @@ func _physics_process(delta: float) -> void:
 	var street_fade := minf(48.0,maxf(0.0,distance_from_house-12.0)*4.0)
 	var volume_target := (-12.0-street_fade if outdoors else 0.0)+linear_to_db(maxf(.0001,music_gain))
 	AudioServer.set_bus_volume_db(music_bus,lerpf(bus_volume,volume_target,minf(1,delta*3)))
+	update_party_lights(delta)
 	if pause_music:
 		return
 	var music_running: bool = active and music_gain>.02 and dj.has_playback()
@@ -316,7 +332,7 @@ func _physics_process(delta: float) -> void:
 		beat = dj.dance_phase()
 	else:
 		beat = fposmod(music[dj.audible_deck()].get_playback_position()*BPM[song]/60.0,1.0)
-	deck_light.light_energy = .08+exp(-beat*8.0)*atmosphere*.003
+	deck_light.light_energy = (0.22 + exp(-beat * 5.0) * atmosphere * 0.003) * party_light_mix
 	bonus = move_toward(bonus,0,delta*Balance.BEAT_MIX_BONUS_DECAY)
 	request_time -= delta
 	if request_time<=0:
@@ -361,6 +377,19 @@ func begin_departure() -> void:
 			departure_delay = 1.1
 			return
 	departure_delay = 1.1
+
+func update_party_lights(delta: float) -> void:
+	var next_mix := move_toward(party_light_mix, 1.0 if active else 0.0, delta * 1.35)
+	if next_mix == party_light_mix:
+		return
+	party_light_mix = next_mix
+	for light in house_light_energy:
+		var normal_energy := house_light_energy[light]
+		# Soften the direct ceiling beams while the wider lights keep faces and doors readable.
+		var party_energy := normal_energy * 0.68
+		if light is OmniLight3D:
+			party_energy = float(PARTY_FILL_ENERGY[str(light.name)])
+		light.light_energy = lerpf(normal_energy, party_energy, party_light_mix)
 
 func update_guests(delta: float, music_running: bool) -> void:
 	var dj := home.night_game.dj
@@ -479,6 +508,10 @@ func build_hud() -> void:
 	refresh_hud()
 
 func refresh_hud() -> void:
+	if WalkSession.active:
+		panel.hide()
+		prompt.hide()
+		return
 	var club_shift = home.club.shift
 	var at_club: bool = is_instance_valid(club_shift) and club_shift.nearby()
 	panel.visible = not at_club and active and not home.modal and not is_instance_valid(home.night_game.guest)

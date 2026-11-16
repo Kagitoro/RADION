@@ -15,6 +15,9 @@ var loaded_checkpoint := false
 var player_was_visible := true
 var hud_was_visible := true
 var club_was_muted := false
+var walk_dialog: ConfirmationDialog
+var walk_status: Label
+var walk_address: LineEdit
 
 func setup(game_home: Home, night_game: NightGame) -> void:
 	home = game_home
@@ -25,11 +28,43 @@ func setup(game_home: Home, night_game: NightGame) -> void:
 	screen = SCREEN.instantiate()
 	layer.add_child(screen)
 	screen.continue_pressed.connect(resume)
+	screen.walk_pressed.connect(show_walk_dialog)
 	screen.quit_pressed.connect(quit_game)
 	screen.level_changed.connect(game.set_level)
 	screen.language_changed.connect(GameSettings.set_language)
 	screen.graphics_changed.connect(game.set_graphics)
 	layer.hide()
+
+func show_walk_dialog() -> void:
+	if walk_dialog == null:
+		walk_dialog = ConfirmationDialog.new()
+		walk_dialog.title = tr("Совместная прогулка")
+		walk_dialog.ok_button_text = tr("Подключиться")
+		walk_dialog.cancel_button_text = tr("Назад")
+		walk_dialog.dialog_hide_on_ok = false
+		walk_dialog.add_button(tr("Создать"), true, "host")
+		layer.add_child(walk_dialog)
+		var content := VBoxContainer.new()
+		content.custom_minimum_size = Vector2(430, 0)
+		content.add_child(UIKit.label(tr("IP компьютера хоста · UDP %d") % WalkSession.PORT))
+		walk_address = LineEdit.new()
+		walk_address.placeholder_text = "192.168.1.20"
+		walk_address.max_length = 253
+		content.add_child(walk_address)
+		walk_status = UIKit.label("")
+		walk_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		content.add_child(walk_status)
+		walk_dialog.add_child(content)
+		walk_dialog.confirmed.connect(func(): WalkSession.join(walk_address.text))
+		walk_dialog.custom_action.connect(func(action):
+			if action == "host":
+				WalkSession.host()
+		)
+		walk_dialog.canceled.connect(WalkSession.reset_peer)
+		WalkSession.status_changed.connect(func(message): walk_status.text = message)
+	walk_status.text = WalkSession.notice
+	walk_dialog.popup_centered()
+	walk_address.grab_focus()
 
 func show_menu() -> void:
 	if opened:
@@ -57,6 +92,8 @@ func show_menu() -> void:
 	screen.set_continue_label(game.intro.opening_completed)
 	layer.show()
 	screen.play_intro()
+	if not WalkSession.notice.is_empty():
+		show_walk_dialog()
 
 func leave_menu() -> void:
 	opened = false
@@ -81,7 +118,7 @@ func resume() -> void:
 		game.intro.place_at_door()
 
 func save_checkpoint() -> void:
-	if not entered or game.intro.active or home.player.collapsed or home.player.vomiting:
+	if WalkSession.active or not entered or game.intro.active or home.player.collapsed or home.player.vomiting:
 		return
 	var player: CharacterBody3D = home.player
 	if not player.has_safe_floor:
@@ -112,10 +149,17 @@ func restore_checkpoint() -> void:
 
 func quit_game() -> void:
 	save_checkpoint()
+	if WalkSession.active or WalkSession.pending:
+		WalkSession.reset_peer()
 	home.quit_game()
 
 func _input(event: InputEvent) -> void:
 	if not opened or not event.is_action_pressed("pause"):
+		return
+	if walk_dialog != null and walk_dialog.visible:
+		walk_dialog.hide()
+		WalkSession.reset_peer()
+		get_viewport().set_input_as_handled()
 		return
 	if screen.settings_open():
 		screen.show_settings(false)

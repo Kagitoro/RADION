@@ -4,6 +4,14 @@ extends RefCounted
 
 
 var station: DJStation
+var hover_outline: Control
+var hover_dashes := PackedVector2Array()
+var hover_label: Label
+var hovered_control: Control
+var fader_caps: Dictionary[Slider, Node3D] = {}
+const VERTICAL_CAP_SIZE := Vector3(0.022, 0.007, 0.012)
+const CROSS_CAP_SIZE := Vector3(0.012, 0.007, 0.021)
+const STROKE_INSET := 0.0017
 
 func _init(owner_node: DJStation) -> void:
 	station = owner_node
@@ -25,6 +33,15 @@ func build_controller_face() -> void:
 	station.controller.add_child(photo)
 	photo.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	build_photo_controls()
+	hover_outline = Control.new()
+	hover_outline.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hover_outline.draw.connect(func():
+		if hover_dashes.size() >= 2:
+			hover_outline.draw_multiline(hover_dashes, Color(0.02, 0.07, 0.1, 0.92), 3.0, true)
+			hover_outline.draw_multiline(hover_dashes, Color("#92edff"), 1.5, true)
+	)
+	station.home.hud.root.add_child(hover_outline)
+	hover_outline.hide()
 	var quad := QuadMesh.new()
 	quad.size = station.FACE_SIZE
 	station.face = MeshInstance3D.new()
@@ -57,6 +74,116 @@ func build_controller_face() -> void:
 	station.world_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	station.world_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	station.world_hint.hide()
+	hover_label = station.world_hint.duplicate() as Label
+	station.home.hud.root.add_child(hover_label)
+	hover_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	hover_label.offset_left = -260
+	hover_label.offset_right = 260
+	hover_label.offset_top = 14
+	hover_label.offset_bottom = 38
+	hover_label.add_theme_color_override("font_color", Color("#a6f1ff"))
+
+func update_hover(control: Control) -> void:
+	if control != null and not control.has_meta("hardware_hint"):
+		control = null
+	if control == hovered_control:
+		return
+	hovered_control = control
+	hover_outline.visible = control != null
+	hover_label.visible = control != null
+	if control == null:
+		return
+	hover_label.text = str(control.get_meta("hardware_hint"))
+	refresh_outline()
+
+func refresh_outline() -> void:
+	var control := hovered_control
+	var viewport_size := Vector2(station.controls_view.size)
+	var bounds := control.get_global_rect()
+	var center := (bounds.get_center() / viewport_size - Vector2(0.5, 0.5)) * station.FACE_SIZE
+	var dimensions := bounds.size / viewport_size * station.FACE_SIZE
+	var height := 0.0
+	var is_round := bool(control.get_meta("round_outline", false))
+	var face_ring := bool(control.get_meta("outline_face_ring", false))
+	if control is DJDial:
+		is_round = true
+		if not face_ring:
+			var radius := dial_radius(control) * (0.99 if control.jog else 0.87)
+			dimensions = Vector2.ONE * radius * 2.0
+			height = control_height(control)
+	elif control is Slider and fader_caps.has(control):
+		var cap := fader_caps[control as Slider]
+		var local := station.face.to_local(cap.global_position)
+		center = Vector2(local.x, -local.y)
+		var cap_size := CROSS_CAP_SIZE if control == station.cross_slider else VERTICAL_CAP_SIZE
+		dimensions = Vector2(cap_size.x, cap_size.z)
+		height = local.z + cap_size.y * 0.5
+	var inset := minf(0.0011 if face_ring else STROKE_INSET, minf(dimensions.x, dimensions.y) * 0.14)
+	var half_size := dimensions * 0.5 - Vector2.ONE * inset
+	var points := PackedVector2Array()
+	if is_round:
+		for index in range(48):
+			points.append(center + Vector2.from_angle(TAU * index / 48.0) * half_size)
+	else:
+		var rect := Rect2(center - half_size, half_size * 2.0)
+		points = PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y),
+				rect.end, Vector2(rect.position.x, rect.end.y)])
+	var face_limit := station.FACE_SIZE * 0.5 - Vector2.ONE * STROKE_INSET
+	for index in points.size():
+		var on_face := points[index].clamp(-face_limit, face_limit)
+		var point := Vector3(on_face.x, -on_face.y, height)
+		points[index] = station.control_camera.unproject_position(station.face.to_global(point))
+	hover_dashes = dashed_outline(points)
+	hover_outline.queue_redraw()
+
+func dial_radius(dial: DJDial) -> float:
+	return minf(dial.size.x, dial.size.y) * (0.46 if dial.jog else 0.43) * station.FACE_SIZE.x / station.controls_view.size.x
+
+func dashed_outline(points: PackedVector2Array) -> PackedVector2Array:
+	var perimeter := 0.0
+	for index in points.size():
+		perimeter += points[index].distance_to(points[(index + 1) % points.size()])
+	var result := PackedVector2Array()
+	if perimeter <= 0.01:
+		return result
+	var repeat := perimeter / maxi(4, roundi(perimeter / 13.0))
+	var dash_length := repeat * 0.60
+	var traveled := 0.0
+	for index in points.size():
+		var start := points[index]
+		var end := points[(index + 1) % points.size()]
+		var length := start.distance_to(end)
+		if length <= 0.01:
+			continue
+		var dash := floorf(traveled / repeat) * repeat
+		while dash < traveled + length:
+			var from := maxf(dash - traveled, 0.0)
+			var to := minf(dash + dash_length - traveled, length)
+			if to > from:
+				result.append(start.lerp(end, from / length))
+				result.append(start.lerp(end, to / length))
+			dash += repeat
+		traveled += length
+	return result
+
+func control_height(control: Control) -> float:
+	if control is DJDial:
+		return 0.017 if control.jog else 0.011
+	return 0.013 if control is Slider else 0.0
+
+func pointer_height(screen_point: Vector2) -> float:
+	var jog_point := station.face_pointer(station.control_camera, screen_point, 0.017)
+	var dial_point := station.face_pointer(station.control_camera, screen_point, 0.011)
+	for dial in station.hardware_dials:
+		var point := jog_point if dial.jog else dial_point
+		var bounds := dial.get_global_rect()
+		if point.distance_to(bounds.get_center()) <= bounds.size.x * 0.5:
+			return control_height(dial)
+	var fader_point := station.face_pointer(station.control_camera, screen_point, 0.013)
+	for slider in station.channel_faders + station.tempo_faders + [station.cross_slider]:
+		if slider.get_global_rect().has_point(fader_point):
+			return control_height(slider)
+	return 0.0
 
 func build_raised_controls() -> void:
 	await station.get_tree().process_frame
@@ -69,7 +196,7 @@ func build_raised_controls() -> void:
 		var base := Node3D.new()
 		station.party.deck.add_child(base)
 		base.position = Vector3((position.x-.5)*station.FACE_SIZE.x,station.FACE_HEIGHT+.001,(position.y-.5)*station.FACE_SIZE.y)
-		var radius := minf(dial.size.x,dial.size.y)*(.46 if dial.jog else .43)*station.FACE_SIZE.x/station.controls_view.size.x
+		var radius := dial_radius(dial)
 		var height := .013 if dial.jog else .008
 		station.party.cylinder(base,Vector3(0,height*.5,0),radius,height,Color("#252c36"))
 		station.party.cylinder(base,Vector3(0,height+.001,0),radius*.87,.002,Color("#151a24"))
@@ -106,16 +233,23 @@ func build_raised_controls() -> void:
 	for slider in station.channel_faders+station.tempo_faders:
 		var cap := Node3D.new()
 		station.party.deck.add_child(cap)
-		station.party.box(cap,Vector3.ZERO,Vector3(.022,.007,.012),Color("#343b46"))
+		station.party.box(cap,Vector3.ZERO,VERTICAL_CAP_SIZE,Color("#343b46"))
 		station.party.box(cap,Vector3(0,.004,0),Vector3(.016,.001,.0018),Color("#c6c9ca"))
-		station.move_fader(slider,cap,true)
-		slider.value_changed.connect(func(_value): station.move_fader(slider,cap,true))
+		bind_fader_cap(slider, cap, true)
 	station.cross_cap = Node3D.new()
 	station.party.deck.add_child(station.cross_cap)
-	station.party.box(station.cross_cap,Vector3.ZERO,Vector3(.012,.007,.021),Color("#343b46"))
+	station.party.box(station.cross_cap,Vector3.ZERO,CROSS_CAP_SIZE,Color("#343b46"))
 	station.party.box(station.cross_cap,Vector3(0,.004,0),Vector3(.0018,.001,.016),Color("#c6c9ca"))
-	station.move_fader(station.cross_slider,station.cross_cap,false)
-	station.cross_slider.value_changed.connect(func(_value): station.move_fader(station.cross_slider,station.cross_cap,false))
+	bind_fader_cap(station.cross_slider, station.cross_cap, false)
+
+func bind_fader_cap(slider: Slider, cap: Node3D, vertical: bool) -> void:
+	fader_caps[slider] = cap
+	station.move_fader(slider, cap, vertical)
+	slider.value_changed.connect(func(_value):
+		station.move_fader(slider, cap, vertical)
+		if hovered_control == slider:
+			refresh_outline()
+	)
 
 func build_photo_controls() -> void:
 	var browse := photo_button(Vector2(601,295),Vector2(51,47),tr("Browse · локальная музыка"),func(): station.open(true))
@@ -126,34 +260,47 @@ func build_photo_controls() -> void:
 		build_photo_deck(index)
 		build_photo_channel(index)
 	station.cross_slider = photo_slider(Vector2(602,875),Vector2(117,42),false,-1,1,-1)
+	station.cross_slider.set_meta("hardware_hint", tr("Кроссфейдер · A / B"))
 	station.cross_slider.value_changed.connect(func(value):
 		station.engage()
 		station.crossfade = value
 		station.apply_mix()
 	)
-	var echo_button := photo_button(Vector2(742,806),Vector2(47,47),"Beat FX · Echo",station.toggle_echo)
+	var echo_button := photo_button(Vector2(742,806),Vector2(35,35),tr("Beat FX · вкл. / выкл."),station.toggle_echo,true)
 	echo_button.toggle_mode = true
+	var fx_select := photo_button(Vector2(742,597),Vector2(40,24),"FX SELECT · Echo / Reverb",station.cycle_beat_fx)
+	fx_select.pressed.connect(func():
+		fx_select.set_meta("hardware_hint", "FX SELECT · " + ("Reverb" if station.reverb_selected else "Echo"))
+		if hovered_control == fx_select:
+			hover_label.text = str(fx_select.get_meta("hardware_hint"))
+	)
 	photo_button(Vector2(725,659),Vector2(27,23),tr("Укоротить Echo"),func(): station.echo_beats = maxf(.25,station.echo_beats*.5))
 	photo_button(Vector2(760,659),Vector2(27,23),tr("Удлинить Echo"),func(): station.echo_beats = minf(1,station.echo_beats*2))
-	photo_dial(Vector2(742,735),44,tr("Уровень Echo"),func(value): station.echo.tap1_level_db = -15+value*13)
+	photo_dial(Vector2(742,735),48,tr("Уровень Beat FX"),station.set_fx_depth)
 	photo_dial(Vector2(742,354),44,"Master",func(value): station.party.music_gain = clampf(.85+value*.85,0,1))
 
 func build_photo_deck(index: int) -> void:
 	var shift := Vector2(776*index,0)
-	var jog := photo_dial(Vector2(214,537)+shift,330,tr("Jog · перемотка"),func(amount): station.seek(index,station.deck_position(index)+amount*2.4),true)
+	var jog := photo_dial(Vector2(214,537)+shift,350,tr("Jog · перемотка"),func(amount): station.seek(index,station.deck_position(index)+amount*2.4),true)
 	jog.rotation = 0
-	var tempo := photo_slider(Vector2(363,784)+shift,Vector2(43,172),true,-1,1,0)
-	tempo.tooltip_text = "TEMPO ±10%"
+	var tempo := photo_slider(Vector2(363,784)+shift,Vector2(57,177),true,-1,1,0)
+	tempo.set_meta("hardware_hint", "TEMPO ±10%")
 	tempo.value_changed.connect(func(value): station.party.music[index].pitch_scale = 1-value*.10)
 	station.tempo_faders.append(tempo)
-	station.transport.append(photo_button(Vector2(64,846)+shift,Vector2(65,65),"PLAY / PAUSE",station.toggle_deck.bind(index)))
-	photo_button(Vector2(64,776)+shift,Vector2(65,65),tr("CUE · к точке"),func(): station.seek(index,station.cues[index]))
+	station.transport.append(photo_button(Vector2(64,846)+shift,Vector2(65,65),"PLAY / PAUSE",station.toggle_deck.bind(index),true))
+	var shift_button := photo_button(Vector2(64,710)+shift,Vector2(31,27),
+			tr("SHIFT · CUE к началу / удаление Hot Cue"),
+			func(): station.deck_shift[index] = not station.deck_shift[index])
+	shift_button.toggle_mode = true
+	photo_button(Vector2(64,776)+shift,Vector2(65,65),tr("CUE · к точке"),func():
+		station.seek(index, 0.0 if station.deck_shift[index] else station.cues[index])
+	,true)
 	photo_button(Vector2(63,329)+shift,Vector2(40,40),tr("IN · начало лупа"),func():
 		station.loop_marks[index] = station.deck_position(index)
 		station.cues[index] = station.loop_marks[index]
-	)
-	photo_button(Vector2(126,329)+shift,Vector2(40,40),tr("OUT · конец лупа"),station.finish_loop.bind(index))
-	var loop_button := photo_button(Vector2(190,329)+shift,Vector2(35,35),"4 BEAT / EXIT",station.toggle_loop.bind(index))
+	,true)
+	photo_button(Vector2(126,329)+shift,Vector2(40,40),tr("OUT · конец лупа"),station.finish_loop.bind(index),true)
+	var loop_button := photo_button(Vector2(190,329)+shift,Vector2(35,35),"4 BEAT / EXIT",station.toggle_loop.bind(index),true)
 	loop_button.toggle_mode = true
 	station.loop_buttons.append(loop_button)
 	photo_button(Vector2(253,329)+shift,Vector2(25,25),tr("Назад на бит"),func(): station.seek(index,station.deck_position(index)-60.0/station.bpm_fields[index].value))
@@ -177,12 +324,14 @@ func build_photo_channel(index: int) -> void:
 		station.apply_mix()
 	)
 	for row in range(3):
-		photo_dial(Vector2(x,416+row*60),45,["HIGH","MID","LOW"][row],station.set_eq.bind(index,2-row))
+		var band := photo_dial(Vector2(x,416+row*60),45,["HIGH","MID","LOW"][row],station.set_eq.bind(index,2-row))
+		band.set_meta("outline_face_ring", true)
 	photo_dial(Vector2(x,596),46,"CFX · Filter",func(value):
 		station.engage()
 		station.set_filter(index,value)
 	)
-	var level := photo_slider(Vector2(x,756),Vector2(50,113),true,0,1,1)
+	var level := photo_slider(Vector2(x,756),Vector2(57,120),true,0,1,1)
+	level.set_meta("hardware_hint", tr("Громкость канала %s") % station.DECK_NAMES[index])
 	level.value_changed.connect(func(value):
 		station.engage()
 		station.gains[index] = value
@@ -204,13 +353,14 @@ func place_control(control: Control, center: Vector2, dimensions: Vector2) -> vo
 	control.position = center-Vector2(8,262)-dimensions*.5
 	control.size = dimensions
 
-func photo_button(center: Vector2, dimensions: Vector2, hint: String, callback: Callable) -> Button:
+func photo_button(center: Vector2, dimensions: Vector2, hint: String, callback: Callable, is_round: bool = false) -> Button:
 	var button := Button.new()
 	button.focus_mode = Control.FOCUS_NONE
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	button.tooltip_text = hint
+	button.set_meta("hardware_hint", hint)
+	button.set_meta("round_outline", is_round)
 	button.add_theme_stylebox_override("normal",StyleBoxEmpty.new())
-	button.add_theme_stylebox_override("hover",UIKit.frame_style(Color(1,1,1,.06),Color(1,1,1,.35),0))
+	button.add_theme_stylebox_override("hover", StyleBoxEmpty.new())
 	button.add_theme_stylebox_override("pressed",UIKit.frame_style(Color(.9,.65,.2,.18),Color("#e9aa54"),0))
 	button.pressed.connect(callback)
 	place_control(button,center,dimensions)
@@ -219,7 +369,7 @@ func photo_button(center: Vector2, dimensions: Vector2, hint: String, callback: 
 func photo_dial(center: Vector2, diameter: float, hint: String, change: Callable, is_jog: bool = false) -> DJDial:
 	var dial := DJDial.new()
 	dial.jog = is_jog
-	dial.tooltip_text = hint
+	dial.set_meta("hardware_hint", hint)
 	dial.changed.connect(change)
 	place_control(dial,center,Vector2.ONE*diameter)
 	station.hardware_dials.append(dial)

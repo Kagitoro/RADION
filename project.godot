@@ -23,6 +23,7 @@ config/features=PackedStringArray("4.7", "GL Compatibility")
 [autoload]
 
 GameEvents="*res://scripts/game_events.gd"
+WalkSession="*res://scripts/walk_session.gd"
 
 [display]
 

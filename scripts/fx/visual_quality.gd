@@ -29,6 +29,8 @@ static func forward_plus() -> bool:
 static func apply(home: Node) -> void:
 	environments.clear()
 	for node in home.find_children("*","WorldEnvironment",true,false):
+		if node.get_viewport() != home.get_viewport():
+			continue
 		environment((node as WorldEnvironment).environment)
 		environments.append((node as WorldEnvironment).environment)
 	set_level(level)
@@ -180,8 +182,13 @@ static func fade_shadow(light: Light3D, on: bool) -> void:
 ## (addons/lowpoly_import) and the first-person props.
 static func surfaces(root: Node) -> void:
 	var done := {}
+	var checked_meshes := {}
 	for node in root.find_children("*","MeshInstance3D",true,false):
 		var model := node as MeshInstance3D
+		var mesh := model.mesh as ArrayMesh
+		if mesh != null and not checked_meshes.has(mesh):
+			checked_meshes[mesh] = true
+			repair_shadow_mesh(mesh)
 		if model.layers & FPViewModel.LAYER:
 			continue
 		facet_primitive(model)
@@ -190,6 +197,21 @@ static func surfaces(root: Node) -> void:
 			continue
 		done[material] = true
 		dress(material)
+
+static func repair_shadow_mesh(mesh: ArrayMesh) -> void:
+	# A malformed imported shadow-only surface must fall back to the original
+	# mesh. The renderer otherwise drops those draws and logs errors per frame.
+	var shadow := mesh.shadow_mesh
+	if shadow == null:
+		return
+	for index in shadow.get_surface_count():
+		if shadow.surface_get_primitive_type(index) != Mesh.PRIMITIVE_TRIANGLES:
+			continue
+		var indices := shadow.surface_get_array_index_len(index)
+		var count := indices if indices > 0 else shadow.surface_get_array_len(index)
+		if count % 3 != 0:
+			mesh.shadow_mesh = null
+			return
 
 static func dress(material: StandardMaterial3D) -> void:
 	if material.albedo_texture!=null or material.transparency!=BaseMaterial3D.TRANSPARENCY_DISABLED:

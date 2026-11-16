@@ -4,6 +4,7 @@ extends Node
 const DECK_NAMES := ["A", "B"]
 const FACE_SIZE := Vector2(.482,.273)
 const FACE_HEIGHT := .041
+const OVERHEAD_DISTANCE := 0.43
 const CHANNELS := 2
 const HOT_CUES := 8
 
@@ -60,6 +61,11 @@ var echo := AudioEffectDelay.new()
 var echo_enabled := false
 var echo_beats := .5
 var echo_slot := -1
+var reverb := AudioEffectReverb.new()
+var reverb_slot := -1
+var reverb_selected := false
+var pointer_drag_height := 0.0
+var deck_shift := [false, false]
 var camera_motion: Tween
 var transitioning := false
 var eq: Array[AudioEffectEQ6] = []
@@ -114,10 +120,16 @@ func setup() -> void:
 	echo_slot = AudioServer.get_bus_effect_count(mix_bus)
 	AudioServer.add_bus_effect(mix_bus,echo)
 	AudioServer.set_bus_effect_enabled(mix_bus,echo_slot,false)
+	reverb.room_size = 0.36
+	reverb.wet = 0.23
+	reverb_slot = AudioServer.get_bus_effect_count(mix_bus)
+	AudioServer.add_bus_effect(mix_bus, reverb)
+	AudioServer.set_bus_effect_enabled(mix_bus, reverb_slot, false)
 	analyzer_slot = AudioServer.get_bus_effect_count(mix_bus)
 	AudioServer.add_bus_effect(mix_bus,AudioEffectSpectrumAnalyzer.new())
 	build_panel()
 	controller_face.build_controller_face()
+	get_viewport().size_changed.connect(refresh_controller_framing)
 	laptop_view_builder.build_laptop_display()
 	build_sampler()
 	music_library.load_folder_setting()
@@ -145,14 +157,14 @@ func move_fader(slider: Slider, cap: Node3D, vertical: bool) -> void:
 	var uv := point/Vector2(controls_view.size)
 	cap.position = Vector3((uv.x-.5)*FACE_SIZE.x,FACE_HEIGHT+.005,(uv.y-.5)*FACE_SIZE.y)
 
-func face_pointer(camera: Camera3D, pointer: Vector2) -> Vector2:
+func face_pointer(camera: Camera3D, pointer: Vector2, height: float = 0.0) -> Vector2:
 	var ray := camera.project_ray_origin(pointer)
 	var direction := camera.project_ray_normal(pointer)
 	var normal := face.global_basis.z.normalized()
 	var distance := direction.dot(normal)
 	if absf(distance)<.0001:
 		return Vector2(-10000,-10000)
-	var along := (face.global_position-ray).dot(normal)/distance
+	var along := ((face.global_position-ray).dot(normal) + height) / distance
 	if along<0:
 		return Vector2(-10000,-10000)
 	var point := face.to_local(ray+direction*along)
@@ -179,7 +191,12 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_RIGHT:
 		close()
 	elif event is InputEventMouse and not transitioning:
-		var mapped := face_pointer(control_camera,event.position)
+		var height := pointer_drag_height if (event.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0 else controller_face.pointer_height(event.position)
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed:
+				pointer_drag_height = controller_face.pointer_height(event.position)
+			height = pointer_drag_height
+		var mapped := face_pointer(control_camera, event.position, height)
 		var forwarded := event.duplicate() as InputEventMouse
 		forwarded.position = mapped
 		forwarded.global_position = mapped
@@ -187,6 +204,7 @@ func _input(event: InputEvent) -> void:
 			forwarded.relative = mapped-last_pointer
 		last_pointer = mapped
 		controls_view.push_input(forwarded,true)
+		controller_face.update_hover(controls_view.gui_get_hovered_control())
 	elif event.is_action_pressed("delegate_staff") and party!=home.party:
 		(party as Nightclub).shift.assign_staff()
 	elif event is InputEventKey:
@@ -196,8 +214,20 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-static func build_laptop(station) -> void:
+static func build_laptop(station, studio: bool = false) -> void:
 	var deck: Node3D = station.deck
+	if studio:
+		var model := preload("res://assets/studio/laptop-15-6-inch-open.glb").instantiate() as Node3D
+		model.name = "StudioLaptop"
+		deck.add_child(model)
+		model.position = Vector3(-0.44, -0.035, -0.20)
+		var lcd := model.find_child("Screen", true, false) as MeshInstance3D
+		var anchor := Node3D.new()
+		anchor.name = "LaptopScreen"
+		deck.add_child(anchor)
+		anchor.global_position = lcd.to_global(lcd.get_aabb().get_center())
+		anchor.set_meta("display_mesh", anchor.get_path_to(lcd))
+		return
 	var laptop := preload("res://assets/dj/open_laptop.glb").instantiate() as Node3D
 	deck.add_child(laptop)
 	laptop.position = Vector3(0,.002,-.311)
@@ -248,10 +278,14 @@ func set_pad_mode(index: int, mode: int) -> void:
 
 func press_pad(index: int, slot: int) -> void:
 	match int(pad_modes[index]):
-		0: hot_cue(index,slot)
+		0:
+			if deck_shift[index]:
+				cue_points[index][slot] = -1.0
+			else:
+				hot_cue(index, slot)
 		1:
 			echo_beats = [.25,.5,1.0][slot%3]
-			echo.tap1_level_db = -17+slot*1.5
+			set_fx_depth(-0.15 + slot * 0.12)
 			toggle_echo()
 		2:
 			loop_starts[index] = -1.0
@@ -291,6 +325,7 @@ func route_deck(index: int, channel: int) -> void:
 	party.music[index].bus = AudioServer.get_bus_name(deck_buses[channel])
 
 func open(show_files: bool) -> void:
+	controller_face.update_hover(null)
 	load_target = -1
 	home.set_modal(true)
 	panel.visible = show_files
@@ -299,15 +334,15 @@ func open(show_files: bool) -> void:
 	using_controller = not show_files
 	world_hint.visible = using_controller
 	if using_controller:
-		var club_view: bool = party != home.party
-		var target: Vector3 = party.deck.to_global(Vector3(0,.44,.51) if club_view else Vector3(0,.53,.30))
-		var look: Vector3 = party.deck.to_global(Vector3(0,.20,-.18) if club_view else Vector3(0,.075,-.117))
-		var destination := Transform3D(Basis.IDENTITY,target).looking_at(look,Vector3.UP)
+		var board_up := face.global_basis.z.normalized()
+		var camera_up := -party.deck.global_basis.z.normalized()
+		var target := face.global_position + board_up * OVERHEAD_DISTANCE
+		var destination := Transform3D(Basis.IDENTITY, target).looking_at(face.global_position, camera_up)
 		control_camera.global_transform = home.player.camera.global_transform
 		control_camera.fov = home.player.camera.fov
 		control_camera.make_current()
 		controls_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-		move_camera(destination,65 if club_view else 54,.48)
+		move_camera(destination, overhead_fov(), .48)
 	else:
 		controls_view.render_target_update_mode = SubViewport.UPDATE_ONCE
 		if music_library.files.is_empty() and not music_library.scanning:
@@ -318,7 +353,19 @@ func open_deck_library(index: int) -> void:
 	load_target = index
 	info.text = tr("LOAD %s · двойной щелчок загружает трек") % DECK_NAMES[index]
 
+func overhead_fov() -> float:
+	var view_size := get_viewport().get_visible_rect().size
+	var aspect := view_size.x / maxf(1.0, view_size.y)
+	var framed_height := maxf(FACE_SIZE.y / 0.79, FACE_SIZE.x / maxf(0.01, aspect * 0.89))
+	return rad_to_deg(2.0 * atan(framed_height / (2.0 * OVERHEAD_DISTANCE)))
+
+func refresh_controller_framing() -> void:
+	if using_controller and not transitioning:
+		control_camera.fov = overhead_fov()
+		controller_face.update_hover(null)
+
 func close() -> void:
+	controller_face.update_hover(null)
 	panel.hide()
 	if using_controller:
 		move_camera(home.player.camera.global_transform,home.player.camera.fov,.34)
@@ -327,6 +374,7 @@ func close() -> void:
 	finish_close()
 
 func finish_close() -> void:
+	controller_face.update_hover(null)
 	home.player.camera.make_current()
 	controls_view.render_target_update_mode = SubViewport.UPDATE_ONCE
 	using_controller = false
@@ -342,7 +390,14 @@ func move_camera(destination: Transform3D, fov: float, duration: float) -> void:
 	camera_motion.tween_property(control_camera,"fov",fov,duration)
 	camera_motion.finished.connect(func():
 		transitioning = false
-		last_pointer = face_pointer(control_camera,get_viewport().get_mouse_position())
+		var pointer := get_viewport().get_mouse_position()
+		last_pointer = face_pointer(control_camera, pointer, controller_face.pointer_height(pointer))
+		if using_controller and panel.visible == false and control_camera.current:
+			var motion := InputEventMouseMotion.new()
+			motion.position = last_pointer
+			motion.global_position = last_pointer
+			controls_view.push_input(motion, true)
+			controller_face.update_hover(controls_view.gui_get_hovered_control())
 	)
 
 func is_open() -> bool:
@@ -491,7 +546,19 @@ func set_eq(value: float, index: int, band: int) -> void:
 
 func toggle_echo() -> void:
 	echo_enabled = not echo_enabled
-	AudioServer.set_bus_effect_enabled(party.music_bus,echo_slot,echo_enabled)
+	apply_beat_fx()
+
+func cycle_beat_fx() -> void:
+	reverb_selected = not reverb_selected
+	apply_beat_fx()
+
+func apply_beat_fx() -> void:
+	AudioServer.set_bus_effect_enabled(party.music_bus, echo_slot, echo_enabled and not reverb_selected)
+	AudioServer.set_bus_effect_enabled(party.music_bus, reverb_slot, echo_enabled and reverb_selected)
+
+func set_fx_depth(value: float) -> void:
+	echo.tap1_level_db = -15.0 + value * 13.0
+	reverb.wet = lerpf(0.02, 0.44, (value + 1.0) * 0.5)
 
 func set_filter(index: int, value: float) -> void:
 	var bus := deck_buses[index]

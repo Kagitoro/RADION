@@ -11,7 +11,6 @@ var event_wait := 28.0
 var sounds := AudioStreamPlayer3D.new()
 var puddles: Array[Node3D] = []
 var vomit_count := 0
-var room_lights: Array[Dictionary] = []
 var environments: Array[Dictionary] = []
 var beams: Array[MeshInstance3D] = []
 var grunt := AudioStreamPlayer3D.new()
@@ -47,9 +46,6 @@ func setup() -> void:
 	retching.max_distance = 7
 	for filename in ["gagging","retching"]:
 		retch_variants.append(load("res://assets/sfx/"+filename+".mp3"))
-	for light in home.scene_lighting.get_children():
-		if light is Light3D:
-			room_lights.append({"node":light,"energy":light.light_energy})
 	for world in home.find_children("*","WorldEnvironment",true,false):
 		var environment: Environment = world.environment
 		environments.append({"node":environment,"energy":environment.ambient_light_energy})
@@ -79,7 +75,7 @@ func setup() -> void:
 		var light := OmniLight3D.new()
 		light.position = Vector3(area.get_center().x,home.rooms.floor_surface(row)+2.15,area.get_center().y)
 		light.omni_range = clampf(maxf(area.size.x,area.size.y)*.8,2.4,5.2)
-		light.omni_attenuation = 1.6
+		light.omni_attenuation = 1.0
 		light.light_energy = 0
 		light.shadow_enabled = false
 		add_child(light)
@@ -104,28 +100,30 @@ func setup() -> void:
 		beams.append(beam)
 
 func _process(delta: float) -> void:
+	var party := home.party
+	var player_position := home.player.global_position
+	var house_party := party.active and not home.night_world.outside(player_position) and player_position.y > -1.0
+	for entry in environments:
+		var target := maxf(float(entry.energy), 0.62) if house_party else float(entry.energy)
+		entry.node.ambient_light_energy = lerpf(entry.node.ambient_light_energy, target, 1.0 - exp(-delta * 4.0))
 	if home.modal and not home.night_game.dj.is_open():
 		return
-	var party = home.party
 	update_streams(delta)
-	for entry in room_lights:
-		entry.node.light_energy = lerpf(entry.node.light_energy,entry.energy*(.055 if party.active else 1.0),minf(1,delta*3))
-	for entry in environments:
-		entry.node.ambient_light_energy = lerpf(entry.node.ambient_light_energy,.025 if party.active else entry.energy,minf(1,delta*3))
 	for index in range(lights.size()):
 		var light := lights[index]
 		var phase := fposmod(party.beat+index*.15,1.0)
-		var pulse := pow(maxf(0,cos(phase*TAU)),10)
+		var pulse := pow(maxf(0, cos(phase * TAU)), 3)
 		var dj = home.night_game.dj
 		if is_instance_valid(dj) and dj.manual:
-			pulse = (1.0-dj.bass_phase)*dj.bass
-		light.light_energy = (.04+pulse*2.3) if party.active else 0.0
-		light.light_color = Color.from_hsv(fposmod(floor(party.track_time*.55)*.16+index*.22,.999),.85,1.0)
+			pulse = maxf(pulse * 0.65, (1.0 - dj.bass_phase) * dj.bass)
+		light.light_energy = (0.65 + pulse * 3.0) if party.active else 0.0
+		var hue := fposmod(party.track_time * 0.07 + index * 0.19, 1.0)
+		light.light_color = Color.from_hsv(hue, 0.88, 1.0)
 		var beam := beams[index]
 		beam.visible = party.active
 		beam.rotation = Vector3(.16*sin(party.track_time*.72+index),0,.14*cos(party.track_time*.5+index))
 		var glow := beam.material_override as StandardMaterial3D
-		glow.albedo_color = Color(light.light_color,.012+pulse*.055)
+		glow.albedo_color = Color(light.light_color, 0.045 + pulse * 0.11)
 	if not party.active:
 		if not fighters.is_empty():
 			end_fight(false)

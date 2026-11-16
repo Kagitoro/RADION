@@ -73,6 +73,10 @@ func _ready() -> void:
 		if model == null:
 			push_warning("Нет модели: " + str(s.node))
 			continue
+		if id in ["base-152", "base-153", "base-154", "base-155", "base-156",
+				"base-157", "base-158", "base-159", "base-160", "base-161"]:
+			model.free()
+			continue
 		records[id] = s.duplicate(true)
 		originals[id] = s.duplicate(true)
 		nodes[id] = model
@@ -98,10 +102,13 @@ func _ready() -> void:
 		apply_item(id)
 	bind_lights_to_fixtures()
 	scene_finish.sync_ceilings()
-	if not SavePaths.is_test_run():
+	if WalkSession.active:
+		storage.load_project("res://assets/house/default_layout.json", false)
+	elif not SavePaths.is_test_run():
 		var loaded := storage.load_project(storage.SAVE_PATH, false)
 		if not loaded:
 			storage.load_project("res://assets/house/default_layout.json", false)
+	preload("res://scripts/studio_upgrade.gd").apply(self)
 	add_child(night_world)
 	night_world.setup()
 	player = Player.new()
@@ -124,6 +131,10 @@ func _ready() -> void:
 	if not SavePaths.is_test_run():
 		GameSettings.apply_language(GameSettings.language())
 	go_room("hall")
+	if WalkSession.active:
+		WalkSession.bind_world(self)
+		GameEvents.notify(tr("Совместная прогулка · Esc — меню"))
+		return
 	if "--smoke" in OS.get_cmdline_user_args():
 		smoke_runner = SmokeRunner.new(self)
 		smoke_runner.run.call_deferred()

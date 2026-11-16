@@ -67,14 +67,19 @@ func build_laptop_display() -> void:
 		var clock: Label = UIKit.label("",21)
 		rows.add_child(clock)
 		station.laptop_times.append(clock)
+	var anchor := station.party.deck.get_node("LaptopScreen")
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.albedo_texture = station.laptop_view.get_texture()
+	if anchor.has_meta("display_mesh"):
+		var display := anchor.get_node(anchor.get_meta("display_mesh")) as MeshInstance3D
+		display.material_override = material
+		return
 	var screen := MeshInstance3D.new()
 	var quad := QuadMesh.new()
 	quad.size = Vector2(.333,.200)
 	screen.mesh = quad
-	var material := StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.albedo_texture = station.laptop_view.get_texture()
 	screen.material_override = material
 	screen.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	station.party.deck.get_node("LaptopScreen").add_child(screen)
+	anchor.add_child(screen)
 	screen.position.z = .003

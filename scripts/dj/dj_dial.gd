@@ -10,6 +10,9 @@ var jog := false
 func _ready() -> void:
 	mouse_default_cursor_shape = Control.CURSOR_DRAG
 
+func _has_point(point: Vector2) -> bool:
+	return point.distance_to(size * 0.5) <= size.x * 0.5
+
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index==MOUSE_BUTTON_LEFT:

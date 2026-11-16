@@ -51,6 +51,7 @@ var energy_boost := 0.0
 var camera_rest := Vector3(0,1.64,-.12)
 ## First-person hands and held items (drawn over the world).
 var view_model: FPViewModel
+var stage_gestures: Control
 ## Screen-space drunk / nausea / energy effects.
 var screen_fx: ScreenFX
 ## Additive camera motion driven by hand actions: head tilt (radians),
@@ -328,6 +329,8 @@ func update_dj_body(delta: float, moving: bool) -> void:
 		var side := signf(fist.x)
 		var lift := .02+.012*sin(head_bob*2.0+index*PI) if moving else .02+.004*sin(Time.get_ticks_msec()*.0017)
 		dj_rig.point_arm(dj_rig.arms[index],fist+Vector3(-side*.025,lift,.075),Vector3(side,-.6,-.25))
+	if is_instance_valid(stage_gestures):
+		stage_gestures.pose(self, delta)
 	if view_model!=null and view_model.active:
 		# During a hand action the body copies the viewmodel hands, so the mirror shows
 		# the same motion as the first-person view.

@@ -1515,3 +1515,45 @@ msgstr "Medium"
 
 msgid "Высокая"
 msgstr "High"
+
+msgid "Совместная прогулка"
+msgstr "Walk with friends"
+
+msgid "Подключиться"
+msgstr "Join"
+
+msgid "Создать"
+msgstr "Host"
+
+msgid "IP компьютера хоста · UDP %d"
+msgstr "Host computer IP · UDP %d"
+
+msgid "Покинуть прогулку"
+msgstr "Leave session"
+
+msgid "Совместная прогулка · Esc — меню"
+msgstr "Walk with friends · Esc for menu"
+
+msgid "Совместная прогулка · Игроков %d · Esc — меню"
+msgstr "Walk with friends · %d players · Esc for menu"
+
+msgid "Не удалось открыть UDP-порт %d."
+msgstr "Could not open UDP port %d."
+
+msgid "Введи IP-адрес компьютера друга."
+msgstr "Enter your friend's computer IP address."
+
+msgid "Не удалось начать подключение. Проверь адрес."
+msgstr "Could not start connecting. Check the address."
+
+msgid "Подключаемся…"
+msgstr "Connecting…"
+
+msgid "Сервер недоступен. Проверь IP и UDP-порт %d."
+msgstr "Server unavailable. Check the IP and UDP port %d."
+
+msgid "Хост отключился."
+msgstr "The host disconnected."
+
+msgid "Игрок %d"
+msgstr "Player %d"

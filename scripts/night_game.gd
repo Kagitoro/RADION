@@ -3,6 +3,7 @@ extends Node
 
 var dj: DJStation
 var phone: Control
+var gestures: Control
 var club_dj: DJStation
 var intro: ArrivalIntro
 var menu: MainMenu
@@ -70,7 +71,12 @@ func setup() -> void:
 		home.party.stop()
 		home.party.starting = true
 	)
-	pause_panel.main_menu_requested.connect(func(): menu.show_menu())
+	pause_panel.main_menu_requested.connect(func():
+		if WalkSession.active:
+			WalkSession.leave()
+		else:
+			menu.show_menu()
+	)
 	pause_panel.music_volume_changed.connect(func(value: float): set_level("music",value))
 	pause_panel.steps_volume_changed.connect(func(value: float): set_level("steps",value))
 	pause_panel.language_changed.connect(GameSettings.set_language)
@@ -78,6 +84,11 @@ func setup() -> void:
 	# Applied by VisualQuality.apply once the scene is built.
 	VisualQuality.level = GameSettings.graphics()
 	pause_panel.restart_requested.connect(restart_game)
+	if WalkSession.active:
+		for name in ["IntroButton", "NewPartyButton", "RestartButton"]:
+			pause_panel.get_node("%" + name).hide()
+		pause_panel.get_node("%MainMenuButton").text = tr("Покинуть прогулку")
+		pause_panel.get_node("%Controls").hide()
 	pause_panel.mouse_sensitivity_changed.connect(func(value: float): set_level("mouse",value))
 	pause_panel.hide()
 	for key in GameSettings.DEFAULTS:
@@ -100,6 +111,9 @@ func setup() -> void:
 	intro.setup(home,self)
 	phone = preload("res://scripts/radion_phone.gd").new(self)
 	home.hud.root.add_child(phone)
+	gestures = preload("res://scripts/stage_gestures.gd").new(self)
+	home.hud.root.add_child(gestures)
+	home.player.stage_gestures = gestures
 	menu = MainMenu.new()
 	add_child(menu)
 	menu.setup(home,self)
@@ -110,10 +124,11 @@ func setup() -> void:
 		fridge = KitchenFridge.new(home)
 		home.nodes[KitchenFridge.ITEM_ID].add_child(fridge)
 		fridge.build()
-	build_litter()
-	if is_instance_valid(fridge):
-		intro.attach_fridge_note(fridge.door)
-	place_litter_on_floor.call_deferred()
+	if not WalkSession.active:
+		build_litter()
+		if is_instance_valid(fridge):
+			intro.attach_fridge_note(fridge.door)
+		place_litter_on_floor.call_deferred()
 	intro.update_objective()
 	home.subway.setup()
 
@@ -149,6 +164,8 @@ func build_litter() -> void:
 
 func place_litter_on_floor() -> void:
 	await get_tree().physics_frame
+	if not is_inside_tree() or not home.is_inside_tree():
+		return
 	var space := home.get_world_3d().direct_space_state
 	var sphere := SphereShape3D.new()
 	sphere.radius = .17
@@ -251,6 +268,10 @@ func _process(delta: float) -> void:
 	if shadow_timer<=0.0:
 		shadow_timer = .3
 		VisualQuality.update_shadow_budget(home.player.camera)
+	if WalkSession.active:
+		interact_hint.visible = not home.modal
+		interact_hint.text = tr("Совместная прогулка · Игроков %d · Esc — меню") % (WalkSession.actors.size() + 1)
+		return
 	if reply_time > 0.0:
 		reply_time -= delta
 		if reply_time <= 0.0:
@@ -563,7 +584,18 @@ func toggle_pause() -> void:
 
 ## Routes a gameplay input event to the matching action.
 func handle_input(event: InputEvent) -> void:
+	if WalkSession.active:
+		if event.is_action_pressed("pause"):
+			toggle_pause()
+		elif not home.modal and event.is_action_pressed("flashlight"):
+			flashlight.visible = not flashlight.visible
+		return
 	var key := event as InputEventKey
+	var gesture_key := key != null and key.physical_keycode == KEY_G
+	if gestures.visible:
+		if gesture_key or event.is_action_pressed("pause"):
+			gestures.close()
+		return
 	var phone_key := key!=null and key.pressed and not key.echo and key.physical_keycode==KEY_P
 	if phone.visible:
 		if phone_key or event.is_action_pressed("pause"):
@@ -608,6 +640,9 @@ func handle_input(event: InputEvent) -> void:
 				return
 		if event.is_action_pressed("interact"):
 			close_talk()
+		return
+	if gesture_key:
+		gestures.open()
 		return
 	if event.is_action_pressed("inventory"):
 		toggle_backpack()

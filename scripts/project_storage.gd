@@ -21,6 +21,7 @@ func record_change(before: String) -> void:
 		history.pop_front()
 	dirty = true
 	home.scene_finish.sync_ceilings()
+	refresh_house_occlusion()
 	if home.party.is_inside_tree():
 		home.party.sync_deck()
 		if home.party.active or home.party.starting:
@@ -121,7 +122,7 @@ func restore_project(project) -> bool:
 			home.add_child(model)
 			home.nodes[id] = model
 			home.records[id] = row
-		for key in ["x","y","z","w","h","d","r","label","deleted","room_owner","wall_id","wall_offset","sill","opening_kind","managed_wall"]:
+		for key in ["x","y","z","w","h","d","r","label","deleted","room_owner","wall_id","wall_offset","sill","opening_kind","managed_wall","studio_refit"]:
 			if item.has(key):
 				row[key] = item[key]
 		if home.rooms.built_room(item):
@@ -144,9 +145,14 @@ func restore_project(project) -> bool:
 		home.night_world.refresh()
 	if home.party.is_inside_tree():
 		home.party.sync_deck()
+	refresh_house_occlusion()
 	home.selected = ""
 	GameEvents.refresh_hud()
 	return true
+
+func refresh_house_occlusion() -> void:
+	if home.has_node(HouseOcclusion.NAME):
+		HouseOcclusion.build(home)
 
 func repair_hallway() -> void:
 	var hall: Dictionary = home.records.get("base-39",{})

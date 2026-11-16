@@ -201,6 +201,8 @@ func build_overlay() -> void:
 	layer.hide()
 
 func build_entrance() -> void:
+	if WalkSession.active:
+		entry_opened = true
 	entrance_leaf = Node3D.new()
 	home.night_world.street.add_child(entrance_leaf)
 	entrance_leaf.position = Vector3(.02,0,-.53)

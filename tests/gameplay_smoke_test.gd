@@ -53,6 +53,22 @@ func stand_near_house_deck() -> void:
 func check_dj_station() -> void:
 	var game := home.night_game
 	var dj := game.dj
+	var desk: Dictionary = home.records["base-137"]
+	var bed: Dictionary = home.records["base-143"]
+	var gap := float(bed.z) - float(bed.w) * 0.5 - float(desk.z) - float(desk.d) * 0.5
+	expect(gap >= 1.0 and bool(home.records["base-140"].deleted),
+			"Студия: проход у кровати или свободная столешница не применились")
+	var desk_bounds := home.rooms.room_world_bounds(desk)
+	var chair_bounds := home.rooms.room_world_bounds(home.records["base-145"])
+	expect(chair_bounds.position.y - desk_bounds.end.y >= 0.81,
+			"Студия: кресло перекрывает проход перед столом")
+	var lcd := home.party.deck.get_node_or_null("StudioLaptop") as Node3D
+	if lcd != null:
+		var display := lcd.find_child("Screen", true, false) as MeshInstance3D
+		expect(display != null and display.material_override.albedo_texture == dj.laptop_view.get_texture(),
+				"Студия: волны не подключены к экрану нового ноутбука")
+	else:
+		expect(false, "Студия: новый ноутбук не добавлен")
 	stand_near_house_deck()
 	expect(home.party.near_deck(), "DJ: игрок у пульта не считается рядом с ним")
 	expect(game.current_dj() == dj, "DJ: дома выбран не домашний пульт")
@@ -66,9 +82,75 @@ func check_dj_station() -> void:
 	expect(dj.using_controller and home.modal, "DJ: клавиша C не открывает контроллер")
 	await wait(.7)
 	expect(not dj.transitioning, "DJ: камера не доехала до контроллера")
+	expect(dj.control_camera.global_basis.z.dot(dj.face.global_basis.z) > 0.999,
+			"DJ: камера смотрит на контроллер не сверху")
+	var frame := home.get_viewport().get_visible_rect().grow(-12)
+	for x in [-0.5, 0.5]:
+		for y in [-0.5, 0.5]:
+			var corner := dj.face.to_global(Vector3(x * dj.FACE_SIZE.x, y * dj.FACE_SIZE.y, 0.0))
+			expect(frame.has_point(dj.control_camera.unproject_position(corner)),
+					"DJ: край контроллера выходит за кадр")
+	for control in [dj.transport[0], dj.hardware_dials[0], dj.cross_slider]:
+		var motion := InputEventMouseMotion.new()
+		var face_size := Vector2(dj.controls_view.size)
+		var point: Vector2 = control.get_global_rect().get_center() / face_size - Vector2(0.5, 0.5)
+		var world_point := dj.face.to_global(Vector3(point.x * dj.FACE_SIZE.x, -point.y * dj.FACE_SIZE.y, 0))
+		motion.position = dj.control_camera.unproject_position(world_point)
+		dj._input(motion)
+		expect(dj.controller_face.hovered_control == control and dj.controller_face.hover_label.visible,
+				"DJ: не подсвечивается элемент под курсором")
+	var jog := dj.hardware_dials[0]
+	var edge := jog.get_global_rect().get_center() + Vector2(0, jog.size.y * 0.46)
+	var uv := edge / Vector2(dj.controls_view.size) - Vector2(0.5, 0.5)
+	var raised_point := dj.face.to_global(Vector3(uv.x * dj.FACE_SIZE.x, -uv.y * dj.FACE_SIZE.y,
+			dj.controller_face.control_height(jog)))
+	var jog_motion := InputEventMouseMotion.new()
+	jog_motion.position = dj.control_camera.unproject_position(raised_point)
+	dj._input(jog_motion)
+	expect(dj.controller_face.hovered_control == jog and dj.controller_face.hover_dashes.size() >= 8,
+			"DJ: край 3D-джога не навёлся или не оконтурен")
+	var center_uv := jog.get_global_rect().get_center() / Vector2(dj.controls_view.size)
+	var rim_radius := dj.controller_face.dial_radius(jog) * 0.99
+	for dash in dj.controller_face.hover_dashes:
+		var outline_uv := dj.face_pointer(dj.control_camera, dash, dj.controller_face.control_height(jog))
+		outline_uv /= Vector2(dj.controls_view.size)
+		var radius := ((outline_uv - center_uv) * dj.FACE_SIZE).length()
+		expect(radius < rim_radius, "DJ: пунктир выходит за кромку джога")
+	var tempo := dj.tempo_faders[1]
+	var cap := dj.controller_face.fader_caps[tempo]
+	var tempo_motion := InputEventMouseMotion.new()
+	tempo_motion.position = dj.control_camera.unproject_position(cap.global_position)
+	dj._input(tempo_motion)
+	expect(dj.controller_face.hovered_control == tempo, "DJ: крышка правого фейдера не подсвечивается")
+	var old_outline := dj.controller_face.hover_dashes.duplicate()
+	tempo.value = 0.5
+	expect(dj.controller_face.hover_dashes != old_outline, "DJ: пунктир не следует за фейдером")
+	tempo.value = 0.0
+	for dial in dj.hardware_dials:
+		if not dial.get_meta("outline_face_ring", false):
+			continue
+		var eq_uv := dial.get_global_rect().get_center() / Vector2(dj.controls_view.size)
+		var eq_point := (eq_uv - Vector2(0.5, 0.5)) * dj.FACE_SIZE
+		var eq_motion := InputEventMouseMotion.new()
+		eq_motion.position = dj.control_camera.unproject_position(
+				dj.face.to_global(Vector3(eq_point.x, -eq_point.y, dj.controller_face.control_height(dial))))
+		dj._input(eq_motion)
+		var outline_radius := 0.0
+		for dash in dj.controller_face.hover_dashes:
+			var on_face := dj.face_pointer(dj.control_camera, dash) / Vector2(dj.controls_view.size)
+			outline_radius = maxf(outline_radius, ((on_face - eq_uv) * dj.FACE_SIZE).length())
+		expect(dj.controller_face.hovered_control == dial and outline_radius > dj.controller_face.dial_radius(dial),
+				"DJ: пунктир EQ должен охватывать внешний круг ручки")
+	dj.toggle_echo()
+	dj.cycle_beat_fx()
+	expect(AudioServer.is_bus_effect_enabled(dj.party.music_bus, dj.reverb_slot)
+			and not AudioServer.is_bus_effect_enabled(dj.party.music_bus, dj.echo_slot), "DJ: FX SELECT не включает Reverb")
+	dj.toggle_echo()
+	dj.cycle_beat_fx()
 	dj._input(key_event(KEY_ESCAPE))
 	await wait(.6)
 	expect(not dj.using_controller and not home.modal, "DJ: Esc не уводит от контроллера")
+	expect(not dj.controller_face.hover_label.visible, "DJ: подсказка осталась после выхода")
 	expect(home.get_viewport().get_camera_3d() == home.player.camera, "DJ: после выхода не вернулась камера игрока")
 
 func check_house_party() -> void:
@@ -79,6 +161,47 @@ func check_house_party() -> void:
 	expect(party.starting, "Вечеринка: J у пульта не запускает подготовку")
 	party.start()
 	expect(party.active, "Вечеринка: не стартует")
+	var gestures := home.night_game.gestures
+	home._unhandled_input(key_event(KEY_G))
+	expect(gestures.visible and home.modal, "Жесты: G не открыла кольцо")
+	await wait(0.5)
+	expect(dj.has_playback(), "Жесты: музыка остановилась при открытии кольца")
+	var fill := home.scene_lighting.get_node("Studio_Fill") as Light3D
+	expect(fill.light_energy > party.house_light_energy[fill], "Вечеринка: не усилился мягкий свет спальни")
+	for light_name in ["Studio_CloudSpot", "Living_ChandelierSpot", "Kitchen_CeilingSpot",
+			"Bath_CeilingSpot", "Hall_CeilingSpot"]:
+		var spot := home.scene_lighting.get_node(light_name) as SpotLight3D
+		expect(spot.light_energy < party.house_light_energy[spot],
+				"Вечеринка: не приглушён потолочный свет %s" % light_name)
+	var select := InputEventMouseButton.new()
+	select.button_index = MOUSE_BUTTON_LEFT
+	select.pressed = true
+	select.position = gestures.size * 0.5 + Vector2.UP * gestures.radius() * 0.65
+	gestures._gui_input(select)
+	expect(not gestures.visible and not home.modal and gestures.gesture == 0,
+			"Жесты: выбор не запустил поднятие руки")
+	await wait(0.95)
+	var player := home.player
+	var arm := player.dj_rig.arms[player.drink_arm]
+	var skeleton := player.dj_rig.skeleton
+	expect(skeleton.get_bone_global_pose(arm.z).origin.y > skeleton.get_bone_global_pose(arm.x).origin.y,
+			"Жесты: кисть не поднялась выше плеча")
+	for choice in range(4):
+		gestures.play_gesture(choice)
+		await wait(0.90)
+		var visible_area := home.get_viewport().get_visible_rect().grow(-20)
+		for index in ([0, 1] if choice == 2 else [player.drink_arm]):
+			var wrist := skeleton.to_global(skeleton.get_bone_global_pose(player.dj_rig.arms[index].z).origin)
+			expect(not player.camera.is_position_behind(wrist)
+					and visible_area.has_point(player.camera.unproject_position(wrist)),
+					"Жесты: кисть вне кадра для жеста %d" % choice)
+	gestures.gesture = -1
+	for entry in party.events.environments:
+		expect(entry.node.ambient_light_energy >= 0.55,
+				"Вечеринка: окружающий свет слишком низкий")
+	expect(fill.light_energy >= 1.72, "Вечеринка: яркость света спальни упала после перехода")
+	expect(party.events.lights[0].light_energy >= 0.65 and party.events.beams[0].visible,
+			"Вечеринка: цветной свет погас между ударами")
 	party.switch_track(1)
 	await wait(.8)
 	expect(party.track == 1 and party.music[party.playing].playing, "Вечеринка: трек 2 не играет")

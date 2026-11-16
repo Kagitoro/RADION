@@ -4,6 +4,7 @@ extends Control
 
 signal continue_pressed
 signal quit_pressed
+signal walk_pressed
 ## Settings changed from the menu's settings panel (see SettingsBox).
 signal level_changed(key: String, value: float)
 signal language_changed(code: String)
@@ -21,13 +22,19 @@ func _ready() -> void:
 	var version := str(ProjectSettings.get_setting("application/config/version",""))
 	%Version.text = game_name if version.is_empty() else "v%s · %s" % [version,game_name]
 	continue_button.pressed.connect(continue_pressed.emit)
+	var walk_button := Button.new()
+	walk_button.text = tr("Совместная прогулка")
+	walk_button.custom_minimum_size = continue_button.custom_minimum_size
+	%Column.add_child(walk_button)
+	%Column.move_child(walk_button, continue_button.get_index() + 1)
+	walk_button.pressed.connect(walk_pressed.emit)
 	%QuitButton.pressed.connect(quit_pressed.emit)
 	%SettingsButton.pressed.connect(func(): show_settings(not %SettingsPanel.visible))
 	%BackButton.pressed.connect(func(): show_settings(false))
 	settings.level_changed.connect(level_changed.emit)
 	settings.language_changed.connect(language_changed.emit)
 	settings.graphics_changed.connect(graphics_changed.emit)
-	for button in [continue_button,%SettingsButton,%QuitButton,%BackButton]:
+	for button in [continue_button,walk_button,%SettingsButton,%QuitButton,%BackButton]:
 		MenuFx.light_on_focus(button)
 	var footer: HBoxContainer = %Footer
 	for hint in FOOTER:
