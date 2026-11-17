@@ -1,0 +1,28 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/map_door.gd" id="1"]
+
+[sub_resource type="StandardMaterial3D" id="door_paint"]
+albedo_color = Color(0.39, 0.25, 0.16, 1)
+roughness = 0.75
+
+[sub_resource type="BoxMesh" id="door_mesh"]
+material = SubResource("door_paint")
+size = Vector3(0.85, 2.05, 0.065)
+
+[sub_resource type="BoxShape3D" id="door_shape"]
+size = Vector3(0.85, 2.05, 0.065)
+
+[node name="MapDoor" type="Node3D" groups=["map_doors"]]
+script = ExtResource("1")
+
+[node name="Leaf" type="AnimatableBody3D" parent="."]
+collision_mask = 0
+
+[node name="Panel" type="MeshInstance3D" parent="Leaf"]
+position = Vector3(0.425, 1.025, 0)
+mesh = SubResource("door_mesh")
+
+[node name="Collision" type="CollisionShape3D" parent="Leaf"]
+position = Vector3(0.425, 1.025, 0)
+shape = SubResource("door_shape")

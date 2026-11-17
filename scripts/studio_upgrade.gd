@@ -9,9 +9,14 @@ static func apply(home: Home) -> void:
 		return
 	if not bool(home.records[ROOM_ID].get("studio_refit", false)):
 		refit_layout(home)
-	if int(home.records[ROOM_ID].get("studio_refit", 0)) < 2:
-		clear_desk_aisle(home)
-		home.records[ROOM_ID].studio_refit = 2
+	if int(home.records[ROOM_ID].get("studio_refit", 0)) < 3:
+		park_chair_at_desk(home)
+	if int(home.records[ROOM_ID].get("studio_refit", 0)) < 4:
+		move_dresser_to_window(home)
+	if int(home.records[ROOM_ID].get("studio_refit", 0)) < 6:
+		align_closet_with_corner(home)
+		home.records[ROOM_ID].studio_refit = 6
+	remove_studio_trim(home)
 	install_desk(home)
 
 static func refit_layout(home: Home) -> void:
@@ -26,7 +31,6 @@ static func refit_layout(home: Home) -> void:
 	var room: Dictionary = home.records[ROOM_ID]
 	var original := home.rooms.room_world_bounds(room)
 	var bed_center := original.end - Vector2(1.85, 0.875)
-	var dresser_center := original.position + Vector2(0.41, original.size.y - 0.305)
 	home.rooms.begin_room_resize(ROOM_ID)
 	home.rooms.preview_room_resize(Rect2(original.position - Vector2(0, 0.75),
 			original.size + Vector2(0, 0.75)))
@@ -46,26 +50,69 @@ static func refit_layout(home: Home) -> void:
 		bed.z = bed_center.y
 		bed.r = -90.0
 		home.apply_item("base-143")
-	if home.records.has("base-144"):
-		var dresser: Dictionary = home.records["base-144"]
-		dresser.x = dresser_center.x
-		dresser.z = dresser_center.y
-		home.apply_item("base-144")
 
-static func clear_desk_aisle(home: Home) -> void:
-	if not home.records.has("base-145"):
+static func move_dresser_to_window(home: Home) -> void:
+	var dresser: Dictionary = home.records.get("base-144",{})
+	if dresser.is_empty() or bool(dresser.deleted):
+		return
+	var room: Dictionary = home.records[ROOM_ID]
+	var bounds := home.rooms.room_world_bounds(room)
+	dresser.r = 90.0
+	var footprint := home.rooms.room_world_bounds(dresser)
+	dresser.x = bounds.end.x-.12-footprint.size.x*.5
+	dresser.z = bounds.end.y-minf(2.30,bounds.size.y*.63)
+	dresser.y = home.rooms.floor_surface(room)
+	home.apply_item("base-144")
+
+static func remove_studio_trim(home: Home) -> void:
+	# These inherited strips were placed against the old room dimensions.
+	for id in ["base-162","base-163","base-164","base-165","base-166","base-167","base-168","base-169",
+			"window-kitchen","base-53"]:
+		if home.records.has(id) and not bool(home.records[id].deleted):
+			home.records[id].deleted = true
+			home.apply_item(id)
+	var passage: Node3D = home.nodes.get("passage-base-27")
+	if passage != null:
+		var inverse := passage.global_transform.affine_inverse()
+		for mesh: MeshInstance3D in passage.find_children("*","MeshInstance3D",true,false):
+			var bounds := (inverse * mesh.global_transform) * mesh.get_aabb()
+			if bounds.end.y < .12 and bounds.size.x > .4:
+				mesh.hide()
+	# The original ceiling still contains four suspension pins for the removed acoustic cloud.
+	for index in range(1388,1392):
+		var pin := home.house.get_node_or_null("Node895/Node894/Node893/Mesh%d" % index) as MeshInstance3D
+		if pin != null:
+			pin.hide()
+	var closet: Node3D = home.nodes.get("base-146")
+	if closet != null:
+		var filler := closet.get_node_or_null("Node573/Node572/Node571/Mesh883") as MeshInstance3D
+		if filler != null:
+			filler.hide()
+
+static func align_closet_with_corner(home: Home) -> void:
+	var closet: Dictionary = home.records.get("base-146",{})
+	var wall: Dictionary = home.records.get("base-27",{})
+	if closet.is_empty() or wall.is_empty() or bool(closet.deleted) or bool(wall.deleted):
+		return
+	var inner_edge := home.rooms.room_world_bounds(wall).end.x
+	var closet_edge := home.rooms.room_world_bounds(closet).position.x
+	closet.x += inner_edge+.006-closet_edge
+	var side_wall: Dictionary = home.records.get("base-36",{})
+	if not side_wall.is_empty() and not bool(side_wall.deleted):
+		var corner := home.rooms.room_world_bounds(side_wall).end.y
+		closet.z += corner+.006-home.rooms.room_world_bounds(closet).position.y
+	home.apply_item("base-146")
+
+static func park_chair_at_desk(home: Home) -> void:
+	if not home.records.has("base-145") or bool(home.records[DESK_ID].deleted):
 		return
 	var chair: Dictionary = home.records["base-145"]
 	if bool(chair.deleted):
 		return
 	var desk := home.rooms.room_world_bounds(home.records[DESK_ID])
 	var chair_bounds := home.rooms.room_world_bounds(chair)
-	const AISLE := 0.82
-	var extra := AISLE - (chair_bounds.position.y - desk.end.y)
-	if extra <= 0.0:
-		return
-	chair.z += extra
-	chair.x = minf(float(chair.x), desk.get_center().x - 0.27)
+	chair.x += desk.get_center().x - chair_bounds.get_center().x
+	chair.z += desk.end.y + 0.025 - chair_bounds.position.y
 	home.apply_item("base-145")
 
 static func install_desk(home: Home) -> void:

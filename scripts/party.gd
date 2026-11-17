@@ -213,17 +213,21 @@ func stop() -> void:
 		guest.dancing = false
 	departure_delay = .4
 	silence_time = 0.0
-	if not conversation.is_empty():
-		for guest in [conversation.first,conversation.second]:
-			if is_instance_valid(guest):
-				guest.partner = null
-				guest.speech.hide()
-		conversation.clear()
+	for guest in guests:
+		guest.partner = null
+		guest.speech.hide()
+	conversation.clear()
 
-func start() -> void:
+func start(start_music := true) -> void:
 	starting = false
+	var intro := home.night_game.intro
+	if is_instance_valid(intro.entrance_shape) and not intro.entry_opened:
+		intro.open_entrance()
 	if not navigation_grid.rebuild_navigation():
 		GameEvents.notify(tr("Рядом с пультом мало проходов. Освободи место и попробуй снова."))
+		return
+	if navigation_grid.outdoor_cells.is_empty():
+		GameEvents.notify(tr("Гости не могут пройти с улицы к пульту. Проверь проходы в прихожей и спальне."))
 		return
 	active = true
 	won = false
@@ -239,7 +243,7 @@ func start() -> void:
 	request_time = Balance.PARTY_FIRST_REQUEST
 	mix_time = 0
 	conversation_wait = 1.5
-	if not home.night_game.dj.has_playback():
+	if start_music and not home.night_game.dj.has_playback():
 		switch_track(0)
 
 func switch_track(index: int) -> void:
@@ -302,7 +306,7 @@ func _physics_process(delta: float) -> void:
 		hud_elapsed = 0.0
 		refresh_hud()
 	var dj = home.night_game.dj
-	var pause_music: bool = home.modal and not dj.is_open() and not home.night_game.gestures.visible
+	var pause_music: bool = not WalkSession.active and home.modal and not dj.is_open() and not home.night_game.gestures.visible
 	if music_paused != pause_music:
 		music_paused = pause_music
 		for index in range(music.size()):
@@ -415,10 +419,8 @@ func update_guests(delta: float, music_running: bool) -> void:
 		if guest.leaving:
 			if guest.cursor<guest.route.size():
 				continue
-			var view := get_viewport().get_camera_3d()
-			if view==null or not view.is_position_in_frustum(guest.global_position+Vector3.UP*.85) or distance>32.0*32.0:
-				guests.erase(guest)
-				guest.queue_free()
+			guests.erase(guest)
+			guest.queue_free()
 		elif is_instance_valid(guest.partner) or not active:
 			continue
 		elif guest.rest>5.0+float(guest.preference):
@@ -508,10 +510,6 @@ func build_hud() -> void:
 	refresh_hud()
 
 func refresh_hud() -> void:
-	if WalkSession.active:
-		panel.hide()
-		prompt.hide()
-		return
 	var club_shift = home.club.shift
 	var at_club: bool = is_instance_valid(club_shift) and club_shift.nearby()
 	panel.visible = not at_club and active and not home.modal and not is_instance_valid(home.night_game.guest)

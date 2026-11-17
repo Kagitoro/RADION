@@ -220,7 +220,7 @@ func build_entrance() -> void:
 func attach_fridge_note(cabinet: Node3D) -> void:
 	fridge_note = Node3D.new()
 	cabinet.add_child(fridge_note)
-	fridge_note.position = Vector3(.40,1.45,-.071)
+	fridge_note.position = Vector3(.21,1.45,-.058)
 	var world := home.night_world
 	world.box(fridge_note,Vector3.ZERO,Vector3(.22,.16,.004),Color("#e8d7a1"))
 	world.box(fridge_note,Vector3(0,.057,-.006),Vector3(.052,.027,.011),Color("#b85043"))
@@ -877,6 +877,8 @@ func first_booking_complete() -> void:
 	show_message(tr("Самир · Зал остался до конца. Твои $40. Позову тебя ещё."),7.5)
 
 func save_story() -> void:
+	if WalkSession.active:
+		return
 	var config := ConfigFile.new()
 	config.set_value("story","intro_seen",seen)
 	config.set_value("story","phone_messages",phone_messages)

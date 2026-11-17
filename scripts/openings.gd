@@ -19,7 +19,6 @@ var wall_meshes := {}
 var wall_finish := StandardMaterial3D.new()
 var door_finish := StandardMaterial3D.new()
 var brass := StandardMaterial3D.new()
-var studio_rod: Node3D
 var glazing := StandardMaterial3D.new()
 
 func _init(game_home: Home) -> void:
@@ -207,8 +206,6 @@ func refresh(id: String) -> void:
 	var had_visual := wall_meshes.has(id)
 	clear_wall(id)
 	var wall: Dictionary = home.records[id]
-	if id=="base-148" and is_instance_valid(studio_rod):
-		studio_rod.visible = bool(wall.get("managed_wall",false)) and not bool(wall.deleted)
 	var cuts: Array[Dictionary] = []
 	var can_cut: bool = wall_candidate(wall) and home.grabbed!=id
 	for row in home.records.values():
@@ -331,10 +328,7 @@ func prepare_studio_windows() -> bool:
 		template.wall_offset = center/3.0
 		home.data.templates[key] = template
 	var rod := group.get_child(211) as Node3D
-	studio_rod = rod.duplicate(0) as Node3D
-	home.add_child(studio_rod)
-	studio_rod.global_transform = rod.global_transform
-	home.rooms.register_room_attachment(studio_rod,rod.global_position)
+	rod.hide()
 	return true
 
 func copy_window_part(source: Node3D, model: Node3D, inverse: Transform3D) -> Node3D:

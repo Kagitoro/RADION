@@ -60,8 +60,9 @@ func check_dj_station() -> void:
 			"Студия: проход у кровати или свободная столешница не применились")
 	var desk_bounds := home.rooms.room_world_bounds(desk)
 	var chair_bounds := home.rooms.room_world_bounds(home.records["base-145"])
-	expect(chair_bounds.position.y - desk_bounds.end.y >= 0.81,
-			"Студия: кресло перекрывает проход перед столом")
+	var bed_bounds := home.rooms.room_world_bounds(bed)
+	expect(not chair_bounds.intersects(desk_bounds) and bed_bounds.position.y-chair_bounds.end.y >= .40,
+			"Студия: кресло перекрывает проход к кровати")
 	var lcd := home.party.deck.get_node_or_null("StudioLaptop") as Node3D
 	if lcd != null:
 		var display := lcd.find_child("Screen", true, false) as MeshInstance3D
@@ -241,7 +242,7 @@ func check_fight(first: PartyGuest, second: PartyGuest) -> void:
 	var events := party.events
 	var placed := false
 	for cell in grid.dance_floor:
-		var neighbor := cell + Vector2i(3,0)
+		var neighbor := cell + Vector2i(ceili(PartyNavigation.DANCE_SPACING/PartyNavigation.CELL),0)
 		if grid.dance_floor.has(neighbor):
 			first.position = grid.cells[cell]
 			second.position = grid.cells[neighbor]

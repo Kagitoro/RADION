@@ -2,7 +2,8 @@ class_name PartyNavigation
 extends RefCounted
 ## Walkable grid of the house for guests: which cells are indoors, outdoors, on the dance floor, and A* routes between them.
 
-const CELL := .28
+# Keep a sample inside the narrow walkable strip between the studio chair and bed.
+const CELL := .14
 const DANCE_SPACING := .90
 var navigation := AStarGrid2D.new()
 var cells := {}
@@ -46,6 +47,11 @@ func rebuild_navigation() -> bool:
 	query.shape = capsule
 	query.collision_mask = 1
 	query.exclude = [party.home.player.get_rid()]
+	var intro := party.home.night_game.intro
+	if intro.entry_opened and is_instance_valid(intro.entrance_shape):
+		var excluded := query.exclude
+		excluded.append(intro.entrance_shape.get_parent().get_rid())
+		query.exclude = excluded
 	var physics := party.get_world_3d().direct_space_state
 	for y in range(first.y,last.y+1):
 		for x in range(first.x,last.x+1):
@@ -84,7 +90,7 @@ func rebuild_navigation() -> bool:
 				seen[neighbor] = true
 				connected.append(neighbor)
 	var door_point: Vector3 = party.home.night_world.door_center+Vector3(-5.2,0,-4.9)
-	entrance = closest_cell(door_point,connected)
+	entrance = closest_cell(door_point,outdoor_cells)
 	return connected.size()>=18
 
 func closest_cell(point: Vector3, candidates: Array) -> Vector2i:
@@ -152,11 +158,17 @@ func route_out(guest: PartyGuest, side: float) -> bool:
 	if outdoor_cells.is_empty():
 		return false
 	var door := party.home.night_world.door_center
-	var gate := closest_cell(door+Vector3(-13.45,0,0),outdoor_cells)
-	var gate_position: Vector3 = cells[gate]
-	if absf(gate_position.z-door.z)>1.25 or gate_position.x>door.x-12.2 or not route_to(guest,gate):
+	var gate_cells: Array[Vector2i] = []
+	for cell in outdoor_cells:
+		var point: Vector3 = cells[cell]
+		if absf(point.z-door.z) < 1.25 and point.x < door.x-12.2:
+			gate_cells.append(cell)
+	var has_street_exit := not gate_cells.is_empty()
+	var destination := closest_cell(door+Vector3(-13.45,0,0),gate_cells) if has_street_exit else entrance
+	if not route_to(guest,destination):
 		return false
-	guest.route.append(door+Vector3(-14.8,0,0))
-	guest.route.append(door+Vector3(-14.8,.09,2.1*side))
-	guest.route.append(door+Vector3(-14.8,.09,26.0*side))
+	if has_street_exit:
+		guest.route.append(door+Vector3(-14.8,0,0))
+		guest.route.append(door+Vector3(-14.8,.09,2.1*side))
+		guest.route.append(door+Vector3(-14.8,.09,26.0*side))
 	return true

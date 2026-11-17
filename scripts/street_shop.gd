@@ -376,6 +376,8 @@ func pay_first_booking() -> void:
 	save_stock()
 
 func save_stock() -> void:
+	if WalkSession.active:
+		return
 	var config := ConfigFile.new()
 	config.set_value("supplies","cash",home.party.cash)
 	config.set_value("supplies","food_stock",food_stock)
@@ -390,6 +392,8 @@ func save_stock() -> void:
 		push_warning("Не удалось сохранить покупки Night Shop")
 
 func load_stock() -> void:
+	if WalkSession.active:
+		return
 	var config := ConfigFile.new()
 	if config.load(SAVE)!=OK:
 		return

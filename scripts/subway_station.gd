@@ -457,7 +457,7 @@ func _process(delta: float) -> void:
 	var downstairs := underground(player.global_position)
 	if encounter != null:
 		update_encounter(delta)
-	elif downstairs and not home.modal and home.game_mode and not SavePaths.is_test_run() and not WalkSession.active:
+	elif downstairs and not home.modal and home.game_mode and not SavePaths.is_test_run():
 		for person in people:
 			if approached.has(person) or helped.has(person):
 				continue

@@ -123,6 +123,9 @@ func game_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and not home.modal and Input.mouse_mode==Input.MOUSE_MODE_CAPTURED:
 		home.player.look_motion(event.relative)
 	elif event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT and not home.modal:
-		if not WalkSession.active and home.night_game.click_controller():
+		var fridge := home.night_game.fridge
+		if is_instance_valid(fridge) and fridge.click_bottle():
+			return
+		if home.night_game.click_controller():
 			return
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED

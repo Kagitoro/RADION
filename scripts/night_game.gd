@@ -124,11 +124,10 @@ func setup() -> void:
 		fridge = KitchenFridge.new(home)
 		home.nodes[KitchenFridge.ITEM_ID].add_child(fridge)
 		fridge.build()
-	if not WalkSession.active:
-		build_litter()
-		if is_instance_valid(fridge):
-			intro.attach_fridge_note(fridge.door)
-		place_litter_on_floor.call_deferred()
+	build_litter()
+	if is_instance_valid(fridge):
+		intro.attach_fridge_note(fridge.door)
+	place_litter_on_floor.call_deferred()
 	intro.update_objective()
 	home.subway.setup()
 
@@ -268,10 +267,6 @@ func _process(delta: float) -> void:
 	if shadow_timer<=0.0:
 		shadow_timer = .3
 		VisualQuality.update_shadow_budget(home.player.camera)
-	if WalkSession.active:
-		interact_hint.visible = not home.modal
-		interact_hint.text = tr("Совместная прогулка · Игроков %d · Esc — меню") % (WalkSession.actors.size() + 1)
-		return
 	if reply_time > 0.0:
 		reply_time -= delta
 		if reply_time <= 0.0:
@@ -289,6 +284,9 @@ func _process(delta: float) -> void:
 	interact_hint.offset_left = 0
 	interact_hint.offset_right = 0
 	interact_hint.offset_top = -96
+	if aimed_map_door() != null:
+		interact_hint.text = tr("E · Открыть / закрыть дверь")
+		return
 	if intro.entry_aimed():
 		interact_hint.text = tr("E · Открыть дверь ключом")
 		return
@@ -346,7 +344,18 @@ func current_dj() -> DJStation:
 	return dj
 
 func click_controller() -> bool:
-	return current_dj().click_controller()
+	return WalkSession.can_control_decks() and current_dj().click_controller()
+
+func aimed_map_door() -> Node3D:
+	var camera := home.player.camera
+	var eye := camera.global_position
+	var query := PhysicsRayQueryParameters3D.create(eye, eye - camera.global_basis.z * 2.2, 1, [home.player.get_rid()])
+	var hit := home.get_world_3d().direct_space_state.intersect_ray(query)
+	var leaf := hit.get("collider") as AnimatableBody3D
+	if leaf == null:
+		return null
+	var door := leaf.get_parent() as Node3D
+	return door if door != null and door.is_in_group("map_doors") else null
 
 func aimed_laptop(station: DJStation) -> bool:
 	if not station.party.near_deck():
@@ -377,6 +386,13 @@ func aimed_guest() -> Node3D:
 	return result
 
 func interact() -> void:
+	var door := aimed_map_door()
+	if door != null:
+		if WalkSession.active:
+			WalkSession.toggle_map_door(door)
+		else:
+			door.set_open(not door.opened)
+		return
 	if not talk_actions.visible:
 		if intro.entry_aimed():
 			intro.open_entrance()
@@ -410,9 +426,9 @@ func interact() -> void:
 		close_talk()
 		return
 	var station := current_dj()
-	if station.click_controller():
+	if WalkSession.can_control_decks() and station.click_controller():
 		return
-	if aimed_laptop(station) or (station == club_dj and station.party.near_deck()):
+	if WalkSession.can_control_decks() and (aimed_laptop(station) or (station == club_dj and station.party.near_deck())):
 		station.open(true)
 		return
 	var employee: Node3D = home.club.staff_target()
@@ -427,7 +443,7 @@ func interact() -> void:
 		return
 	var person := aimed_guest()
 	if person==null:
-		if home.party.near_deck():
+		if WalkSession.can_control_decks() and home.party.near_deck():
 			dj.open(true)
 		return
 	if is_instance_valid(person.partner):
@@ -584,12 +600,6 @@ func toggle_pause() -> void:
 
 ## Routes a gameplay input event to the matching action.
 func handle_input(event: InputEvent) -> void:
-	if WalkSession.active:
-		if event.is_action_pressed("pause"):
-			toggle_pause()
-		elif not home.modal and event.is_action_pressed("flashlight"):
-			flashlight.visible = not flashlight.visible
-		return
 	var key := event as InputEventKey
 	var gesture_key := key != null and key.physical_keycode == KEY_G
 	if gestures.visible:
@@ -632,6 +642,12 @@ func handle_input(event: InputEvent) -> void:
 			toggle_pause()
 		return
 	if home.modal or home.player.collapsed or home.player.vomiting:
+		return
+	if not WalkSession.can_control_decks() and (
+			event.is_action_pressed("start_party") or event.is_action_pressed("open_mixer")
+			or event.is_action_pressed("beat_mix") or event.is_action_pressed("cycle_lights")
+			or TRACK_ACTIONS.any(func(action): return event.is_action_pressed(action))):
+		GameEvents.notify(tr("В этой сессии пультом управляет хост."))
 		return
 	if talk_actions.visible:
 		for option in TALK_OPTIONS:

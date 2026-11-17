@@ -109,6 +109,9 @@ func _ready() -> void:
 		if not loaded:
 			storage.load_project("res://assets/house/default_layout.json", false)
 	preload("res://scripts/studio_upgrade.gd").apply(self)
+	preload("res://scripts/kitchen_finish.gd").apply(self)
+	preload("res://scripts/bathroom_refit.gd").apply(self)
+	add_child(preload("res://map_additions.tscn").instantiate())
 	add_child(night_world)
 	night_world.setup()
 	player = Player.new()
@@ -126,6 +129,7 @@ func _ready() -> void:
 	night_game.setup()
 	VisualQuality.plaster(scene_finish.paint)
 	VisualQuality.apply(self)
+	preload("res://scripts/editable_world.gd").apply(self)
 	if game_mode:
 		HouseOcclusion.build(self)
 	if not SavePaths.is_test_run():
