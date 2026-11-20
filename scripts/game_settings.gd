@@ -74,3 +74,16 @@ static func set_show_fps(value: bool) -> void:
 	if config.save(FILE) != OK:
 		push_warning("Не удалось сохранить настройки")
 	FpsCounter.apply(value)
+
+## Nickname shown to other players in the co-op walk and its chat.
+static func nickname() -> String:
+	var config := ConfigFile.new()
+	config.load(FILE)
+	return str(config.get_value("multiplayer", "nickname", "Игрок"))
+
+static func set_nickname(value: String) -> void:
+	var config := ConfigFile.new()
+	config.load(FILE)
+	config.set_value("multiplayer", "nickname", value.strip_edges().left(20))
+	if config.save(FILE) != OK:
+		push_warning("Не удалось сохранить настройки")

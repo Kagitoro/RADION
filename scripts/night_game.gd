@@ -82,6 +82,7 @@ func setup() -> void:
 	VisualQuality.level = GameSettings.graphics()
 	pause_panel.restart_requested.connect(restart_game)
 	if WalkSession.active:
+		home.add_child(ChatBox.new(home))
 		for name in ["IntroButton", "NewPartyButton", "RestartButton"]:
 			pause_panel.get_node("%" + name).hide()
 		pause_panel.get_node("%MainMenuButton").text = tr("Покинуть прогулку")

@@ -1563,3 +1563,18 @@ msgstr "Master volume"
 
 msgid "Счётчик FPS"
 msgstr "FPS counter"
+
+msgid "Никнейм"
+msgstr "Nickname"
+
+msgid "%s создал(а) прогулку"
+msgstr "%s started the walk"
+
+msgid "%s подключился"
+msgstr "%s joined"
+
+msgid "%s отключился"
+msgstr "%s left"
+
+msgid "Сообщение… (Enter — отправить, Esc — закрыть)"
+msgstr "Message… (Enter to send, Esc to close)"

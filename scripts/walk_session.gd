@@ -2,6 +2,11 @@ extends Node
 ## The host relays player actions and owns shared scene and DJ state.
 
 signal status_changed(text: String)
+## A chat line arrived (system: join/leave notices, author is empty).
+signal chat_received(author: String, text: String, system: bool)
+const CHAT_LIMIT := 200
+const CHAT_HISTORY := 60
+const NAME_LIMIT := 20
 const PORT := 27880
 const MAX_GUESTS := 7
 const SEND_INTERVAL := 0.0667
@@ -16,12 +21,17 @@ var poses := {}
 var clock := 0.0
 var time_left := 0.0
 var game_state: RefCounted
+## Nicknames of everyone in the session, peer id -> name (kept by the host).
+var names := {}
+## Recent chat lines [author, text, system], kept across the scene reload.
+var chat_log: Array = []
 
 func _ready() -> void:
 	multiplayer.connected_to_server.connect(on_connected)
 	multiplayer.connection_failed.connect(on_connection_failed)
 	multiplayer.server_disconnected.connect(on_server_disconnected)
 	multiplayer.peer_disconnected.connect(remove_peer)
+	multiplayer.peer_disconnected.connect(on_peer_left)
 
 func host() -> void:
 	reset_peer()
@@ -31,6 +41,9 @@ func host() -> void:
 		status_changed.emit(tr("Не удалось открыть UDP-порт %d.") % PORT)
 		return
 	multiplayer.multiplayer_peer = peer
+	chat_log.clear()
+	names = {1: GameSettings.nickname()}
+	add_chat("", tr("%s создал(а) прогулку") % names[1], true)
 	enter_world()
 
 func join(address: String) -> void:
@@ -51,6 +64,9 @@ func join(address: String) -> void:
 
 func on_connected() -> void:
 	if pending:
+		chat_log.clear()
+		names.clear()
+		register_name.rpc_id(1, GameSettings.nickname())
 		enter_world()
 
 func enter_world() -> void:
@@ -131,6 +147,94 @@ func on_server_disconnected() -> void:
 		leave(tr("Хост отключился."))
 	elif pending:
 		on_connection_failed()
+
+func on_peer_left(id: int) -> void:
+	if active and multiplayer.is_server() and names.has(id):
+		var name: String = names[id]
+		names.erase(id)
+		receive_names.rpc(names)
+		broadcast_system(tr("%s отключился") % name)
+
+# --- chat -------------------------------------------------------------------
+
+func display_name(id: int) -> String:
+	return str(names.get(id, tr("Игрок %d") % (id % 1000)))
+
+static func clean_name(text: String) -> String:
+	text = text.strip_edges().replace("
+", " ").left(NAME_LIMIT)
+	return text if not text.is_empty() else "Игрок"
+
+@rpc("any_peer", "call_remote", "reliable")
+func register_name(nickname: String) -> void:
+	if not active or not multiplayer.is_server():
+		return
+	var id := multiplayer.get_remote_sender_id()
+	if not multiplayer.get_peers().has(id) or names.has(id):
+		return
+	nickname = clean_name(nickname)
+	var taken: Array = names.values()
+	var unique := nickname
+	var suffix := 2
+	while unique in taken:
+		unique = "%s %d" % [nickname, suffix]
+		suffix += 1
+	names[id] = unique
+	receive_names.rpc(names)
+	receive_history.rpc_id(id, chat_log)
+	broadcast_system(tr("%s подключился") % unique)
+	if is_instance_valid(actors.get(id)):
+		actors[id].name_tag.text = unique
+
+@rpc("authority", "call_remote", "reliable")
+func receive_names(all: Dictionary) -> void:
+	names = all
+	for id in actors:
+		if is_instance_valid(actors[id]):
+			actors[id].name_tag.text = display_name(id)
+
+@rpc("authority", "call_remote", "reliable")
+func receive_history(lines: Array) -> void:
+	for line in lines:
+		if line is Array and line.size() == 3:
+			add_chat(str(line[0]), str(line[1]), bool(line[2]))
+
+func send_chat(text: String) -> void:
+	text = text.strip_edges().left(CHAT_LIMIT)
+	if text.is_empty() or not active:
+		return
+	if multiplayer.is_server():
+		relay_chat(1, text)
+	else:
+		submit_chat.rpc_id(1, text)
+
+@rpc("any_peer", "call_remote", "reliable")
+func submit_chat(text: String) -> void:
+	if not active or not multiplayer.is_server():
+		return
+	var id := multiplayer.get_remote_sender_id()
+	if multiplayer.get_peers().has(id):
+		relay_chat(id, text.strip_edges().left(CHAT_LIMIT))
+
+func relay_chat(id: int, text: String) -> void:
+	if text.is_empty():
+		return
+	receive_chat.rpc(display_name(id), text, false)
+	add_chat(display_name(id), text, false)
+
+func broadcast_system(text: String) -> void:
+	receive_chat.rpc("", text, true)
+	add_chat("", text, true)
+
+@rpc("authority", "call_remote", "reliable")
+func receive_chat(author: String, text: String, system: bool) -> void:
+	add_chat(author.left(NAME_LIMIT + 4), text.left(CHAT_LIMIT), system)
+
+func add_chat(author: String, text: String, system: bool) -> void:
+	chat_log.append([author, text, system])
+	if chat_log.size() > CHAT_HISTORY:
+		chat_log.pop_front()
+	chat_received.emit(author, text, system)
 
 func remove_peer(id: int) -> void:
 	if active and multiplayer.is_server() and is_instance_valid(world):
@@ -251,7 +355,7 @@ func ensure_avatar(id: int) -> void:
 	world.add_child(actor)
 	actor.global_position = poses[id][0]
 	actor.rotation.y = poses[id][1]
-	actor.name_tag.text = tr("Игрок %d") % (id % 1000)
+	actor.name_tag.text = display_name(id)
 	actor.name_tag.show()
 	if is_instance_valid(actor.smoking_prop):
 		actor.smoking_prop.hide()

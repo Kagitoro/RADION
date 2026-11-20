@@ -18,6 +18,7 @@ var club_was_muted := false
 var walk_dialog: ConfirmationDialog
 var walk_status: Label
 var walk_address: LineEdit
+var walk_nickname: LineEdit
 
 func setup(game_home: Home, night_game: NightGame) -> void:
 	home = game_home
@@ -46,6 +47,12 @@ func show_walk_dialog() -> void:
 		layer.add_child(walk_dialog)
 		var content := VBoxContainer.new()
 		content.custom_minimum_size = Vector2(430, 0)
+		content.add_child(UIKit.label(tr("Никнейм")))
+		walk_nickname = LineEdit.new()
+		walk_nickname.max_length = WalkSession.NAME_LIMIT
+		walk_nickname.text = GameSettings.nickname()
+		walk_nickname.text_changed.connect(GameSettings.set_nickname)
+		content.add_child(walk_nickname)
 		content.add_child(UIKit.label(tr("IP компьютера хоста · UDP %d") % WalkSession.PORT))
 		walk_address = LineEdit.new()
 		walk_address.placeholder_text = "192.168.1.20"
