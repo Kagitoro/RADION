@@ -174,6 +174,9 @@ func paint_psx(part: MeshInstance3D, tint: Color) -> void:
 	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	part.material_override = material
 
+var pickup_seat := -1
+var pickup_steering := 0.0
+
 func pose(delta: float, walking: bool, speed: float, dance: bool, beat: float) -> void:
 	for bone in range(base_rotations.size()):
 		skeleton.set_bone_pose_rotation(bone,base_rotations[bone])
@@ -226,10 +229,24 @@ func pose(delta: float, walking: bool, speed: float, dance: bool, beat: float) -
 			var gesture := Vector3(.31,1.19,.46) if street_reaction>0 else Vector3(.19,1.13,.25)
 			point_arm(arms[0],Vector3(.16,.87,.10).lerp(gesture,level),Vector3.RIGHT+Vector3.DOWN*.5)
 			street_reaction = move_toward(street_reaction,0.0,delta*.65)
+	if pickup_seat >= 0:
+		sit_in_pickup(pickup_seat == 0)
 	if is_instance_valid(service_tray) and arms.size()==2:
 		carry_tray(delta,walking)
 	if is_instance_valid(ember) and head_bone>=0:
 		ember.global_transform = mouth_transform()*Transform3D(Basis(Vector3.RIGHT,PI*.5),Vector3(0,0,-.032))
+
+func sit_in_pickup(driver: bool) -> void:
+	for side in ["Left","Right"]:
+		rotate_local(side+"UpLeg",Vector3(-1.31,0,0))
+		rotate_local(side+"Leg",Vector3(1.43,0,0))
+	for index in arms.size():
+		var side := 1.0 if index == 0 else -1.0
+		var wrist := Vector3(side*.15,1.14,.37) if driver else Vector3(side*.16,.92,.23)
+		if driver:
+			var pivot := Vector3(0,1.14,.37)
+			wrist = pivot+(wrist-pivot).rotated(Vector3.FORWARD,pickup_steering)
+		point_arm(arms[index],wrist,Vector3(side,-1,0))
 
 func carry_tray(delta: float, walking: bool) -> void:
 	service_time += delta

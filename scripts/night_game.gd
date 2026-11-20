@@ -609,9 +609,12 @@ func handle_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	var gesture_key := key != null and key.physical_keycode == KEY_G
 	var delivery := home.night_world.delivery
-	if delivery.driving and not event.is_action_pressed("pause"):
-		if not home.modal and event.is_action_pressed("interact"):
-			delivery.interact()
+	if delivery.is_seated() and not event.is_action_pressed("pause"):
+		if not home.modal:
+			if event.is_action_pressed("interact"):
+				delivery.interact()
+			elif event.is_action_pressed("open_mixer"):
+				delivery.toggle_camera()
 		return
 	if gestures.visible:
 		if gesture_key or event.is_action_pressed("pause"):

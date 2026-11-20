@@ -15,12 +15,14 @@ const WALKS := [
 const VEHICLES := [preload("res://assets/city/street_compact.glb"),preload("res://assets/city/street_pickup.glb")]
 const CAR_SIZES := [Vector3(1.84,1.68,3.87),Vector3(2.10,1.89,4.91)]
 const BOUNDS := Rect2(-77,-35,63.1,69)
-const TRAFFIC_ROUTE := [Vector3(-17.5,0,-22),Vector3(-17.5,0,20),Vector3(-54,0,20),Vector3(-54,0,-22)]
+const TRAFFIC_ROUTE := [Vector3(-18.55,0,-19.35),Vector3(-18.55,0,20.55),Vector3(-55.48,0,20.55),Vector3(-55.48,0,-19.35)]
 
 var world: NightWorld
 const TRAFFIC_GAP := 7.4
 
 var traffic: Array[Dictionary] = []
+const Fleet = preload("res://scripts/city_traffic_car.gd")
+var traffic_curve := Curve3D.new()
 var route_length := 0.0
 var walkers: Array[Dictionary] = []
 var elapsed := 0.0
@@ -52,20 +54,20 @@ func build() -> void:
 		world.box(self,Vector3(-13.91,.65,(interval.x+interval.y)*.5),Vector3(.11,1.3,interval.y-interval.x),Color("#353e4e"),true)
 	build_roads()
 	build_blocks()
-	for index in range(TRAFFIC_ROUTE.size()):
-		route_length += TRAFFIC_ROUTE[index].distance_to(TRAFFIC_ROUTE[(index+1)%TRAFFIC_ROUTE.size()])
+	build_traffic_curve()
 	for index in range(3):
-		var distance := route_length*(float(index)+.18)/3.0
-		var car := place_car(self,index%2,traffic_point(distance),true)
-		var direction := traffic_point(distance+.7)-car.position
-		car.rotation.y = atan2(direction.x,direction.z)
-		var wheels := car.find_children("Axle-*","Node3D",true,false)
-		traffic.append({"car":car,"distance":distance,"speed":0.0,"cruise":4.3+index*.45,
-			"wheels":wheels,"radius":.34 if index%2==0 else .46})
-	for index in range(4):
-		var car := place_car(self,index%2,Vector3(-45.2+index*4.0,0,14.6))
-		car.rotation.y = PI
+		add_traffic_car(index)
+	var parking_kinds := [3,4,5,6]
+	for index in parking_kinds.size():
+		park_car(self,parking_kinds[index],Vector3(-45.2+index*4.0,0,14.6),PI)
 	set_process(false)
+
+static func park_car(parent: Node3D, kind: int, at: Vector3, yaw: float) -> void:
+	var car := Fleet.new()
+	parent.add_child(car)
+	car.build(kind,false)
+	car.position = at
+	car.rotation.y = yaw
 
 static func place_car(parent: Node3D, index: int, at: Vector3, moving: bool = false) -> Node3D:
 	var car := VEHICLES[index].instantiate() as Node3D
@@ -263,7 +265,35 @@ func populate() -> void:
 		person.name_tag.hide()
 		person.position = routes[index][0].lerp(routes[index][1],.17+.11*(index%4))
 		walkers.append({"person":person,"points":routes[index],"next":1})
+	for index in range(traffic.size(),Fleet.MODELS.size()):
+		add_traffic_car(index)
+	for index in traffic.size():
+		traffic[index].car.add_driver(index,world.home.party.psx_assets)
 	set_process(true)
+
+func build_traffic_curve() -> void:
+	const RADIUS := 5.65
+	const HANDLE := RADIUS*.5523
+	traffic_curve.bake_interval = .13
+	for index in TRAFFIC_ROUTE.size():
+		var point: Vector3 = TRAFFIC_ROUTE[index]
+		var incoming := (point-Vector3(TRAFFIC_ROUTE[posmod(index-1,TRAFFIC_ROUTE.size())])).normalized()
+		var outgoing := (Vector3(TRAFFIC_ROUTE[(index+1)%TRAFFIC_ROUTE.size()])-point).normalized()
+		traffic_curve.add_point(point-incoming*RADIUS,Vector3.ZERO,incoming*HANDLE)
+		traffic_curve.add_point(point+outgoing*RADIUS,-outgoing*HANDLE,Vector3.ZERO)
+	traffic_curve.add_point(traffic_curve.get_point_position(0))
+	route_length = traffic_curve.get_baked_length()
+
+func add_traffic_car(index: int) -> void:
+	var car := Fleet.new()
+	add_child(car)
+	car.build(index,true)
+	var distance := route_length * (float(index)+.18) / Fleet.MODELS.size()
+	car.position = traffic_point(distance)
+	var direction := traffic_point(distance+.8)-traffic_point(distance-.8)
+	car.rotation.y = atan2(direction.x,direction.z)
+	var cruise := [4.8,4.1,6.9,4.6,4.6,5.2,6.6]
+	traffic.append({"car":car,"distance":distance,"speed":0.0,"cruise":cruise[index]})
 
 func _process(delta: float) -> void:
 	var player: Node3D = world.home.player
@@ -272,7 +302,7 @@ func _process(delta: float) -> void:
 	var observer := to_local(player.global_position)
 	var view := get_viewport().get_camera_3d()
 	var viewer := to_local(view.global_position) if view!=null else observer
-	var cinematic: bool = view!=null and view!=world.home.player.camera and view!=world.delivery.orbit
+	var cinematic: bool = view!=null and view!=world.home.player.camera and not world.delivery.is_seated()
 	step_traffic(delta,viewer if cinematic else observer,cinematic)
 	elapsed += delta
 	if elapsed<.05:
@@ -291,35 +321,30 @@ func _process(delta: float) -> void:
 	elapsed = 0.0
 
 func traffic_point(distance: float) -> Vector3:
-	var remaining := fposmod(distance,route_length)
-	for index in range(TRAFFIC_ROUTE.size()):
-		var start: Vector3 = TRAFFIC_ROUTE[index]
-		var end: Vector3 = TRAFFIC_ROUTE[(index+1)%TRAFFIC_ROUTE.size()]
-		var length := start.distance_to(end)
-		if remaining<length:
-			return start.lerp(end,remaining/length)
-		remaining -= length
-	return TRAFFIC_ROUTE[0]
+	return traffic_curve.sample_baked(fposmod(distance,route_length),true)
 
 func step_traffic(delta: float, observer: Vector3, cinematic := false) -> void:
 	var previous := PackedFloat64Array()
+	var pickup: Vector3 = to_local(world.delivery.truck.global_position)
 	for route in traffic:
 		previous.append(route.distance)
 	for index in range(traffic.size()):
 		var route := traffic[index]
 		var distance := previous[index]
-		var gap := route_length
+		var car = route.car
+		var room := route_length
 		for other in range(previous.size()):
-			if other!=index:
-				gap = minf(gap,fposmod(previous[other]-distance,route_length))
-		var room := maxf(0.0,gap-TRAFFIC_GAP)
-		var target_speed := minf(float(route.cruise),room*1.2)
-		var car: Node3D = route.car
+			if other != index:
+				var clearance := maxf(TRAFFIC_GAP,(car.length_m+traffic[other].car.length_m)*.5+2.65)
+				room = minf(room,fposmod(previous[other]-distance,route_length)-clearance)
+		room = maxf(0.0,room)
+		var forward_point := traffic_point(distance+maxf(2.4,car.length_m*.5+.38))
+		var near_direction := traffic_point(distance+.9)-traffic_point(distance-.9)
+		var next_direction := traffic_point(distance+2.5)-traffic_point(distance+.35)
+		var steering := clampf(near_direction.signed_angle_to(next_direction,Vector3.UP)*2.7,-1,1)
+		var target_speed := minf(float(route.cruise)*lerpf(1.0,.59,absf(steering)),room*1.2)
 		var brake_distance := 6.5 if cinematic else 3.25
-		if traffic_point(distance+2.4).distance_to(observer)<brake_distance:
-			target_speed = 0.0
-		var pickup: Vector3 = to_local(world.delivery.truck.global_position)
-		if traffic_point(distance+3.1).distance_to(pickup)<4.7:
+		if forward_point.distance_to(observer)<brake_distance or forward_point.distance_to(pickup)<4.7:
 			target_speed = 0.0
 		var acceleration := 2.6 if target_speed>float(route.speed) else 8.0
 		route.speed = move_toward(float(route.speed),target_speed,delta*acceleration)
@@ -327,11 +352,12 @@ func step_traffic(delta: float, observer: Vector3, cinematic := false) -> void:
 		distance = fposmod(distance+step,route_length)
 		route.distance = distance
 		car.position = traffic_point(distance)
-		var direction := traffic_point(distance+.65)-traffic_point(distance-.65)
-		car.rotation.y = lerp_angle(car.rotation.y,atan2(direction.x,direction.z),minf(1.0,delta*6.0))
+		var wheelbase := minf(float(car.length_m)*.34,3.5)
+		var direction := traffic_point(distance+wheelbase*.5)-traffic_point(distance-wheelbase*.5)
+		car.rotation.y = lerp_angle(car.rotation.y,atan2(direction.x,direction.z),minf(1.0,delta*8.0))
 		# A cut can place the camera beside a car before it has time to brake.
-		var local_eye := car.transform.affine_inverse()*observer
-		var camera_clear := absf(local_eye.x)>1.35 or absf(local_eye.z)>2.8 or local_eye.y>2.2
+		var local_eye: Vector3 = car.transform.affine_inverse()*observer
+		var camera_clear: bool = absf(local_eye.x)>1.55 or absf(local_eye.z)>car.length_m*.5+.35 or local_eye.y>3.25
 		car.visible = not cinematic or camera_clear
-		for wheel in route.wheels:
-			wheel.rotate_x(step/float(route.radius))
+		car.animate_wheels(step,steering)
+		car.animate_driver(delta,steering,car.visible and car.position.distance_squared_to(observer)<28.0*28.0)

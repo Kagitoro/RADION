@@ -133,6 +133,8 @@ func on_server_disconnected() -> void:
 		on_connection_failed()
 
 func remove_peer(id: int) -> void:
+	if active and multiplayer.is_server() and is_instance_valid(world):
+		world.night_world.delivery.release_peer(id)
 	poses.erase(id)
 	var avatar = actors.get(id)
 	if is_instance_valid(avatar):
@@ -150,10 +152,19 @@ func _process(delta: float) -> void:
 	for id in actors:
 		var actor: Node3D = actors[id]
 		var pose: Array = poses[id]
-		actor.global_position = actor.global_position.lerp(pose[0], blend)
-		actor.rotation.y = lerp_angle(actor.rotation.y, pose[1], blend)
-		actor.pose(delta, 0.0, pose[2])
-		game_state.apply_prop(actor, pose[3], pose[4], blend)
+		var delivery := world.night_world.delivery as Node3D
+		var seat: int = delivery.peer_seat(id)
+		if is_instance_valid(actor.imported_model):
+			actor.imported_model.pickup_seat = seat
+		if seat >= 0:
+			actor.global_position = delivery.seat_root(seat)
+			actor.rotation.y = delivery.truck.global_rotation.y + PI
+			actor.pose(delta, 0.0, false)
+		else:
+			actor.global_position = actor.global_position.lerp(pose[0], blend)
+			actor.rotation.y = lerp_angle(actor.rotation.y, pose[1], blend)
+			actor.pose(delta, 0.0, pose[2])
+		game_state.apply_prop(actor, 0 if seat >= 0 else pose[3], pose[4], blend)
 	clock += delta
 	if clock < SEND_INTERVAL:
 		return
@@ -190,6 +201,22 @@ func submit_pose(position: Vector3, yaw: float, walking: bool, kind: int, prop: 
 func receive_game_state(snapshot: Dictionary) -> void:
 	if active and game_state != null:
 		game_state.apply_snapshot(snapshot)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_pickup_seat(seat: int) -> void:
+	if not active or not multiplayer.is_server() or not is_instance_valid(world):
+		return
+	var id := multiplayer.get_remote_sender_id()
+	if not multiplayer.get_peers().has(id) or not poses.has(id):
+		pickup_seat_result.rpc_id(id,false,-1,Vector3.ZERO)
+		return
+	var result: Array = world.night_world.delivery.change_seat(id,seat,poses[id][0])
+	pickup_seat_result.rpc_id(id,result[0],result[1],result[2])
+
+@rpc("authority", "call_remote", "reliable")
+func pickup_seat_result(accepted: bool, seat: int, exit: Vector3) -> void:
+	if active and is_instance_valid(world):
+		world.night_world.delivery.apply_seat_result(accepted,seat,exit)
 
 @rpc("authority", "call_remote", "unreliable_ordered", 3)
 func receive_delivery(state: Array) -> void:

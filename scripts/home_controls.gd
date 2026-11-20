@@ -121,8 +121,15 @@ func game_input(event: InputEvent) -> void:
 		if event.is_pressed() and not event.is_echo():
 			home.night_game.handle_input(event)
 	elif event is InputEventMouseMotion and not home.modal and Input.mouse_mode==Input.MOUSE_MODE_CAPTURED:
-		home.player.look_motion(event.relative)
+		var delivery := home.night_world.delivery
+		if delivery.is_seated():
+			delivery.look_motion(event.relative)
+		else:
+			home.player.look_motion(event.relative)
 	elif event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT and not home.modal:
+		if home.night_world.delivery.is_seated():
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+			return
 		var fridge := home.night_game.fridge
 		if is_instance_valid(fridge) and fridge.click_bottle():
 			return

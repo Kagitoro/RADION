@@ -140,8 +140,8 @@ func build_street() -> void:
 		box(street,planter+Vector3.UP*.24,Vector3(.62,.48,.62),Color("#414955"),true,plant)
 	place_prop(street,"furniture/trashcan",Vector3(-5.95,0,4.35),Vector3(.39,.64,.39))
 	box(street,Vector3(-5.95,.32,4.35),Vector3(.39,.64,.39),Color.TRANSPARENT,true,true)
-	NightDistrict.place_car(street,0,Vector3(-9,0,-4.6))
-	NightDistrict.place_car(street,1,Vector3(-9,0,4.7))
+	NightDistrict.park_car(street,0,Vector3(-9,0,-4.6),0.0)
+	NightDistrict.park_car(street,4,Vector3(-9,0,4.7),PI)
 
 func build_club_access() -> void:
 	district = NightDistrict.new(self)
@@ -171,6 +171,11 @@ func club_ground_at(point: Vector2) -> float:
 	if not is_instance_valid(nightclub):
 		return -INF
 	var local := point-Vector2(door_center.x,door_center.z)
+	if is_instance_valid(delivery):
+		var tower: Node3D = delivery.tower
+		var court_point := local-Vector2(tower.position.x,tower.position.z)
+		if tower.COURT.has_point(court_point):
+			return tower.global_position.y+tower.COURT_SURFACE
 	return door_center.y if NightDistrict.BOUNDS.has_point(local) else -INF
 
 func build_shelter() -> void:

@@ -644,7 +644,7 @@ func check_traffic_spacing() -> void:
 	var district := home.night_world.district
 	var traffic := district.traffic
 	for index in range(traffic.size()):
-		traffic[index].distance = [40.0,29.0,15.0][index]
+		traffic[index].distance = fposmod([40.0,29.0,15.0,-3.0,-26.0,-49.0,-72.0][index],district.route_length)
 		traffic[index].speed = 0.0
 		traffic[index].car.position = district.traffic_point(traffic[index].distance)
 	var crossing := district.traffic_point(43.0)

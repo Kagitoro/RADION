@@ -1,0 +1,11 @@
+Vehicle models from tevy.dev, CC0 1.0 Universal. Mesh compression and attribute quantization removed for Godot. Window tint and vehicle animation are implemented in the game.
+
+https://tevy.dev/models/hatchback (v1 LOD1)
+https://tevy.dev/models/city-bus (v1 LOD1)
+https://tevy.dev/models/rally-car (v1 LOD1)
+https://tevy.dev/models/family-sedan (v1 LOD1)
+https://tevy.dev/models/suv (v1 LOD1)
+https://tevy.dev/models/classic-coupe (v1 LOD1)
+https://tevy.dev/models/supercar (v2 LOD2)
+pickup_open_cabin.glb is a variant of the existing city/street_pickup.glb (see ../credits.txt), with the solid cabin base removed to make room for its playable interior.
+skyline_flatbed.glb: https://3dassets.dev/assets/transport-collection-hd-flatbed-truck-5ac03ec8 (CC0). Cab and chassis proportions, wheel count, interior and handling adapted for Late Set.

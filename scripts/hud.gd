@@ -286,11 +286,12 @@ func refresh() -> void:
 	if root == null:
 		return
 	if game.game_mode:
+		var seated: bool = is_instance_valid(game.night_world.delivery) and game.night_world.delivery.is_seated()
 		badge.text = tr("НОЧЬ / HOUSE PARTY")
 		badge.visible = not game.modal
-		hint.visible = not game.modal
+		hint.visible = not game.modal and not seated
 		hint.text = tr("WASD идти · Shift быстрее · E общаться · Tab инвентарь · F фонарь · Esc пауза")
-		crosshair.visible = not game.modal and not game.player.collapsed
+		crosshair.visible = not game.modal and not game.player.collapsed and not seated
 		target_card.hide()
 		held_panel.hide()
 		game.frames.update_target_frames()

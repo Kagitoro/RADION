@@ -3,6 +3,8 @@ extends Node3D
 const LEVEL := 3.15
 const LEVELS := 5
 const ROOF := LEVEL * LEVELS
+const COURT := Rect2(-8.0,-12.30,26.0,24.65)
+const COURT_SURFACE := .017
 const STONE := Color("#4b4c58")
 const STEEL := Color("#222631")
 const BRASS := Color("#ac7d52")
@@ -30,8 +32,10 @@ func add_label(text: String, at: Vector3, size := .006) -> void:
 	world.add_sign(self, text, at, Vector3.ZERO, CYAN, size)
 
 func build_court() -> void:
-	var at := Vector3(5, -.093, -.35)
-	var size := Vector3(26, .22, 23.9)
+	var center := COURT.get_center()
+	var at := Vector3(center.x,COURT_SURFACE-.11,center.y)
+	# Keep the apron continuous across the seam with the district's north edge.
+	var size := Vector3(COURT.size.x,.22,COURT.size.y)
 	world.district.textured_box(self, at, size, world.district.walk_material)
 	world.box(self, at, size, Color.TRANSPARENT, true, true)
 	var asphalt := world.district.tiled_material(NightDistrict.ASPHALT_TEXTURE, Color("#5e6371"), .38)
