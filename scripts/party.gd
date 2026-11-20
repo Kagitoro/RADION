@@ -81,6 +81,16 @@ func consume(beer: bool) -> void:
 func extinguish() -> void:
 	consumables.extinguish()
 
+## Inventory → hand (beer / energy), LMB sip, G throw (see PartyConsumables).
+func take(kind: String) -> void:
+	consumables.take(kind)
+
+func use_held() -> bool:
+	return consumables.use_held()
+
+func throw_held() -> bool:
+	return consumables.throw_held()
+
 ## True while a bottle or cigarette animation occupies the player's hand.
 func hands_busy() -> bool:
 	return is_instance_valid(consumables.hand_prop)
@@ -183,6 +193,8 @@ func setup() -> void:
 	events.setup()
 
 func sync_deck() -> void:
+	if deck.has_meta(&"deck_packed"):
+		return
 	for row in home.records.values():
 		if str(row.label)!="Рабочий стол" or bool(row.deleted):
 			continue
@@ -601,7 +613,7 @@ func refresh_hud() -> void:
 	panel.visible = not at_club and active and not home.modal and not is_instance_valid(home.night_game.guest)
 	prompt.visible = not at_club and not active and not home.modal
 	if prompt.visible:
-		prompt.text = tr("J · Начать вечеринку    B · Пиво    N · Сигарета") if near_deck() else tr("Найди DJ-пульт в спальне-студии    B · Пиво    N · Сигарета")
+		prompt.text = tr("Tab → Действия · Запустить вечеринку") if near_deck() else tr("Найди DJ-пульт в спальне-студии")
 	if not panel.visible or not is_instance_valid(home.night_game.dj):
 		return
 	meter.value = atmosphere

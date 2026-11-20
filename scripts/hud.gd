@@ -290,7 +290,8 @@ func refresh() -> void:
 		badge.text = tr("НОЧЬ / HOUSE PARTY")
 		badge.visible = not game.modal
 		hint.visible = not game.modal and not seated
-		hint.text = tr("WASD идти · Shift быстрее · E общаться · Tab инвентарь · F фонарь · Esc пауза")
+		var night = game.night_game
+		hint.text = night.control_hints() if is_instance_valid(night) and night.tip != null else tr("WASD идти · Tab меню · Esc пауза")
 		crosshair.visible = not game.modal and not game.player.collapsed and not seated
 		target_card.hide()
 		held_panel.hide()

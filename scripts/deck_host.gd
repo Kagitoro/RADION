@@ -5,6 +5,8 @@ extends Node3D
 
 ## Physical deck the controller and laptop are mounted on.
 var deck := Node3D.new()
+## Home studio only: the laptop stands apart from the controller (packs on its own).
+var laptop: Node3D
 ## Two deck channels (A and B).
 var music: Array[AudioStreamPlayer] = []
 var music_bus := -1
@@ -25,6 +27,13 @@ func track_bpm() -> Array:
 	return []
 
 ## True when the player stands close enough to use the deck.
+## Anchor in the middle of the laptop screen (on the deck, or on the separate laptop).
+func laptop_screen() -> Node3D:
+	var screen := deck.get_node_or_null("LaptopScreen") as Node3D
+	if screen == null and is_instance_valid(laptop):
+		screen = laptop.get_node_or_null("LaptopScreen") as Node3D
+	return screen
+
 func near_deck() -> bool:
 	return false
 

@@ -6,7 +6,8 @@ const RUN_SPEED := 3.30
 ## Extra run speed while an energy drink is active.
 const ENERGY_RUN_MULTIPLIER := 1.15
 const GRAVITY := 13.0
-const JUMP_VELOCITY := 3.5
+## High enough (~1.1 m) to climb onto the delivery truck bed.
+const JUMP_VELOCITY := 5.3
 ## Highest ledge the player steps onto automatically (metres).
 const STEP_HEIGHT := .16
 const ACCELERATION := 10.0

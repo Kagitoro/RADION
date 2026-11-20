@@ -16,10 +16,24 @@ const PAUSE_MENU := preload("res://ui/pause_menu.tscn")
 const HINTS := preload("res://ui/interaction_hints.tscn")
 var pause_panel: PauseMenu
 const BACKPACK := preload("res://ui/backpack_panel.tscn")
-## Player inventory (Tab).
+## Player inventory (Tab wheel → Инвентарь).
 var backpack: BackpackPanel
+## GTA-style wheel on Tab (inventory, actions, emotes) and the E choice list.
+var radial: RadialMenu
+var interact_menu: InteractMenu
+## Boxed subwoofer the player can carry, unpack and pack again.
+var speaker_box: SpeakerBox
+## Home DJ set: the controller (party.deck) and the laptop pack separately.
+var deck_crate: DeckCrate
+var laptop_crate: DeckCrate
+## Green / red ghost for putting carried things down (wheel turns, LMB places).
+var placement: PlacementGhost
 var guest: Node3D
 var interact_hint: Label
+## Crosshair tip (name + key + action); hint_name / hint_kind come with interact_hint.text.
+var tip: InteractTip
+var hint_name := ""
+var hint_kind := ""
 var flashlight: SpotLight3D
 var litter: Dictionary[int, Node3D] = {}
 const KitchenFridge = preload("res://scripts/kitchen_fridge.gd")
@@ -56,6 +70,8 @@ func setup() -> void:
 	root.add_child(hints)
 	talk_actions = hints.get_node("%TalkActions")
 	interact_hint = hints.get_node("%InteractHint")
+	tip = InteractTip.new()
+	hints.add_child(tip)
 	pause_panel = PAUSE_MENU.instantiate()
 	root.add_child(pause_panel)
 	pause_panel.resume_requested.connect(toggle_pause)
@@ -97,6 +113,23 @@ func setup() -> void:
 	backpack.close_requested.connect(close_backpack)
 	backpack.use_requested.connect(use_from_backpack)
 	backpack.hide()
+	radial = RadialMenu.new(self)
+	root.add_child(radial)
+	radial.item_chosen.connect(radial_chosen)
+	interact_menu = InteractMenu.new(self)
+	root.add_child(interact_menu)
+	placement = PlacementGhost.new(self)
+	home.add_child(placement)
+	if home.game_mode:
+		speaker_box = SpeakerBox.new(self)
+		home.add_child(speaker_box)
+		speaker_box.position = Vector3(-4.45, 0.01, 3.0)
+		separate_laptop()
+		deck_crate = DeckCrate.new(self, home.party.deck, Vector3(0.56, 0.14, 0.34), Vector3(0.62, 0.2, 0.42), "Коробка с DJ-пультом", "DJ-пульт")
+		home.add_child(deck_crate)
+		if is_instance_valid(home.party.laptop):
+			laptop_crate = DeckCrate.new(self, home.party.laptop, Vector3(0.4, 0.26, 0.3), Vector3(0.46, 0.12, 0.34), "Коробка с ноутбуком", "Ноутбук", 0.0)
+			home.add_child(laptop_crate)
 	flashlight = SpotLight3D.new()
 	flashlight.spot_range = 12
 	flashlight.spot_angle = 25
@@ -273,73 +306,118 @@ func _process(delta: float) -> void:
 	if talk_actions.visible and (not is_instance_valid(guest) or guest.leaving or guest.global_position.distance_squared_to(home.player.global_position)>TALK_RANGE*TALK_RANGE):
 		close_talk()
 	interact_hint.visible = not home.modal and not talk_actions.visible
-	# The hint is a chip: invisible while there is nothing to say.
-	interact_hint.self_modulate.a = 0.0 if interact_hint.text.is_empty() else 1.0
+	# The old bottom chip only keeps the text (tests and helpers read it); the
+	# player sees the tip next to the crosshair: name + key + action.
+	interact_hint.self_modulate.a = 0.0
 	hint_time -= delta
-	if not interact_hint.visible or hint_time > 0.0:
+	if hint_time > 0.0:
 		return
 	hint_time = .10
-	# Zero width, so the chip shrinks back around the new text (it grows from the centre).
-	interact_hint.offset_left = 0
-	interact_hint.offset_right = 0
-	interact_hint.offset_top = -96
-	var delivery_hint: String = home.night_world.delivery.hint()
+	update_hint()
+	if is_instance_valid(fridge):
+		fridge.highlight(fridge.aimed_bottle() if interact_hint.visible else null)
+	if interact_hint.visible:
+		tip.show_tip(hint_name, interact_hint.text)
+	else:
+		tip.show_tip("", "")
+	home.hud.hint.text = control_hints()
+
+## Bottom-left keys: always WASD / Tab / Esc, plus what the hands can do now.
+func control_hints() -> String:
+	var keys := []
+	var consumables = home.party.consumables
+	if placement.active:
+		keys.append(tr("ЛКМ поставить · Колесо повернуть · E отменить"))
+	elif crates().any(func(crate): return crate.carried()) or home.night_world.delivery.held >= 0:
+		keys.append(tr("E поставить"))
+	elif not consumables.holding.is_empty():
+		keys.append(tr("ЛКМ пить") if consumables.sips_left > 0 else tr("ЛКМ пусто"))
+		keys.append(tr("G выбросить"))
+	elif consumables.holding_cigarette():
+		keys.append(tr("ЛКМ затяжка · G выбросить"))
+	keys.append(tr("WASD идти · Tab меню · Esc пауза"))
+	return " · ".join(keys)
+
+func set_hint(name: String, text: String, kind := "") -> void:
+	hint_name = name
+	hint_kind = kind
+	interact_hint.text = text
+
+## Fills interact_hint.text ("KEY · action", several split by spaces) and
+## hint_name (what the player looks at) for the crosshair tip.
+func update_hint() -> void:
+	if placement.active:
+		set_hint("", "")
+		return
+	for crate in crates():
+		if crate.carried():
+			set_hint(tr(crate.crate_name), tr("E · Установить / поставить"))
+			return
+		if crate.aimed():
+			set_hint(tr(crate.item_name) if crate.deployed() else tr(crate.crate_name), tr("E · Взаимодействовать") if crate.deployed() else tr("E · Поднять"))
+			return
+	var delivery := home.night_world.delivery
+	var delivery_hint: String = delivery.hint()
 	if not delivery_hint.is_empty():
-		interact_hint.text = delivery_hint
+		if delivery.held < 0 and delivery.aimed_cargo():
+			set_hint(tr("Сабвуфер"), tr("E · Поднять"))
+		elif delivery.is_seated():
+			set_hint("", delivery_hint)
+		else:
+			set_hint(tr("Сабвуфер") if delivery.held >= 0 else tr("Грузовик"), delivery_hint)
 		return
 	if aimed_map_door() != null:
-		interact_hint.text = tr("E · Открыть / закрыть дверь")
+		set_hint(tr("Дверь"), tr("E · Открыть / закрыть"))
 		return
 	if intro.entry_aimed():
-		interact_hint.text = tr("E · Закрыть входную дверь") if intro.entry_opened else tr("E · Открыть входную дверь")
+		set_hint(tr("Входная дверь"), tr("E · Закрыть") if intro.entry_opened else tr("E · Открыть"))
 		return
 	if aimed_cleanup() != null:
-		interact_hint.text = tr("E · Убрать")
+		set_hint(tr("Мусор"), tr("E · Убрать"))
 		return
-	if is_instance_valid(fridge) and fridge.aimed():
+	if is_instance_valid(fridge) and not fridge.aimed_part().is_empty():
 		if intro.entry_opened and not intro.note_read:
-			interact_hint.text = tr("E · Прочитать записку")
+			set_hint(tr("Записка"), tr("E · Прочитать"))
 			return
-		interact_hint.offset_top = -118 if fridge.opened else -96
-		interact_hint.text = fridge.hint()
+		set_hint(fridge.hint_name(), fridge.hint())
 		return
 	for store in home.night_world.retail:
 		if store.can_interact():
-			interact_hint.text = "E · %s" % store.title()
+			set_hint(store.title(), tr("E · Взаимодействовать"))
 			return
 	if home.shop.can_interact():
-		interact_hint.text = "E · Night Shop"
+		set_hint("Night Shop", tr("E · Взаимодействовать"))
 		return
 	var rider := home.subway.aimed_person()
 	if rider != null:
-		interact_hint.text = home.subway.hint_for(rider)
+		set_hint("", home.subway.hint_for(rider))
 		return
 	if home.party.events.near_fight():
-		interact_hint.text = tr("E · Разнять гостей")
+		set_hint(tr("Драка"), tr("E · Разнять гостей"))
 		return
 	var station := current_dj()
-	if station.party.near_deck() and station.aimed_controller():
-		interact_hint.text = tr("E / ЛКМ · Подойти к пульту")
-		return
 	if station == club_dj and station.party.near_deck():
-		interact_hint.text = tr("E · Ноутбук     C · FLX4")
+		set_hint(tr("Пульт клуба"), tr("E · Ноутбук   C · FLX4"))
 		return
 	if aimed_laptop(station):
-		interact_hint.text = tr("E · Ноутбук     ЛКМ по контроллеру     J · Вечеринка")
+		set_hint(tr("Ноутбук"), tr("E · Взаимодействовать"))
+		return
+	if station.party.near_deck() and station.aimed_controller():
+		set_hint(tr("DJ-пульт"), tr("E · Взаимодействовать   ЛКМ · Подойти к пульту"))
 		return
 	var employee: Node3D = home.club.staff_target()
 	if employee != null:
-		interact_hint.text = "E · "+tr(employee.name_tag.text)
+		set_hint(tr(employee.name_tag.text), tr("E · Поговорить"), "staff")
 		return
 	var target := aimed_guest()
-	if target!=null:
-		interact_hint.text = tr("E · Поговорить · %s") % target.display_name()
+	if target != null:
+		set_hint(target.display_name(), tr("E · Поговорить"), "guest")
 	elif home.party.near_deck():
-		interact_hint.text = tr("E · Ноутбук     ЛКМ по контроллеру     J · Вечеринка")
-	elif home.player.global_position.distance_to(home.night_world.smoking_spot)<SMOKING_AREA_RADIUS:
-		interact_hint.text = tr("Курилка · N сигарета · K потушить · R энергетик")
+		set_hint(tr("DJ-пульт"), tr("E · Взаимодействовать"))
+	elif home.player.global_position.distance_to(home.night_world.smoking_spot) < SMOKING_AREA_RADIUS:
+		set_hint(tr("Курилка"), "")
 	else:
-		interact_hint.text = ""
+		set_hint("", "")
 
 func current_dj() -> DJStation:
 	if club_dj.panel.visible or club_dj.using_controller or club_dj.party.near_deck():
@@ -361,10 +439,14 @@ func aimed_map_door() -> Node3D:
 	return door if door != null and door.is_in_group("map_doors") else null
 
 func aimed_laptop(station: DJStation) -> bool:
-	if not station.party.near_deck():
+	var anchor: Node3D = station.party.laptop_screen()
+	if anchor == null:
 		return false
 	var camera: Camera3D = home.player.camera
-	var screen: Vector3 = station.party.deck.get_node("LaptopScreen").global_position
+	var screen: Vector3 = anchor.global_position
+	# The home laptop can stand apart from the controller: be near the laptop itself.
+	if screen.distance_to(camera.global_position) > 1.9:
+		return false
 	return (screen-camera.global_position).normalized().dot(-camera.global_basis.z)>LAPTOP_AIM_DOT
 
 func aimed_guest() -> Node3D:
@@ -406,11 +488,11 @@ func interact() -> void:
 		if cleanup != null:
 			clean(cleanup)
 			return
-		if is_instance_valid(fridge) and fridge.aimed():
+		if is_instance_valid(fridge) and not fridge.aimed_part().is_empty():
 			if intro.entry_opened and not intro.note_read:
 				intro.read_note()
 				return
-			fridge.toggle()
+			fridge.interact()
 			return
 	for store in home.night_world.retail:
 		if store.can_interact():
@@ -569,12 +651,15 @@ func apply_level(key: String, value: float) -> void:
 const LIGHTER := ["Зажигалка","Красная одноразовая. Щёлкает со второго раза."]
 
 ## What the player carries: [id, name, count, key, description, model].
+# --- Tab wheel ----------------------------------------------------------------
+
+## Old inventory panel, opened from the Tab wheel: [id, name, count, key, description, model].
 func backpack_items() -> Array:
 	var shop := home.shop
 	var items := []
-	items.append(["beer","Пиво",shop.beer,"B",StreetShop.ITEMS[1][4],"beer_bottle"])
-	items.append(["energy","Энергетик",shop.energy,"R",StreetShop.ITEMS[0][4],"energy_can"])
-	items.append(["cigarettes","Сигареты",home.party.cigarettes,"N",StreetShop.ITEMS[2][4],"cigarette_pack"])
+	items.append(["beer","Пиво",shop.beer,"",StreetShop.ITEMS[1][4],"beer_bottle"])
+	items.append(["energy","Энергетик",shop.energy,"",StreetShop.ITEMS[0][4],"energy_can"])
+	items.append(["cigarettes","Сигареты",home.party.cigarettes,"",StreetShop.ITEMS[2][4],"cigarette_pack"])
 	items.append(["lighter",LIGHTER[0],1,"",LIGHTER[1],"lighter"])
 	return items
 
@@ -597,9 +682,200 @@ func close_backpack() -> void:
 func use_from_backpack(id: String) -> void:
 	close_backpack()
 	match id:
-		"beer": home.party.consume(true)
-		"energy": home.shop.drink_energy()
+		"beer": home.party.take("beer")
+		"energy": home.party.take("energy")
 		"cigarettes": home.party.consume(false)
+
+## Tab closes the inventory panel (the GUI would otherwise eat Tab as focus-next).
+func _input(event: InputEvent) -> void:
+	if backpack_open() and event.is_action_pressed("inventory"):
+		close_backpack()
+		get_viewport().set_input_as_handled()
+
+func radial_content() -> Dictionary:
+	var peeing: bool = home.player.pee != null and home.player.pee.forced
+	var party_label := "Остановить вечеринку" if home.party.active else "Запустить вечеринку"
+	if home.club.shift.nearby():
+		party_label = "Начать смену"
+	var emotes := []
+	for index in StageGestures.GESTURES.size():
+		emotes.append({"id": str(index), "label": StageGestures.GESTURES[index], "icon": StageGestures.ICONS[index]})
+	return {
+		"root": [
+			{"id": "inventory", "label": "Инвентарь", "icon": "inventory"},
+			{"id": "actions", "label": "Действия", "icon": "actions"},
+			{"id": "cancel", "label": "Отменить", "icon": "cancel"},
+			{"id": "emotes", "label": "Эмоции", "icon": "emotes"},
+		],
+		"actions": [
+			{"id": "pee", "label": "Перестать" if peeing else "Помочиться", "icon": "pee"},
+			{"id": "party", "label": party_label, "icon": "party", "enabled": WalkSession.can_control_decks()},
+		],
+		"emotes": emotes,
+	}
+
+func open_radial() -> void:
+	if home.modal or home.player.collapsed or home.player.vomiting or radial.opened or interact_menu.opened:
+		return
+	if placement.active or crates().any(func(crate): return crate.carried()):
+		GameEvents.notify(tr("Сначала поставь коробку."))
+		return
+	home.set_overlay(true)
+	radial.open(radial_content())
+
+func radial_closed() -> void:
+	home.set_overlay(false)
+
+func radial_chosen(page: String, id: String) -> void:
+	match page:
+		"root":
+			if id == "inventory":
+				toggle_backpack.call_deferred()
+		"actions":
+			match id:
+				"pee": home.player.pee.toggle()
+				"party": start_party_action()
+		"emotes":
+			# The menu closes this frame; start the gesture once input is back.
+			gestures.play_gesture.call_deferred(int(id))
+
+## J used to do this: start the club shift near its deck, or the home party.
+## The studio laptop leaves the controller node, so each packs and moves alone.
+func separate_laptop() -> void:
+	var party := home.party
+	var model := party.deck.get_node_or_null("StudioLaptop") as Node3D
+	var screen := party.deck.get_node_or_null("LaptopScreen") as Node3D
+	if model == null or screen == null:
+		return
+	var holder := Node3D.new()
+	holder.name = "StudioLaptopSet"
+	party.add_child(holder)
+	holder.global_transform = model.global_transform
+	model.reparent(holder)
+	screen.reparent(holder)
+	party.laptop = holder
+
+func start_party_action() -> void:
+	if not WalkSession.can_control_decks():
+		GameEvents.notify(tr("В этой сессии пультом управляет хост."))
+		return
+	var shift = home.club.shift
+	if shift.nearby():
+		if not shift.active:
+			if intro.opening_completed and not intro.first_set_done:
+				if not intro.samir_confirmed:
+					GameEvents.notify(tr("Сначала поговори с Самиром у входа."))
+					return
+				if not home.club.near_deck():
+					GameEvents.notify(tr("Поднимись к пульту на сцене."))
+					return
+			shift.start()
+	else:
+		home.party.toggle()
+
+# --- E choice list -------------------------------------------------------------
+
+## E: one action → do it right away; several, or one of these (pick up, pack,
+## talk) → the choice list.
+const MENU_ACTIONS := ["Поднять", "Упаковать", "Поговорить"]
+
+func open_interaction() -> void:
+	if placement.active or radial.opened or interact_menu.opened:
+		return
+	var choice := interaction_choices()
+	if choice.is_empty():
+		interact()
+		return
+	var options: Array = choice[1]
+	var always_menu := options.any(func(option): return MENU_ACTIONS.any(func(label): return option[0] == tr(label)))
+	if options.size() == 1 and not always_menu:
+		(options[0][1] as Callable).call()
+		return
+	interact_menu.open(choice[0], options)
+	home.set_overlay(true)
+
+func crates() -> Array:
+	return [speaker_box, deck_crate, laptop_crate].filter(func(crate): return is_instance_valid(crate))
+
+## [title, [[label, Callable], …]] for what the player carries or aims at;
+## empty when the plain interact() should handle it.
+func interaction_choices() -> Array:
+	var delivery := home.night_world.delivery
+	for crate in crates():
+		if crate.carried():
+			return [tr(crate.crate_name), [
+				[tr("Установить"), start_box_placement.bind(crate, true)],
+				[tr("Поставить"), start_box_placement.bind(crate, false)]]]
+	if delivery.held >= 0:
+		var choices := [[tr("Поставить"), start_cargo_placement]]
+		if delivery.aimed_bed():
+			choices.push_front([tr("Погрузить в кузов") if delivery.open else tr("Открыть борт"), delivery.interact])
+		return [tr("Сабвуфер"), choices]
+	# One-action things in front of the crosshair win over boxes and the DJ set.
+	if is_instance_valid(fridge) and fridge.aimed_part() == "shelf" and home.shop.beer > 0 and home.shop.energy > 0 			and not (intro.entry_opened and not intro.note_read):
+		return [tr("Холодильник"), [[tr("Положить пиво"), fridge.put.bind("beer")], [tr("Положить энергетик"), fridge.put.bind("energy")]]]
+	if aimed_map_door() != null or intro.entry_aimed() or aimed_cleanup() != null 			or (is_instance_valid(fridge) and not fridge.aimed_part().is_empty()):
+		return []
+	for crate in crates():
+		if crate.aimed():
+			if crate.deployed():
+				return [tr(crate.item_name), [[tr("Упаковать"), crate.pack]]]
+			return [tr(crate.crate_name), [[tr("Поднять"), crate.pick_up]]]
+	if delivery.aimed_cargo():
+		return [tr("Сабвуфер"), [[tr("Поднять"), delivery.interact]]]
+	# Home DJ set: the laptop and the controller, each can be used or packed.
+	if current_dj() == dj and WalkSession.can_control_decks():
+		if is_instance_valid(laptop_crate) and laptop_crate.deployed() and aimed_laptop(dj):
+			return [tr("Ноутбук"), [[tr("Взаимодействовать"), dj.open.bind(true)], [tr("Упаковать"), laptop_crate.pack]]]
+		if is_instance_valid(deck_crate) and deck_crate.deployed() and home.party.near_deck():
+			return [tr("DJ-пульт"), [[tr("Взаимодействовать"), dj.open.bind(false)], [tr("Упаковать"), deck_crate.pack]]]
+	# Sellers: the shop first, then a word.
+	for store in home.night_world.retail:
+		if store.can_interact():
+			return [store.title(), [[tr("Магазин"), store.open], [tr("Поговорить"), talk_to_seller.bind(store.cashier)]]]
+	if home.shop.can_interact():
+		return ["Night Shop", [[tr("Магазин"), home.shop.open], [tr("Поговорить"), talk_to_seller.bind(home.shop.cashier)]]]
+	# Guests and club staff: talking goes through the menu too.
+	if not talk_actions.visible and hint_kind in ["staff", "guest"]:
+		return [hint_name, [[tr("Поговорить"), interact]]]
+	return []
+
+const SELLER_LINES := [
+	"Ночь длинная — бери энергетик заранее.",
+	"Касса работает до утра, не торопись.",
+	"Слышал, у тебя сегодня сет? Удачи.",
+	"Пиво холодное, только что привезли.",
+	"Опять не спится? Понимаю.",
+]
+
+func talk_to_seller(seller: Node3D) -> void:
+	if is_instance_valid(seller):
+		say(seller, tr(SELLER_LINES.pick_random()), 4.0)
+
+## "Установить" / "Поставить": the box leaves the hands and a ghost shows where it goes.
+func start_box_placement(crate: SpeakerBox, unpacked: bool) -> void:
+	crate.visible = false
+	var skip: Array[RID] = [crate.body.get_rid()]
+	placement.begin(crate.silhouette(unpacked), crate.footprint(unpacked), skip,
+			func(at: Transform3D, surface: Node): crate.place_at(at, unpacked, surface),
+			func(): crate.visible = true)
+
+func start_cargo_placement() -> void:
+	var delivery := home.night_world.delivery
+	var silhouette: Node3D = delivery.held_silhouette()
+	delivery.show_held(false)
+	var skip: Array[RID] = []
+	placement.begin(silhouette, delivery.CARGO_SIZE, skip, delivery.place_held,
+			delivery.show_held.bind(true))
+
+func interact_menu_closed() -> void:
+	home.set_overlay(false)
+
+## "E · Открыть дверь     C · FLX4" -> "Открыть дверь".
+static func hint_title(text: String) -> String:
+	var first := text.split("   ")[0].strip_edges()
+	var dot := first.find("·")
+	return first.substr(dot + 1).strip_edges() if dot >= 0 and dot < 12 else first
 
 func toggle_pause() -> void:
 	if talk_actions.visible:
@@ -643,10 +919,6 @@ func handle_input(event: InputEvent) -> void:
 		if event.is_action_pressed("pause"):
 			home.shop.close()
 		return
-	if backpack_open():
-		if event.is_action_pressed("pause") or event.is_action_pressed("inventory"):
-			close_backpack()
-		return
 	var station := current_dj()
 	if station.panel.visible:
 		if event.is_action_pressed("pause") and not station.music_library.chooser.visible:
@@ -658,10 +930,14 @@ func handle_input(event: InputEvent) -> void:
 		else:
 			toggle_pause()
 		return
+	if backpack_open():
+		if event.is_action_pressed("pause") or event.is_action_pressed("inventory"):
+			close_backpack()
+		return
 	if home.modal or home.player.collapsed or home.player.vomiting:
 		return
 	if not WalkSession.can_control_decks() and (
-			event.is_action_pressed("start_party") or event.is_action_pressed("open_mixer")
+			event.is_action_pressed("open_mixer")
 			or event.is_action_pressed("beat_mix")
 			or TRACK_ACTIONS.any(func(action): return event.is_action_pressed(action))):
 		GameEvents.notify(tr("В этой сессии пультом управляет хост."))
@@ -674,46 +950,25 @@ func handle_input(event: InputEvent) -> void:
 		if event.is_action_pressed("interact"):
 			close_talk()
 		return
+	if gesture_key and home.party.throw_held():
+		return
 	if gesture_key and delivery.cargo_action():
 		return
-	if gesture_key:
-		gestures.open()
-		return
 	if event.is_action_pressed("inventory"):
-		toggle_backpack()
+		open_radial()
 	elif event.is_action_pressed("interact"):
-		interact()
+		open_interaction()
 	elif is_instance_valid(fridge) and fridge.opened and fridge.aimed() and fridge_stock_input(event):
 		return
-	elif event.is_action_pressed("start_party"):
-		var shift = home.club.shift
-		if shift.nearby():
-			if not shift.active:
-				if intro.opening_completed and not intro.first_set_done:
-					if not intro.samir_confirmed:
-						GameEvents.notify(tr("Сначала поговори с Самиром у входа."))
-						return
-					if not home.club.near_deck():
-						GameEvents.notify(tr("Поднимись к пульту на сцене."))
-						return
-				shift.start()
-		else:
-			home.party.toggle()
 	elif event.is_action_pressed("delegate_staff"):
 		home.club.shift.assign_staff()
 	elif event.is_action_pressed("open_mixer"):
 		if station.party.near_deck():
 			station.open(false)
-	elif event.is_action_pressed("drink_beer"):
-		home.party.consume(true)
-	elif event.is_action_pressed("smoke"):
-		home.party.consume(false)
 	elif event.is_action_pressed("extinguish"):
 		home.party.extinguish()
 	elif event.is_action_pressed("vomit"):
 		home.player.vomit()
-	elif event.is_action_pressed("drink_energy"):
-		home.shop.drink_energy()
 	elif event.is_action_pressed("flashlight"):
 		flashlight.visible = not flashlight.visible
 	elif event.is_action_pressed("beat_mix"):

@@ -78,13 +78,7 @@ func handle(event: InputEvent) -> void:
 
 ## House-editor shortcuts (developer mode, game_mode == false).
 func editor_key(event: InputEvent) -> void:
-	if event.is_action_pressed("start_party"):
-		home.party.toggle()
-	elif event.is_action_pressed("drink_beer"):
-		home.party.consume(true)
-	elif event.is_action_pressed("smoke"):
-		home.party.consume(false)
-	elif event.is_action_pressed("extinguish"):
+	if event.is_action_pressed("extinguish"):
 		home.party.extinguish()
 	elif event.is_action_pressed("editor_buy_cigarettes"):
 		home.party.buy_cigarettes()
@@ -129,6 +123,8 @@ func game_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT and not home.modal:
 		if home.night_world.delivery.is_seated():
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+			return
+		if home.party.use_held():
 			return
 		var fridge := home.night_game.fridge
 		if is_instance_valid(fridge) and fridge.click_bottle():

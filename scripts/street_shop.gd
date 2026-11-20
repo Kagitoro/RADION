@@ -17,6 +17,8 @@ var panel: ShopPanel
 var cashier: Node3D
 var beer := 0
 var fridge_beer := 3
+## Energy drinks kept in the home fridge.
+var fridge_energy := 0
 var energy := 0
 var cleaned_litter := 0
 var food_stock: Dictionary = {}
@@ -384,6 +386,7 @@ func save_stock() -> void:
 	config.set_value("supplies","owned_controllers",owned_controllers)
 	config.set_value("supplies","beer",beer)
 	config.set_value("supplies","fridge_beer",fridge_beer)
+	config.set_value("supplies","fridge_energy",fridge_energy)
 	config.set_value("supplies","energy",energy)
 	config.set_value("supplies","cigarettes",home.party.cigarettes)
 	config.set_value("supplies","cleaned_litter",cleaned_litter)
@@ -403,6 +406,7 @@ func load_stock() -> void:
 	home.party.cigarettes = maxi(0,int(config.get_value("supplies","cigarettes",home.party.cigarettes)))
 	beer = maxi(0,int(config.get_value("supplies","beer",beer)))
 	fridge_beer = clampi(int(config.get_value("supplies","fridge_beer",3)),0,24)
+	fridge_energy = clampi(int(config.get_value("supplies","fridge_energy",0)),0,6)
 	energy = maxi(0,int(config.get_value("supplies","energy",energy)))
 	cleaned_litter = int(config.get_value("supplies","cleaned_litter",0))
 	first_booking_paid = config.get_value("supplies","first_booking_paid",false)

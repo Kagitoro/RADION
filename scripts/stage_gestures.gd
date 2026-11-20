@@ -1,7 +1,10 @@
+class_name StageGestures
 extends Control
 
 const GESTURES := ["Рука вверх", "В такт", "Хлопки", "Перед дропом"]
 const GESTURES_EN := ["Hand up", "To the beat", "Clap", "Before the drop"]
+## Icons of the emotes page of the Tab wheel (RadialMenu.draw_icon).
+const ICONS := ["hand_up", "beat", "clap", "drop"]
 const SECTOR := PI * 0.5
 
 var game: NightGame
@@ -79,6 +82,12 @@ func _draw() -> void:
 	draw_string(font, center + Vector2(-22, 5), "Esc", HORIZONTAL_ALIGNMENT_CENTER, 44, 15, Color("#cabfd0"))
 
 func play_gesture(choice: int) -> void:
+	var player := game.home.player
+	if game.intro.active or player.dj_rig == null or player.dj_rig.arms.size() != 2:
+		return
+	if player.view_model.active or game.home.party.hands_busy():
+		GameEvents.notify(tr("Руки заняты."))
+		return
 	gesture = choice
 	elapsed = 0.0
 	last_clap = -1

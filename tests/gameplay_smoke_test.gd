@@ -42,6 +42,13 @@ func expect(condition: bool, message: String) -> void:
 	if not condition:
 		errors.append(message)
 
+## E opens the choice list now; take its first option ("Взаимодействовать").
+func press_interact() -> void:
+	home._unhandled_input(key_event(KEY_E))
+	var menu: InteractMenu = home.night_game.interact_menu
+	if menu.opened:
+		menu.choose(0)
+
 func wait(seconds: float) -> void:
 	await home.get_tree().create_timer(seconds).timeout
 
@@ -64,6 +71,8 @@ func check_dj_station() -> void:
 	expect(not chair_bounds.intersects(desk_bounds) and bed_bounds.position.y-chair_bounds.end.y >= .40,
 			"Студия: кресло перекрывает проход к кровати")
 	var lcd := home.party.deck.get_node_or_null("StudioLaptop") as Node3D
+	if lcd == null and is_instance_valid(home.party.laptop):
+		lcd = home.party.laptop.get_node_or_null("StudioLaptop") as Node3D
 	if lcd != null:
 		var display := lcd.find_child("Screen", true, false) as MeshInstance3D
 		expect(display != null and display.material_override.albedo_texture == dj.laptop_view.get_texture(),
@@ -163,8 +172,8 @@ func check_house_party() -> void:
 	party.start()
 	expect(party.active, "Вечеринка: не стартует")
 	var gestures := home.night_game.gestures
-	home._unhandled_input(key_event(KEY_G))
-	expect(gestures.visible and home.modal, "Жесты: G не открыла кольцо")
+	gestures.open()
+	expect(gestures.visible and home.modal, "Жесты: кольцо не открылось")
 	await wait(0.5)
 	expect(dj.has_playback(), "Жесты: музыка остановилась при открытии кольца")
 	var fill := home.scene_lighting.get_node("Studio_Fill") as Light3D
@@ -403,7 +412,7 @@ func check_subway() -> void:
 	face_rider(third)
 	await home.get_tree().physics_frame
 	home.party.cash = 5
-	home._unhandled_input(key_event(KEY_E))
+	press_interact()
 	expect(subway.encounter == third and home.modal, "Метро: E не открывает разговор с блокировкой движения")
 	expect(subway.encounter_choices.text.contains("$%d" % Balance.SUBWAY_DONATION), "Метро: в выборе нет цены")
 	home.player.rotation.y += .65
@@ -416,7 +425,7 @@ func check_subway() -> void:
 	expect(subway.encounter == null and not home.modal, "Метро: камера не отпускает после разговора")
 	face_rider(second)
 	await home.get_tree().physics_frame
-	home._unhandled_input(key_event(KEY_E))
+	press_interact()
 	home._unhandled_input(key_event(KEY_2))
 	expect(subway.reacting and not subway.helped.has(second), "Метро: отказ засчитан как помощь")
 	await wait(1.95)
@@ -497,12 +506,12 @@ func check_story_entry() -> void:
 	var intro := home.night_game.intro
 	var fridge := home.night_game.fridge
 	expect(intro.opening_completed and not intro.entry_opened, "История: после приезда дверь должна быть закрыта")
-	home._unhandled_input(key_event(KEY_E))
+	press_interact()
 	await wait(.95)
 	expect(intro.entry_opened and not intro.entrance_shape.disabled and intro.entrance_leaf.rotation.y>1.3, "История: ключ не открывает дверь")
 	home.player.move_to(fridge.to_global(Vector3(.22,1.64,-1.23)),fridge.to_global(Vector3(0,1.15,-.43)))
 	await home.get_tree().physics_frame
-	home._unhandled_input(key_event(KEY_E))
+	press_interact()
 	expect(intro.note_read and not fridge.opened and intro.follow_up.visible, "История: записка не запускает уборку")
 	var saved := ConfigFile.new()
 	expect(saved.load(intro.SAVE)==OK and saved.get_value("story","note_read",false), "История: прочитанная записка не сохранилась")
@@ -515,7 +524,7 @@ func check_city_retail() -> void:
 	for store in [market,gear]:
 		home.player.global_position = store.to_global(store.counter+Vector3(0,.08,1.0))
 		expect(store.can_interact(), "Магазин: касса недоступна")
-		home._unhandled_input(key_event(KEY_E))
+		press_interact()
 		expect(store.panel.visible, "Магазин: E не открывает каталог")
 		store.buy()
 		home._unhandled_input(key_event(KEY_ESCAPE))
@@ -549,7 +558,7 @@ func check_home_interactions() -> void:
 	player.move_to(fridge.to_global(Vector3(.22,1.64,-1.23)),fridge.to_global(Vector3(0,1.15,-.43)))
 	await home.get_tree().physics_frame
 	expect(fridge.aimed() and shop.fridge_beer == 3, "Холодильник: нет доступа или стартовых бутылок")
-	home._unhandled_input(key_event(KEY_E))
+	press_interact()
 	expect(fridge.opened, "Холодильник: E не открывает дверцу")
 	var carried := shop.beer
 	home._unhandled_input(key_event(KEY_1))
@@ -562,7 +571,7 @@ func check_home_interactions() -> void:
 	expect(shop.fridge_beer == 9 and shop.beer == carried, "Холодильник: упаковка не сохранилась")
 	home._unhandled_input(key_event(KEY_4))
 	expect(shop.fridge_beer == 3 and shop.beer == carried+6, "Холодильник: не удалось забрать упаковку")
-	home._unhandled_input(key_event(KEY_E))
+	press_interact()
 	expect(not fridge.opened, "Холодильник: E не закрывает дверцу")
 	var cash := home.party.cash
 	for item in game.litter.values():
@@ -572,7 +581,7 @@ func check_home_interactions() -> void:
 			player.move_to(point+Vector3.UP*1.64+direction*.65,point+Vector3(.20,.28,0))
 			await home.get_tree().physics_frame
 			if game.aimed_cleanup() == item:
-				home._unhandled_input(key_event(KEY_E))
+				press_interact()
 				reachable = true
 				break
 		expect(reachable, "Уборка: не подбирается мусор возле метки %s" % point)

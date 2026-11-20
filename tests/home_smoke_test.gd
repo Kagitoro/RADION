@@ -204,13 +204,11 @@ func check_input_actions(errors: Array[String]) -> void:
 	if game.pause_panel.visible or home.modal:
 		errors.append("Повторный Esc не закрывает паузу")
 	home._unhandled_input(key_event(KEY_TAB))
-	if not game.backpack_open() or not home.modal:
-		errors.append("Tab не открывает инвентарь")
-	elif game.backpack.slots.size() != game.backpack_items().size():
-		errors.append("Инвентарь: не все предметы показаны")
-	home._unhandled_input(key_event(KEY_TAB))
-	if game.backpack_open() or home.modal:
-		errors.append("Повторный Tab не закрывает инвентарь")
+	if not game.radial.opened or home.player.paused:
+		errors.append("Tab не открывает круговое меню (или ставит игру на паузу)")
+	game.radial.finish()
+	if game.radial.opened:
+		errors.append("Круговое меню не закрывается")
 	for action in ["interact", "pause", "jump", "run", "open_mixer", "track_1", "talk_6"]:
 		if not InputMap.has_action(action) or InputMap.action_get_events(action).is_empty():
 			errors.append("Нет привязки для " + action)

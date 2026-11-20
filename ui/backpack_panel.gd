@@ -77,7 +77,9 @@ func make_slot(index: int) -> Button:
 	var lit := UIKit.facet(UIKit.RAISED,UIKit.AMBER,UIKit.CUT,4)
 	for state in ["normal","disabled"]:
 		slot.add_theme_stylebox_override(state,rest)
-	for state in ["hover","pressed","hover_pressed","focus"]:
+	# Hover only brightens a little; the amber frame marks the chosen slot (click).
+	slot.add_theme_stylebox_override("hover",UIKit.facet(Color(UIKit.RAISED,.9),UIKit.EDGE,UIKit.CUT,4))
+	for state in ["pressed","hover_pressed","focus"]:
 		slot.add_theme_stylebox_override(state,lit)
 	var icon := TextureRect.new()
 	icon.texture = thumbnail(str(item[5]))
@@ -108,7 +110,6 @@ func make_slot(index: int) -> Button:
 		name_label.modulate = Color(1,1,1,.5)
 	slot.pressed.connect(func(): select(index))
 	slot.focus_entered.connect(func(): select(index))
-	slot.mouse_entered.connect(func(): slot.grab_focus())
 	slot.gui_input.connect(func(event: InputEvent):
 		if event is InputEventMouseButton and event.double_click:
 			use(index)
@@ -131,9 +132,14 @@ func select(index: int) -> void:
 	%Count.text = tr("В кармане: %d") % count if count>0 else tr("Нет в кармане · купи в Night Shop")
 	%Count.add_theme_color_override("font_color",UIKit.AMBER if count>0 else UIKit.BAD)
 	%Description.text = tr(str(item[4]))
-	var usable := count>0 and not str(item[3]).is_empty()
+	var usable := count>0 and usable_item(item)
 	%UseButton.disabled = not usable
-	%UseButton.text = tr("Использовать · %s") % str(item[3]) if not str(item[3]).is_empty() else tr("Всегда с собой")
+	if not usable_item(item):
+		%UseButton.text = tr("Всегда с собой")
+	elif str(item[3]).is_empty():
+		%UseButton.text = tr("Использовать")
+	else:
+		%UseButton.text = tr("Использовать · %s") % str(item[3])
 	if changed:
 		show_model(str(item[5]))
 
@@ -141,10 +147,14 @@ func use(index: int) -> void:
 	if index<0 or index>=items.size():
 		return
 	var item: Array = items[index]
-	if int(item[2])<=0 or str(item[3]).is_empty():
+	if int(item[2])<=0 or not usable_item(item):
 		MenuFx.nudge(slots[index])
 		return
 	use_requested.emit(str(item[0]))
+
+## Everything but the lighter can be taken in the hand (the lighter just stays in the pocket).
+static func usable_item(item: Array) -> bool:
+	return str(item[0]) != "lighter"
 
 func thumbnail(model: String) -> Texture2D:
 	if thumbnails.has(model):

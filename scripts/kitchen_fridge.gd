@@ -3,6 +3,8 @@ extends Node3D
 const ITEM_ID := "base-45"
 const PACK_SIZE := 6
 const CAPACITY := 24
+## Energy drinks stand in one row on the lowest shelf.
+const CAN_CAPACITY := 6
 const SAMSUNG_DOORS := preload("res://assets/kitchen/samsung_fridge_doors.glb")
 const FRESH_X := -.146
 const FREEZER_X := .198
@@ -163,6 +165,144 @@ func aimed() -> bool:
 	return hit.is_empty() or hit.collider == home.bodies.get(ITEM_ID) or (
 		camera.global_position.distance_squared_to(hit.position) >= camera.global_position.distance_squared_to(to_global(face_hit)))
 
+## Ray from the crosshair against one of the swung-open doors (in its own space).
+func aimed_door() -> bool:
+	if not opened or not is_visible_in_tree():
+		return false
+	var camera := home.player.camera
+	var from := camera.global_position
+	var to := from - camera.global_basis.z * 2.3
+	for leaf in [door, freezer_door]:
+		var bounds := leaf_bounds(leaf)
+		var local_from: Vector3 = leaf.to_local(from)
+		var local_to: Vector3 = leaf.to_local(to)
+		if bounds.intersects_segment(local_from, local_to) != null:
+			return true
+	return false
+
+var door_bounds := {}
+
+func leaf_bounds(leaf: Node3D) -> AABB:
+	if door_bounds.has(leaf):
+		return door_bounds[leaf]
+	var bounds := AABB()
+	var found := false
+	for mesh: MeshInstance3D in leaf.find_children("*", "MeshInstance3D", true, false):
+		var part: AABB = (leaf.global_transform.affine_inverse() * mesh.global_transform) * mesh.get_aabb()
+		bounds = bounds.merge(part) if found else part
+		found = true
+	door_bounds[leaf] = bounds.grow(0.01)
+	return door_bounds[leaf]
+
+## Soft outline around the bottle / can under the crosshair (a grown back-face shell).
+var highlighted: Node3D
+var outline: StandardMaterial3D
+
+func highlight(item: Node3D) -> void:
+	if item == highlighted:
+		return
+	if is_instance_valid(highlighted):
+		for mesh: GeometryInstance3D in highlighted.find_children("*", "GeometryInstance3D", true, false):
+			mesh.material_overlay = null
+	highlighted = item
+	if item == null:
+		return
+	if outline == null:
+		outline = StandardMaterial3D.new()
+		outline.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		outline.albedo_color = Color(1.0, 0.82, 0.3, 0.95)
+		outline.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		outline.cull_mode = BaseMaterial3D.CULL_FRONT
+		outline.grow = true
+		outline.grow_amount = 0.006
+	for mesh: GeometryInstance3D in item.find_children("*", "GeometryInstance3D", true, false):
+		mesh.material_overlay = outline
+
+## What the crosshair is on: "front" (closed), "door", "item" (a bottle or a
+## can on a shelf), "shelf" (the open fridge, nothing in particular) or "".
+func aimed_part() -> String:
+	if not opened:
+		return "front" if aimed() else ""
+	if aimed_door():
+		return "door"
+	if not aimed():
+		return ""
+	return "item" if aimed_bottle() != null else "shelf"
+
+func hint_name() -> String:
+	match aimed_part():
+		"item":
+			return tr("Энергетик") if aimed_bottle().has_meta("fridge_can") else tr("Пиво")
+		"shelf":
+			return tr("Пусто") if home.shop.fridge_beer + home.shop.fridge_energy == 0 else tr("Холодильник · пиво %d · энергетик %d") % [home.shop.fridge_beer, home.shop.fridge_energy]
+	return tr("Холодильник")
+
+func hint() -> String:
+	match aimed_part():
+		"front": return tr("E · Открыть")
+		"door": return tr("E · Закрыть")
+		"item": return tr("E · Взять")
+		"shelf":
+			var shop := home.shop
+			if shop.beer > 0 and shop.energy > 0:
+				return tr("E · Положить")
+			if shop.beer > 0:
+				return tr("E · Положить пиво")
+			if shop.energy > 0:
+				return tr("E · Положить энергетик")
+	return ""
+
+## E on the fridge: open / close by the door, take what is aimed at, put one in.
+func interact() -> void:
+	match aimed_part():
+		"front", "door": toggle()
+		"item": take(aimed_bottle())
+		"shelf":
+			if home.shop.beer > 0:
+				put("beer")
+			elif home.shop.energy > 0:
+				put("energy")
+			else:
+				GameEvents.notify(tr("Нечего положить · купи в Night Shop"))
+
+func take(item: Node3D) -> void:
+	if item == null:
+		return
+	var shop := home.shop
+	if item.has_meta("fridge_can"):
+		if shop.fridge_energy <= 0:
+			return
+		shop.fridge_energy -= 1
+		shop.energy += 1
+	else:
+		if shop.fridge_beer <= 0:
+			return
+		shop.fridge_beer -= 1
+		shop.beer += 1
+	shop.save_stock()
+	refresh_stock()
+
+func put(kind: String) -> void:
+	var shop := home.shop
+	if kind == "beer":
+		if shop.beer <= 0:
+			return
+		if shop.fridge_beer >= CAPACITY:
+			GameEvents.notify(tr("Холодильник заполнен"))
+			return
+		shop.beer -= 1
+		shop.fridge_beer += 1
+	else:
+		if shop.energy <= 0:
+			return
+		if shop.fridge_energy >= CAN_CAPACITY:
+			GameEvents.notify(tr("Полка для банок заполнена"))
+			return
+		shop.energy -= 1
+		shop.fridge_energy += 1
+	shop.save_stock()
+	refresh_stock()
+
 func aimed_bottle() -> Node3D:
 	if not opened or not aimed():
 		return null
@@ -172,7 +312,7 @@ func aimed_bottle() -> Node3D:
 	var nearest: Node3D
 	var distance := INF
 	for bottle in shelves.get_children():
-		if not bottle.is_visible() or not bottle.has_meta("fridge_bottle"):
+		if not bottle.is_visible() or not (bottle.has_meta("fridge_bottle") or bottle.has_meta("fridge_can")):
 			continue
 		var bounds := AABB(bottle.position-Vector3(.036,.11,.036),Vector3(.072,.22,.072))
 		var hit = bounds.intersects_segment(origin,end)
@@ -185,20 +325,8 @@ func click_bottle() -> bool:
 	var bottle := aimed_bottle()
 	if bottle == null:
 		return false
-	var shop := home.shop
-	if shop.fridge_beer <= 0:
-		return false
-	shop.fridge_beer -= 1
-	shop.beer += 1
-	shop.save_stock()
-	bottle.hide()
-	bottle.queue_free()
+	take(bottle)
 	return true
-
-func hint() -> String:
-	if not opened:
-		return tr("E · Открыть холодильник")
-	return tr("Холодильник: %d · с собой: %d · E закрыть\nЛКМ по бутылке / 1 взять · 2 положить · 3 убрать упаковку · 4 взять упаковку") % [home.shop.fridge_beer,home.shop.beer]
 
 func toggle() -> void:
 	opened = not opened
@@ -253,7 +381,18 @@ func refresh_stock() -> void:
 		var at := Vector3(((index%3)-1)*.106,FRESH_SHELVES[3-packs]+.007,
 			-.155+floori(index/3.0)*.115)
 		add_bottle(at)
+	for index in range(clampi(home.shop.fridge_energy, 0, CAN_CAPACITY)):
+		add_can(Vector3(-.15 + index * .06, FRESH_SHELVES[0] + .007, .1))
 	mark_interior(shelves)
+
+func add_can(at: Vector3) -> void:
+	var item := Node3D.new()
+	item.set_meta("fridge_can", true)
+	shelves.add_child(item)
+	item.position = at + Vector3.UP * .066
+	var can := FPProps.energy_can(false)
+	can.position.y = -.066
+	item.add_child(can)
 
 func add_bottle(at: Vector3) -> void:
 	var item := Node3D.new()

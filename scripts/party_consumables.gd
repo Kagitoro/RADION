@@ -32,6 +32,10 @@ var mirror_pairs: Array = []
 var held_item: Node3D
 var lighter: Node3D
 var flame_flicker: Tween
+## "beer" / "energy" while a drink is held in the hand (from the inventory):
+## LMB takes a sip (three in all), G throws it away.
+var holding := ""
+var sips_left := 0
 
 func _init(owner_node: Party) -> void:
 	party = owner_node
@@ -118,6 +122,11 @@ func on_finished(_clip: String) -> void:
 	var rig := view()
 	# A late signal from an older clip must not clear the props of a new one.
 	if rig.anim.is_playing():
+		return
+	if not holding.is_empty():
+		# A drink waits in the hand between sips: keep the prop and the pose,
+		# and keep the body arm copying the viewmodel hand.
+		rig.active = true
 		return
 	rig.right_pivot.visible = false
 	rig.left_pivot.visible = false
@@ -232,6 +241,8 @@ func on_event(event_name: String) -> void:
 		"exhale": exhale()
 		"ash": shed_ash()
 		"throw": throw_cigarette()
+		"drop_beer": drop_world_item(true)
+		"drop_can": drop_world_item(false)
 
 # --- beer -------------------------------------------------------------------------
 
@@ -877,3 +888,194 @@ func update_falling_bits(delta: float) -> void:
 ## Legacy synthesized sip/breath, still used by Party for guests.
 func action_sound(beer: bool) -> AudioStreamWAV:
 	return FPSounds.get_sound("gulp" if beer else "exhale")
+
+# --- drinks held in the hand (inventory → hand, LMB sip ×3, G throw) -----------------
+
+const BEER_HOLD := Vector3(.16,-.2,-.40)
+const CAN_HOLD := Vector3(.12,-.18,-.36)
+const SIPS := 3
+
+func holding_cigarette() -> bool:
+	return is_instance_valid(lip_view)
+
+## Inventory: put a beer or an energy drink in the right hand (opened, ready to sip).
+func take(kind: String) -> void:
+	var actor := player()
+	if actor.collapsed or actor.vomiting:
+		return
+	if not holding.is_empty() or is_instance_valid(hand_prop):
+		GameEvents.notify(tr("Руки заняты · G — выбросить"))
+		return
+	if is_instance_valid(lip_view):
+		GameEvents.notify(tr("Сначала выбрось сигарету · G"))
+		return
+	var shop = party.home.shop
+	if kind == "beer":
+		if shop.beer <= 0:
+			GameEvents.notify(tr("Пива нет · купи в Night Shop"))
+			return
+		shop.beer -= 1
+	else:
+		if shop.energy <= 0:
+			GameEvents.notify(tr("Энергетиков нет · купи в Night Shop"))
+			return
+		shop.energy -= 1
+	shop.save_stock()
+	var beer := kind == "beer"
+	var rig := begin(beer)
+	var prop: Node3D
+	if beer:
+		prop = FPProps.beer_bottle(true)
+		prop.position.y = -BOTTLE_GRIP
+		rig.right_pivot.add_child(prop)
+		rig.hold(rig.right,Vector3(.047,.004,.046),Vector3.ZERO,Vector3(.95,.55,.1),"bottle",.0345)
+		mirror_copy(FPProps.beer_bottle(false),prop,["Liquid:scale","Liquid/Foam:scale"])
+	else:
+		prop = FPProps.energy_can(true)
+		prop.position.y = -CAN_GRIP
+		prop.rotation.y = -.5
+		rig.right_pivot.add_child(prop)
+		rig.hold(rig.right,Vector3(.045,.006,.044),Vector3.ZERO,Vector3(.95,.55,.1),"can",.0335)
+		mirror_copy(FPProps.energy_can(false),prop,["Body:blend_shapes/Crushed","Body:scale","Tab:rotation","Hole:visible"])
+	held_item = prop
+	rig.right_pivot.visible = true
+	holding = kind
+	sips_left = SIPS
+	var at := hold_point()
+	var turn := hold_turn()
+	var clip := Animation.new()
+	clip.length = .9
+	FPViewModel.track(clip,"Sway/Right:position",[[0.0,Vector3(.30,-.56,-.26)],[.3,at+Vector3(.01,.02,0)],[.45,at],[.6,at+Vector3(0,-.012,.004)],[.75,at]])
+	FPViewModel.track(clip,"Sway/Right:rotation",[[0.0,Vector3(.6,.2,-.45)],[.3,turn+Vector3(-.05,0,0)],[.45,turn],[.6,turn+Vector3(.1,0,-.03)],[.75,turn]])
+	if beer:
+		FPViewModel.events(clip,[[.6,"pop"]])
+	else:
+		FPViewModel.track(clip,"Sway/Right/Can/Tab:rotation",[[0.0,Vector3.ZERO],[.58,Vector3.ZERO],[.63,Vector3(-1.35,0,0)],[.75,Vector3(-1.1,0,0)]],false)
+		FPViewModel.steps(clip,"Sway/Right/Can/Hole:visible",[[0.0,false],[.61,true]])
+		FPViewModel.events(clip,[[.61,"crack"]])
+	rig.play(clip,kind+"_take")
+
+func hold_point() -> Vector3:
+	return BEER_HOLD if holding == "beer" else CAN_HOLD
+
+func hold_turn() -> Vector3:
+	if holding == "beer":
+		return FPViewModel.axis_turn(Vector3(-.08,1,.18),Vector3(1,0,.5))
+	return FPViewModel.axis_turn(Vector3(-.05,1,.5),Vector3(1,0,.3))
+
+## LMB with something in the hand: one sip (drinks) or one drag (cigarette).
+## Returns true when the click was used.
+func use_held() -> bool:
+	if is_instance_valid(lip_view):
+		if not view().anim.is_playing():
+			puff()
+		return true
+	if holding.is_empty():
+		return false
+	var rig := view()
+	if rig.anim.is_playing():
+		return true
+	if sips_left <= 0:
+		GameEvents.notify(tr("Пусто · G — выбросить"))
+		return true
+	var beer := holding == "beer"
+	var index := SIPS - sips_left
+	sips_left -= 1
+	var hand_side := Vector3(.5,-1,.25)
+	var axes := [Vector3(-.5,-.22,.95),Vector3(-.52,-.36,.9),Vector3(-.52,-.48,.85)] if beer else [Vector3(-.45,.05,1),Vector3(-.5,-.3,.92),Vector3(-.52,-.47,.85)]
+	var sip_turn := FPViewModel.axis_turn(axes[index],hand_side)
+	var top := Vector3(0,.239-BOTTLE_GRIP,0) if beer else Vector3(0,.133-CAN_GRIP,0)
+	var mouth := at_mouth(top,sip_turn,DRINK_OFFSET)
+	var at := hold_point()
+	var turn := hold_turn()
+	var clip := Animation.new()
+	clip.length = 1.15
+	FPViewModel.track(clip,"Sway/Right:position",[[0.0,at],[.35,mouth],[.6,mouth+Vector3(0,-.004,.002)],[.85,at+Vector3(0,.01,0)],[1.15,at]])
+	FPViewModel.track(clip,"Sway/Right:rotation",[[0.0,turn],[.35,sip_turn],[.52,sip_turn+Vector3(-.05,0,0)],[.6,sip_turn],[.85,turn],[1.15,turn]])
+	FPViewModel.track(clip,"../..:action_look",[[0.0,Vector3.ZERO],[.35,Vector3(.2+.1*index,0,.02)],[.6,Vector3(.25+.1*index,0,.03)],[.95,Vector3.ZERO],[1.15,Vector3.ZERO]])
+	FPViewModel.track(clip,"../..:action_amount",[[0.0,0.0],[.35,1.0],[.6,1.0],[.95,0.0],[1.15,0.0]])
+	if beer:
+		var levels := [1.0,.72,.44,.14]
+		FPViewModel.track(clip,"Sway/Right/Bottle/Liquid:scale",[[0.0,Vector3(1,levels[index],1)],[.4,Vector3(1,levels[index],1)],[.62,Vector3(1,levels[index+1],1)],[1.15,Vector3(1,levels[index+1],1)]],false)
+	var keys := [[.5,"gulp"]]
+	if sips_left == 0:
+		keys.append([.7,"beer_effect" if beer else "energy_effect"])
+		if beer:
+			keys.append([.95,"ahh"])
+	FPViewModel.events(clip,keys)
+	rig.play(clip,"%s_sip_%d" % [holding,index])
+	return true
+
+## G: throw the held drink (or the cigarette) away. Returns true when used.
+func throw_held() -> bool:
+	if is_instance_valid(lip_view):
+		if not view().anim.is_playing():
+			stub_out()
+		return true
+	if holding.is_empty():
+		return false
+	var rig := view()
+	if rig.anim.is_playing():
+		return true
+	var beer := holding == "beer"
+	var prop_path := "Sway/Right/Bottle" if beer else "Sway/Right/Can"
+	var grip := BOTTLE_GRIP if beer else CAN_GRIP
+	var at := hold_point()
+	var turn := hold_turn()
+	holding = ""
+	sips_left = 0
+	var clip := Animation.new()
+	clip.length = 1.3
+	FPViewModel.track(clip,"Sway/Right:position",[[0.0,at],[.25,at+Vector3(.03,.05,.06)],[.4,at+Vector3(.09,.08,-.12)],[.55,at+Vector3(.15,.02,-.16)],[1.3,Vector3(.36,-.56,-.3)]])
+	FPViewModel.track(clip,"Sway/Right:rotation",[[0.0,turn],[.25,turn+Vector3(.5,0,-.2)],[.4,turn+Vector3(-.6,0,.3)],[.55,turn+Vector3(-.8,0,.35)],[1.3,Vector3(.4,.2,-.4)]])
+	var flight := [[0.0,Vector3(0,-grip,0)],[.4,Vector3(0,-grip,0)]]
+	for step in range(1,7):
+		var t := step/6.0
+		flight.append([.4+t*.42,Vector3(.28*t,-grip+.16*t-.2*t*t,-.8*t)])
+	FPViewModel.track(clip,prop_path+":position",flight,false)
+	FPViewModel.track(clip,prop_path+":rotation",[[0.0,Vector3.ZERO],[.4,Vector3.ZERO],[.82,Vector3(-7,1.5,2.5)]],false)
+	FPViewModel.steps(clip,prop_path+":visible",[[0.0,true],[.44,false]])
+	FPViewModel.events(clip,[[.4,"toss"],[.44,"drop_beer" if beer else "drop_can"]])
+	rig.play(clip,"held_throw")
+	return true
+
+## Thrown bottles and cans stay on the floor (the oldest go once there are many).
+const LITTER_LIMIT := 30
+var thrown: Array[Node3D] = []
+
+func drop_world_item(beer: bool) -> void:
+	var camera := player().camera
+	var item := FPProps.beer_bottle(false) if beer else FPProps.energy_can(false)
+	party.add_child(item)
+	var start: Vector3 = camera.global_position + camera.global_basis * Vector3(.18, -.15, -.45)
+	item.global_position = start
+	var forward := -camera.global_basis.z
+	forward.y = 0
+	forward = forward.normalized()
+	var space := party.get_world_3d().direct_space_state
+	var ahead := start + forward * 1.6
+	var land := ahead + Vector3.DOWN * 3.0
+	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(ahead + Vector3.UP * .3, land, 1, [player().get_rid()]))
+	if not hit.is_empty():
+		land = hit.position
+	var radius := .033 if beer else .033
+	var peak := start.lerp(land, .4) + Vector3.UP * .3
+	var rest := Basis(Vector3.UP, party.rng.randf_range(0, TAU)) * Basis(Vector3.FORWARD, PI * .5)
+	var arc := party.create_tween()
+	arc.tween_method(func(t: float):
+		if is_instance_valid(item):
+			item.global_position = start.lerp(peak, t).lerp(peak.lerp(land + Vector3.UP * radius, t), t)
+			item.rotate_object_local(Vector3.RIGHT, .3)
+	, 0.0, 1.0, .5)
+	arc.tween_callback(func():
+		if not is_instance_valid(item):
+			return
+		# Lying on its side on the floor.
+		item.global_transform = Transform3D(rest, land + Vector3.UP * radius)
+		sound("flick", -12, .5)
+	)
+	thrown.append(item)
+	while thrown.size() > LITTER_LIMIT:
+		var old: Node3D = thrown.pop_front()
+		if is_instance_valid(old):
+			old.queue_free()

@@ -1,6 +1,6 @@
 class_name PeeStream
 extends Node3D
-## Hold the "pee" action (U): a yellow arc from the player's hips that leaves
+## Started from the Tab wheel (Действия → Помочиться): a yellow arc from the player's hips that leaves
 ## growing puddles where it lands. Beer fills the bladder, peeing empties it.
 
 const COLOR := Color(1.0,.86,.18,.85)
@@ -22,6 +22,8 @@ var puddles: Array[MeshInstance3D] = []
 var current: MeshInstance3D
 var puddle_material: StandardMaterial3D
 var empty_hint := 0.0
+## On until chosen again in the wheel or the bladder runs dry.
+var forced := false
 
 func _init(owner_player: Player) -> void:
 	player = owner_player
@@ -66,18 +68,21 @@ func _ready() -> void:
 func drink() -> void:
 	bladder = minf(1.0,bladder+BEER_FILL)
 
+func toggle() -> void:
+	if not forced and bladder<=0.0:
+		GameEvents.notify(tr("Пусто. Выпей пива."))
+		return
+	forced = not forced
+
 func can_pee() -> bool:
 	return not player.paused and not player.collapsed and not player.vomiting
 
 func _process(delta: float) -> void:
 	# Aim with the camera's yaw so the stream follows where the player looks.
 	rotation.y = player.camera.rotation.y
-	var wants := Input.is_action_pressed("pee") and can_pee()
-	empty_hint = maxf(0.0,empty_hint-delta)
-	if wants and bladder<=0.0:
-		if empty_hint<=0.0:
-			GameEvents.notify(tr("Пусто. Выпей пива."))
-			empty_hint = 3.0
+	var wants := forced and can_pee()
+	if forced and bladder<=0.0:
+		forced = false
 		wants = false
 	set_active(wants)
 	if active:

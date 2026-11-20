@@ -56,11 +56,21 @@ func build(city: NightWorld) -> void:
 	truck.safe_margin = .012
 	truck.collision_mask |= VEHICLE_BARRIER
 	protect_subway()
+	# truck_shape stays the full outline for the turning check; the body itself
+	# gets a chassis with an open bed on top (stand and put boxes there), the cab
+	# and the two side boards.
 	truck_shape.size = Vector3(2.06,1.55,4.88)
-	var collider := CollisionShape3D.new()
-	collider.shape = truck_shape
-	collider.position.y = 1.0
-	truck.add_child(collider)
+	for part in [
+			[Vector3(0,.59,-.895), Vector3(2.06,.68,3.09)],      # chassis under the bed, top = bed floor .93
+			[Vector3(0,1.0125,1.545), Vector3(2.06,1.525,1.79)],  # cab
+			[Vector3(-.99,1.13,-.895), Vector3(.08,.40,3.09)],    # left board
+			[Vector3(.99,1.13,-.895), Vector3(.08,.40,3.09)]]:    # right board
+		var piece := BoxShape3D.new()
+		piece.size = part[1]
+		var collider := CollisionShape3D.new()
+		collider.shape = piece
+		collider.position = part[0]
+		truck.add_child(collider)
 	var model := FLATBED.instantiate() as Node3D
 	truck.add_child(model)
 	model.scale = BODY_SCALE
@@ -227,8 +237,8 @@ func hint() -> String:
 		return tr("E · %s") % tr(SEAT_NAMES[seat])
 	if held >= 0:
 		if action == 2:
-			return tr("E · Погрузить сабвуфер") if open else tr("E · Открыть борт   G · Поставить сабвуфер")
-		return tr("G · Поставить сабвуфер")
+			return tr("E · Погрузить / поставить сабвуфер") if open else tr("E · Открыть борт / поставить сабвуфер")
+		return tr("E · Поставить сабвуфер")
 	if action < 0:
 		return ""
 	if not can_control():
@@ -239,7 +249,7 @@ func hint() -> String:
 				return tr("E · Открыть грузовой борт")
 			return tr("E · Выгрузить сабвуфер   G · Закрыть борт") if cargo_slots.has(0) or cargo_slots.has(1) else tr("E · Закрыть борт")
 		3: return tr("E · Остановить саундчек") if tower.stage_player.playing else tr("E · Запустить саундчек")
-	return tr("E · Поднять сабвуфер")
+	return tr("E · Сабвуфер")
 
 func interact() -> bool:
 	var action := target()
@@ -320,6 +330,47 @@ func drop_cargo() -> void:
 			return
 	cargo[held].global_position = at + Vector3.UP*.012
 	cargo[held].rotation.y = world.home.player.rotation.y + PI
+	held = -1
+
+## Boxes standing on the bed: the truck must not collide with its own load.
+var riders: Array[PhysicsBody3D] = []
+
+func add_rider(body: PhysicsBody3D) -> void:
+	if not riders.has(body):
+		riders.append(body)
+		truck.add_collision_exception_with(body)
+
+func remove_rider(body: PhysicsBody3D) -> void:
+	if riders.has(body):
+		riders.erase(body)
+		truck.remove_collision_exception_with(body)
+
+## E menu helpers: what the player aims at / carries, and placing with a ghost.
+func aimed_cargo() -> bool:
+	return held < 0 and can_control() and target() >= 10 and target() < SEAT_TARGET
+
+func aimed_bed() -> bool:
+	return target() == 2 and can_control()
+
+func held_silhouette() -> Node3D:
+	var copy := cargo[held].duplicate() as Node3D
+	for sound in copy.find_children("*", "AudioStreamPlayer3D", true, false):
+		sound.free()
+	return copy
+
+func show_held(value: bool) -> void:
+	if held >= 0:
+		cargo[held].visible = value
+
+## Puts the carried subwoofer where the placement ghost stood; on the truck bed
+## it rides along with the truck.
+func place_held(at: Transform3D, surface: Node = null) -> void:
+	if held < 0:
+		return
+	var item := cargo[held]
+	item.visible = true
+	item.reparent(truck if surface == truck else self)
+	item.global_transform = Transform3D(at.basis, at.origin + Vector3.UP * .006)
 	held = -1
 
 func peer_seat(peer_id: int) -> int:
@@ -483,7 +534,11 @@ func handle_driving(delta: float) -> void:
 		var query := PhysicsShapeQueryParameters3D.new()
 		query.shape = truck_shape
 		query.transform = Transform3D(Basis(Vector3.UP,candidate),truck.global_position + Vector3.UP*1.0)
-		query.exclude = [truck.get_rid()]
+		var skip: Array[RID] = [truck.get_rid()]
+		for rider in riders:
+			if is_instance_valid(rider):
+				skip.append(rider.get_rid())
+		query.exclude = skip
 		query.collision_mask = truck.collision_mask
 		if get_world_3d().direct_space_state.intersect_shape(query,1).is_empty():
 			truck.rotation.y = candidate
@@ -530,7 +585,7 @@ func update_cargo() -> void:
 func network_state() -> Array:
 	var positions := []
 	for index in cargo.size():
-		positions.append([cargo[index].transform,cargo_slots[index],index == held])
+		positions.append([cargo[index].global_transform,cargo_slots[index],index == held])
 	return [truck.transform,open,driving,absf(speed),positions,tower.stage_player.playing,tower.stage_player.get_playback_position(),seat_ids,-cabin.wheel.rotation.z/1.17]
 
 func apply_network_state(state: Array) -> void:
@@ -548,7 +603,7 @@ func apply_network_state(state: Array) -> void:
 		engine.stop()
 	engine.pitch_scale = .76 + float(state[3])*.064
 	for index in cargo.size():
-		cargo[index].transform = state[4][index][0]
+		cargo[index].global_transform = state[4][index][0]
 		cargo_slots[index] = state[4][index][1]
 		cargo[index].set_meta("remote_held",state[4][index][2])
 	if state[5] and not tower.stage_player.playing:

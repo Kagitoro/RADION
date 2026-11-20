@@ -67,7 +67,7 @@ func build_laptop_display() -> void:
 		var clock: Label = UIKit.label("",21)
 		rows.add_child(clock)
 		station.laptop_times.append(clock)
-	var anchor := station.party.deck.get_node("LaptopScreen")
+	var anchor: Node3D = station.party.laptop_screen()
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.albedo_texture = station.laptop_view.get_texture()

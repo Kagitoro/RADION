@@ -613,6 +613,13 @@ func go_room(id: String) -> void:
 	var s: Dictionary = data.rooms[id]
 	player.move_to(rooms.room_point(id,vector(s.p)),rooms.room_point(id,vector(s.t)))
 
+## Tab wheel / E menu: free cursor over the game, but the world keeps running
+## and the player can still walk (unlike set_modal, which freezes the player).
+func set_overlay(open: bool) -> void:
+	if modal:
+		return
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if open else Input.MOUSE_MODE_CAPTURED
+
 func set_modal(open: bool) -> void:
 	modal = open
 	player.paused = open

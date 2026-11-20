@@ -357,7 +357,7 @@ func refresh() -> void:
 		return
 	if not active:
 		summary.text = (tr("Смена удалась") if won else tr("Смена окончена")) if finished else tr("RADION · Клубная смена")
-		detail.text = tr("Финал: %d на танцполе · энергия %d%%. J · Начать смену") % [on_floor,roundi(energy)] if finished else tr("J · Начать смену")
+		detail.text = tr("Финал: %d на танцполе · энергия %d%%. Tab → Действия · Начать смену") % [on_floor,roundi(energy)] if finished else tr("Tab → Действия · Начать смену")
 		return
 	var remaining := maxi(0,ceili(SHIFT_SECONDS-time))
 	summary.text = tr("%d:%02d   •   Танцпол %d   •   Энергия %d%%") % [remaining/60,remaining%60,on_floor,roundi(energy)]
