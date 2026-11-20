@@ -21,6 +21,12 @@ const PARTY_FILL_ENERGY := {
 }
 var house_light_energy: Dictionary[Light3D, float] = {}
 var party_light_mix := 0.0
+const LIGHT_NAMES := ["Перелив", "Синий", "Фиолетовый", "Тёплый"]
+const LIGHT_COLORS := [Color.WHITE, Color("#7fa5ff"), Color("#d97bc2"), Color("#ffba86")]
+var light_mode := 0
+var light_accent := 0.0
+var guest_replicas := {}
+var replica_targets := {}
 var crowd := Node3D.new()
 var tracks: Array[AudioStreamMP3] = []
 var outside_filter := AudioEffectLowPassFilter.new()
@@ -190,6 +196,72 @@ func near_deck() -> bool:
 	var player_point: Vector3 = home.player.global_position
 	return absf(player_point.y+.9-deck.position.y)<1.05 and Vector2(player_point.x,player_point.z).distance_to(Vector2(deck.position.x,deck.position.z))<1.85
 
+func receiving_party_state() -> bool:
+	return WalkSession.active and not multiplayer.is_server()
+
+func operate_lights(accent: bool) -> void:
+	if accent:
+		if light_accent <= 0.0:
+			light_accent = 0.75
+	else:
+		light_mode = (light_mode + 1) % LIGHT_NAMES.size()
+		deck_light.light_color = LIGHT_COLORS[light_mode]
+		GameEvents.notify(tr("Свет · %s") % tr(LIGHT_NAMES[light_mode]))
+
+func crowd_snapshot() -> Array:
+	var poses := PackedFloat32Array()
+	var speech := {}
+	for guest in guests:
+		var id: int = guest.get_meta("party_id")
+		var flags := int(not guest.fighting and guest.cursor < guest.route.size())
+		flags |= int(guest.dancing) << 1
+		flags |= int(guest.leaving) << 2
+		poses.append_array([float(id), guest.position.x, guest.position.y, guest.position.z, guest.rotation.y, float(flags)])
+		if guest.speech.visible:
+			speech[id] = guest.speech.text
+	return [poses, speech]
+
+func apply_crowd_snapshot(poses: PackedFloat32Array, speech: Dictionary) -> void:
+	var states := {}
+	for offset in range(0, poses.size(), 6):
+		var id := int(poses[offset])
+		var position := Vector3(poses[offset + 1], poses[offset + 2], poses[offset + 3])
+		var flags := int(poses[offset + 5])
+		states[id] = [position, poses[offset + 4], bool(flags & 1), bool(flags & 2), bool(flags & 4), speech.get(id, "")]
+	for id in guest_replicas.keys():
+		if not states.has(id):
+			var guest: PartyGuest = guest_replicas[id]
+			guests.erase(guest)
+			guest.hide()
+			guest.queue_free()
+			guest_replicas.erase(id)
+	for id in states:
+		if not guest_replicas.has(id):
+			var guest := make_guest(id)
+			guest.position = states[id][0]
+			guest.rotation.y = states[id][1]
+			guest_replicas[id] = guest
+		var guest: PartyGuest = guest_replicas[id]
+		guest.dancing = states[id][3]
+		guest.leaving = states[id][4]
+		guest.speech.text = states[id][5]
+		guest.speech.visible = not guest.speech.text.is_empty()
+	replica_targets = states
+
+func update_guest_replicas(delta: float) -> void:
+	var blend := 1.0 - exp(-delta * 9.0)
+	for id in guest_replicas:
+		var guest: PartyGuest = guest_replicas[id]
+		var state: Array = replica_targets[id]
+		guest.position = guest.position.lerp(state[0], blend)
+		guest.rotation.y = lerp_angle(guest.rotation.y, state[1], blend)
+		var distance := guest.position.distance_squared_to(home.player.global_position)
+		guest.name_tag.visible = distance < 16.0
+		guest.pose_interval = 1.0 / (30.0 if distance < 25.0 else 12.0)
+		if is_instance_valid(guest.smoking_prop):
+			guest.smoking_prop.visible = home.night_world.outside(guest.position)
+		guest.pose(delta, beat, state[2])
+
 func toggle() -> void:
 	if active or starting:
 		stop()
@@ -235,7 +307,7 @@ func start(start_music := true) -> void:
 	arrival = Balance.PARTY_FIRST_ARRIVAL
 	atmosphere = Balance.PARTY_START_ATMOSPHERE
 	bonus = 0
-	if guests.is_empty():
+	if guests.is_empty() and not WalkSession.active:
 		guest_serial = 0
 	silence_time = 0.0
 	departure_delay = 0.0
@@ -318,7 +390,16 @@ func _physics_process(delta: float) -> void:
 	var street_fade := minf(48.0,maxf(0.0,distance_from_house-12.0)*4.0)
 	var volume_target := (-12.0-street_fade if outdoors else 0.0)+linear_to_db(maxf(.0001,music_gain))
 	AudioServer.set_bus_volume_db(music_bus,lerpf(bus_volume,volume_target,minf(1,delta*3)))
+	light_accent = maxf(0.0, light_accent - delta)
 	update_party_lights(delta)
+	if receiving_party_state():
+		if active:
+			track_time += delta
+			var builtin: int = dj.current_builtin()
+			if builtin >= 0 and dj.has_playback():
+				beat = fposmod(music[dj.audible_deck()].get_playback_position() * BPM[builtin] / 60.0, 1.0)
+		update_guest_replicas(delta)
+		return
 	if pause_music:
 		return
 	var music_running: bool = active and music_gain>.02 and dj.has_playback()
@@ -484,18 +565,23 @@ func invite() -> void:
 	for guest in guests:
 		if guest.position.distance_squared_to(arrival_point)<.65*.65:
 			return
-	var variants: Array = guest_models[guest_serial%2]
-	var model: Node3D = null
-	if not variants.is_empty():
-		model = variants[(guest_serial/2)%variants.size()]
-	var guest := PartyGuest.new(guest_serial,model,psx_assets)
+	var guest := make_guest(guest_serial)
 	guest_serial += 1
 	cash += 1
 	home.shop.save_stock()
 	guest.position = arrival_point
+	navigation_grid.find_destination(guest)
+
+func make_guest(index: int) -> PartyGuest:
+	var variants: Array = guest_models[index % 2]
+	var model: Node3D = null
+	if not variants.is_empty():
+		model = variants[(index / 2) % variants.size()]
+	var guest := PartyGuest.new(index, model, psx_assets)
+	guest.set_meta("party_id", index)
 	crowd.add_child(guest)
 	guests.append(guest)
-	navigation_grid.find_destination(guest)
+	return guest
 
 
 
@@ -532,6 +618,7 @@ func refresh_hud() -> void:
 	message.text += tr("\nНа улице %d · $%d · сигарет %d") % [guests.size()-indoor_count(),cash,cigarettes]
 	if song>=0:
 		message.text += "\n"+["Hotham · CC BY 4.0","Play House · CC0","1000 Handz · CC BY 4.0"][song]
+	message.text += tr("\nL · Цвет света    Shift+L · Световой акцент")
 	if full_time>0 and not won:
 		message.text += tr("\nУдержи аншлаг ещё %d с") % ceili(maxf(0,15-full_time))
 

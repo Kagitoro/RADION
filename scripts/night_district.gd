@@ -28,7 +28,6 @@ var facade_meshes := {}
 var warm_glass := StandardMaterial3D.new()
 var walk_material: StandardMaterial3D
 var wall_materials: Array[StandardMaterial3D] = []
-var highway_gate: MeshInstance3D
 
 func _init(night_world: NightWorld) -> void:
 	world = night_world
@@ -41,11 +40,13 @@ func build() -> void:
 	world.box(self,Vector3(center.x,.65,33.9),Vector3(63.1,1.3,.22),barrier,true)
 	for span in [Vector2(BOUNDS.position.x,-59.26),Vector2(-51.34,BOUNDS.end.x)]:
 		world.box(self,Vector3((span.x+span.y)*.5,.65,-34.9),Vector3(span.y-span.x,1.3,.22),barrier,true)
+	# Retain the original gate nodes so overrides in city_editable.scn keep their paths.
 	var gate_shape := BoxMesh.new()
 	gate_shape.size = Vector3(7.92,1.3,.22)
 	var gate_at := Vector3(-55.30,.65,-34.9)
-	highway_gate = world.mesh(self,gate_shape,gate_at,barrier)
+	world.mesh(self,gate_shape,gate_at,barrier).hide()
 	world.box(self,gate_at,gate_shape.size,Color.TRANSPARENT,true,true)
+	(get_child(-1) as StaticBody3D).collision_layer = 0
 	world.box(self,Vector3(-76.9,.65,center.y),Vector3(.22,1.3,69),Color("#383d4c"),true)
 	for interval in [Vector2(-35,-1.7),Vector2(1.7,34)]:
 		world.box(self,Vector3(-13.91,.65,(interval.x+interval.y)*.5),Vector3(.11,1.3,interval.y-interval.x),Color("#353e4e"),true)
@@ -271,7 +272,7 @@ func _process(delta: float) -> void:
 	var observer := to_local(player.global_position)
 	var view := get_viewport().get_camera_3d()
 	var viewer := to_local(view.global_position) if view!=null else observer
-	var cinematic := view!=null and view!=world.home.player.camera
+	var cinematic: bool = view!=null and view!=world.home.player.camera and view!=world.delivery.orbit
 	step_traffic(delta,viewer if cinematic else observer,cinematic)
 	elapsed += delta
 	if elapsed<.05:
@@ -316,6 +317,9 @@ func step_traffic(delta: float, observer: Vector3, cinematic := false) -> void:
 		var car: Node3D = route.car
 		var brake_distance := 6.5 if cinematic else 3.25
 		if traffic_point(distance+2.4).distance_to(observer)<brake_distance:
+			target_speed = 0.0
+		var pickup: Vector3 = to_local(world.delivery.truck.global_position)
+		if traffic_point(distance+3.1).distance_to(pickup)<4.7:
 			target_speed = 0.0
 		var acceleration := 2.6 if target_speed>float(route.speed) else 8.0
 		route.speed = move_toward(float(route.speed),target_speed,delta*acceleration)

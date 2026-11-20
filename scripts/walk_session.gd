@@ -67,6 +67,23 @@ func bind_world(home: Node) -> void:
 func can_control_decks() -> bool:
 	return not active or multiplayer.is_server()
 
+func operate_party_lights(accent: bool) -> void:
+	if active and not multiplayer.is_server():
+		request_party_lights.rpc_id(1, accent)
+	else:
+		get_tree().current_scene.party.operate_lights(accent)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_party_lights(accent: bool) -> void:
+	if not active or not multiplayer.is_server() or not is_instance_valid(world) or not world.party.active:
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if not multiplayer.get_peers().has(sender) or not poses.has(sender):
+		return
+	var position: Vector3 = poses[sender][0]
+	if not world.night_world.outside(position) and position.y > -1.0:
+		world.party.operate_lights(accent)
+
 func toggle_map_door(door: Node3D) -> void:
 	if multiplayer.is_server():
 		door.set_open(not door.opened)
@@ -149,8 +166,11 @@ func _process(delta: float) -> void:
 		poses[1] = local_pose
 		if not multiplayer.get_peers().is_empty():
 			receive_poses.rpc(poses)
+			receive_delivery.rpc(world.night_world.delivery.network_state())
 			if game_state.sync_due(SEND_INTERVAL):
 				receive_game_state.rpc(game_state.snapshot())
+				var crowd: Array = world.party.crowd_snapshot()
+				receive_crowd.rpc(crowd[0], crowd[1])
 	else:
 		submit_pose.rpc_id(1, player.global_position, player.rotation.y, walking, prop[0], prop[1])
 
@@ -170,6 +190,16 @@ func submit_pose(position: Vector3, yaw: float, walking: bool, kind: int, prop: 
 func receive_game_state(snapshot: Dictionary) -> void:
 	if active and game_state != null:
 		game_state.apply_snapshot(snapshot)
+
+@rpc("authority", "call_remote", "unreliable_ordered", 3)
+func receive_delivery(state: Array) -> void:
+	if active and is_instance_valid(world):
+		world.night_world.delivery.apply_network_state(state)
+
+@rpc("authority", "call_remote", "unreliable_ordered", 2)
+func receive_crowd(crowd_poses: PackedFloat32Array, speech: Dictionary) -> void:
+	if active and is_instance_valid(world):
+		world.party.apply_crowd_snapshot(crowd_poses, speech)
 
 @rpc("authority", "call_remote", "unreliable_ordered")
 func receive_poses(snapshot: Dictionary) -> void:

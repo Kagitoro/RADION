@@ -182,9 +182,9 @@ func check_input_actions(errors: Array[String]) -> void:
 	if game.flashlight.visible == flash:
 		errors.append("F (flashlight) не переключает фонарик")
 	home._unhandled_input(key_event(KEY_F))
-	var mode := game.light_mode
+	var mode := home.party.light_mode
 	home._unhandled_input(key_event(KEY_L))
-	if game.light_mode != (mode + 1) % game.LIGHT_COLORS.size():
+	if home.party.light_mode != (mode + 1) % home.party.LIGHT_COLORS.size():
 		errors.append("L (cycle_lights) не меняет свет")
 	Input.action_press("move_forward")
 	Input.action_press("move_right")

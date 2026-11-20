@@ -127,6 +127,7 @@ func _ready() -> void:
 	night_world.dress_bar()
 	add_child(night_game)
 	night_game.setup()
+	night_world.build_delivery()
 	VisualQuality.plaster(scene_finish.paint)
 	VisualQuality.apply(self)
 	preload("res://scripts/editable_world.gd").apply(self)

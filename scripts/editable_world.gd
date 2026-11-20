@@ -71,9 +71,6 @@ static func apply(home: Node) -> void:
 				if not node.visible:
 					remove_target(home, live)
 				changed += 1
-		if node is MeshInstance3D and live is MeshInstance3D:
-			if node.material_override != null and not bool(node.get_meta("radion_preview_material", false)):
-				live.material_override = node.material_override
 	for addition in additions:
 		var parent := addition.get_parent()
 		var live_parent: Node = home
@@ -82,6 +79,7 @@ static func apply(home: Node) -> void:
 		if is_instance_valid(live_parent):
 			addition.reparent(live_parent, false)
 	home.scene_finish.sync_ceilings()
+	home.remove_child(edited)
 	edited.queue_free()
 	if changed > 0 or not additions.is_empty():
 		print("EDITABLE_WORLD applied=", changed, " additions=", additions.size())

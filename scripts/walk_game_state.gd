@@ -75,7 +75,19 @@ func snapshot() -> Dictionary:
 			door_states[path] = doors[path].opened
 	return {
 		"doors": door_states,
-		"party_active": home.party.active,
+		"party": {
+			"active": home.party.active,
+			"mood": home.party.atmosphere,
+			"request": home.party.requested,
+			"full_time": home.party.full_time,
+			"won": home.party.won,
+			"beat": home.party.beat,
+			"track_time": home.party.track_time,
+			"deck_color": home.party.deck_light.light_color,
+			"deck_energy": home.party.deck_light.light_energy,
+			"light_mode": home.party.light_mode,
+			"light_accent": home.party.light_accent,
+		},
 		"house": station_snapshot(home.night_game.dj, false),
 		"club": station_snapshot(home.night_game.club_dj, true),
 	}
@@ -110,11 +122,20 @@ func apply_snapshot(state: Dictionary) -> void:
 	for path in state.doors:
 		if is_instance_valid(doors.get(path)):
 			doors[path].set_open(state.doors[path])
-	if state.party_active != home.party.active:
-		if state.party_active:
-			home.party.start(false)
-		else:
-			home.party.stop()
+	var party: Party = home.party
+	if state.has("party"):
+		var shared: Dictionary = state.party
+		party.active = shared.active
+		party.atmosphere = shared.mood
+		party.requested = shared.request
+		party.full_time = shared.full_time
+		party.won = shared.won
+		party.beat = shared.beat
+		party.track_time = shared.track_time
+		party.deck_light.light_color = shared.deck_color
+		party.deck_light.light_energy = shared.deck_energy
+		party.light_mode = shared.light_mode
+		party.light_accent = shared.light_accent
 	apply_station(home.night_game.dj, false, state.house)
 	apply_station(home.night_game.club_dj, true, state.club)
 

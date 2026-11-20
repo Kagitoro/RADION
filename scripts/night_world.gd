@@ -16,6 +16,7 @@ const CityRetail := preload("res://scripts/city_retail.gd")
 var retail: Array[Node3D] = []
 var subway: SubwayStation
 var district: NightDistrict
+var delivery: Node3D
 
 func _init(game_home: Home) -> void:
 	home = game_home
@@ -30,6 +31,11 @@ func setup() -> void:
 	build_lounge()
 	build_club_access()
 	initialized = true
+
+func build_delivery() -> void:
+	delivery = preload("res://scripts/rooftop_delivery.gd").new()
+	street.add_child(delivery)
+	delivery.build(self)
 
 func install_floor() -> void:
 	var model := Node3D.new()

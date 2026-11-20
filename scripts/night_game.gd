@@ -21,7 +21,6 @@ var backpack: BackpackPanel
 var guest: Node3D
 var interact_hint: Label
 var flashlight: SpotLight3D
-var light_mode := 0
 var litter: Dictionary[int, Node3D] = {}
 const KitchenFridge = preload("res://scripts/kitchen_fridge.gd")
 var fridge: KitchenFridge
@@ -43,8 +42,6 @@ const LAPTOP_AIM_DOT := .94
 const SMOKING_AREA_RADIUS := 2.2
 const TALK_OPTIONS := {0: "talk_end", 1: "talk_1", 2: "talk_2", 3: "talk_3", 4: "talk_4", 5: "talk_5", 6: "talk_6"}
 const TRACK_ACTIONS := ["track_1", "track_2", "track_3"]
-const LIGHT_COLORS := [Color("#7fa5ff"), Color("#d97bc2"), Color("#ffba86")]
-const LIGHT_NAMES := ["синий", "фиолетовый", "тёплый"]
 
 func _init(game_home: Home) -> void:
 	home = game_home
@@ -284,11 +281,15 @@ func _process(delta: float) -> void:
 	interact_hint.offset_left = 0
 	interact_hint.offset_right = 0
 	interact_hint.offset_top = -96
+	var delivery_hint: String = home.night_world.delivery.hint()
+	if not delivery_hint.is_empty():
+		interact_hint.text = delivery_hint
+		return
 	if aimed_map_door() != null:
 		interact_hint.text = tr("E · Открыть / закрыть дверь")
 		return
 	if intro.entry_aimed():
-		interact_hint.text = tr("E · Открыть дверь ключом")
+		interact_hint.text = tr("E · Закрыть входную дверь") if intro.entry_opened else tr("E · Открыть входную дверь")
 		return
 	if aimed_cleanup() != null:
 		interact_hint.text = tr("E · Убрать")
@@ -386,6 +387,8 @@ func aimed_guest() -> Node3D:
 	return result
 
 func interact() -> void:
+	if home.night_world.delivery.interact():
+		return
 	var door := aimed_map_door()
 	if door != null:
 		if WalkSession.active:
@@ -395,7 +398,7 @@ func interact() -> void:
 		return
 	if not talk_actions.visible:
 		if intro.entry_aimed():
-			intro.open_entrance()
+			intro.toggle_entrance()
 			return
 		var cleanup := aimed_cleanup()
 		if cleanup != null:
@@ -445,6 +448,9 @@ func interact() -> void:
 	if person==null:
 		if WalkSession.can_control_decks() and home.party.near_deck():
 			dj.open(true)
+		return
+	if home.party.receiving_party_state():
+		say(person, person.introduction(), 4.0)
 		return
 	if is_instance_valid(person.partner):
 		person.partner.partner = null
@@ -602,6 +608,11 @@ func toggle_pause() -> void:
 func handle_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	var gesture_key := key != null and key.physical_keycode == KEY_G
+	var delivery := home.night_world.delivery
+	if delivery.driving and not event.is_action_pressed("pause"):
+		if not home.modal and event.is_action_pressed("interact"):
+			delivery.interact()
+		return
 	if gestures.visible:
 		if gesture_key or event.is_action_pressed("pause"):
 			gestures.close()
@@ -645,7 +656,7 @@ func handle_input(event: InputEvent) -> void:
 		return
 	if not WalkSession.can_control_decks() and (
 			event.is_action_pressed("start_party") or event.is_action_pressed("open_mixer")
-			or event.is_action_pressed("beat_mix") or event.is_action_pressed("cycle_lights")
+			or event.is_action_pressed("beat_mix")
 			or TRACK_ACTIONS.any(func(action): return event.is_action_pressed(action))):
 		GameEvents.notify(tr("В этой сессии пультом управляет хост."))
 		return
@@ -656,6 +667,8 @@ func handle_input(event: InputEvent) -> void:
 				return
 		if event.is_action_pressed("interact"):
 			close_talk()
+		return
+	if gesture_key and delivery.cargo_action():
 		return
 	if gesture_key:
 		gestures.open()
@@ -701,9 +714,8 @@ func handle_input(event: InputEvent) -> void:
 		if home.party.near_deck():
 			home.party.beat_mix()
 	elif event.is_action_pressed("cycle_lights"):
-		light_mode = (light_mode+1)%LIGHT_COLORS.size()
-		home.party.deck_light.light_color = LIGHT_COLORS[light_mode]
-		GameEvents.notify(tr("Свет · %s") % tr(LIGHT_NAMES[light_mode]))
+		if not WalkSession.active or (home.party.active and not home.night_world.outside(home.player.global_position)):
+			WalkSession.operate_party_lights(key != null and key.shift_pressed)
 	else:
 		for index in TRACK_ACTIONS.size():
 			if event.is_action_pressed(TRACK_ACTIONS[index]):

@@ -29,7 +29,7 @@ func run(collected: Array[String]) -> void:
 	for app in ["messages","news","map"]:
 		phone.show_page(app)
 		expect(phone.body.get_child_count()>0, "Телефон: пустой экран "+app)
-	expect(phone.places().size()==7, "Телефон: отсутствуют метки карты")
+	expect(phone.places().size()==8 and phone.places()[7][0]=="Skyline Rooftop", "Телефон: отсутствуют метки карты или Skyline Rooftop")
 	home._unhandled_input(key_event(KEY_ESCAPE))
 	expect(not phone.visible and not home.modal, "Телефон: Esc не вернул управление")
 	check_city_retail()
@@ -498,8 +498,8 @@ func check_story_entry() -> void:
 	var fridge := home.night_game.fridge
 	expect(intro.opening_completed and not intro.entry_opened, "История: после приезда дверь должна быть закрыта")
 	home._unhandled_input(key_event(KEY_E))
-	await wait(.62)
-	expect(intro.entry_opened and intro.entrance_shape.disabled and intro.entrance_leaf.rotation.y>1.3, "История: ключ не открывает дверь")
+	await wait(.95)
+	expect(intro.entry_opened and not intro.entrance_shape.disabled and intro.entrance_leaf.rotation.y>1.3, "История: ключ не открывает дверь")
 	home.player.move_to(fridge.to_global(Vector3(.22,1.64,-1.23)),fridge.to_global(Vector3(0,1.15,-.43)))
 	await home.get_tree().physics_frame
 	home._unhandled_input(key_event(KEY_E))

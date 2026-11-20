@@ -116,14 +116,18 @@ func _process(delta: float) -> void:
 		var dj = home.night_game.dj
 		if is_instance_valid(dj) and dj.manual:
 			pulse = maxf(pulse * 0.65, (1.0 - dj.bass_phase) * dj.bass)
-		light.light_energy = (0.65 + pulse * 3.0) if party.active else 0.0
+		var accent := smoothstep(0.0, 0.75, party.light_accent)
+		light.light_energy = (0.65 + pulse * 3.0 + accent * 2.0) if party.active else 0.0
 		var hue := fposmod(party.track_time * 0.07 + index * 0.19, 1.0)
-		light.light_color = Color.from_hsv(hue, 0.88, 1.0)
+		var color: Color = Color.from_hsv(hue, 0.88, 1.0) if party.light_mode == 0 else party.LIGHT_COLORS[party.light_mode]
+		light.light_color = color.lerp(Color.WHITE, accent * 0.75)
 		var beam := beams[index]
 		beam.visible = party.active
 		beam.rotation = Vector3(.16*sin(party.track_time*.72+index),0,.14*cos(party.track_time*.5+index))
 		var glow := beam.material_override as StandardMaterial3D
 		glow.albedo_color = Color(light.light_color, 0.045 + pulse * 0.11)
+	if party.receiving_party_state():
+		return
 	if not party.active:
 		if not fighters.is_empty():
 			end_fight(false)

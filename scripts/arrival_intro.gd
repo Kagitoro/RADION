@@ -76,6 +76,7 @@ var follow_up_left := 0.0
 var follow_up_line := 0
 var entrance_leaf: Node3D
 var entrance_shape: CollisionShape3D
+var entrance_door: Node3D
 var entry_opened := false
 var note_read := false
 var fridge_note: Node3D
@@ -203,19 +204,13 @@ func build_overlay() -> void:
 func build_entrance() -> void:
 	if WalkSession.active:
 		entry_opened = true
-	entrance_leaf = Node3D.new()
-	home.night_world.street.add_child(entrance_leaf)
-	entrance_leaf.position = Vector3(.02,0,-.53)
-	var world := home.night_world
-	world.box(entrance_leaf,Vector3(0,1.09,.53),Vector3(.086,2.16,1.06),Color("#55483e"),true)
-	var body := entrance_leaf.find_children("*","StaticBody3D",false,false)[0] as StaticBody3D
-	entrance_shape = body.get_child(0)
-	for height in [.56,1.52]:
-		world.box(entrance_leaf,Vector3(-.047,height,.53),Vector3(.015,.72,.72),Color("#685747"))
-	world.box(entrance_leaf,Vector3(-.09,1.02,.94),Vector3(.09,.047,.13),Color("#c4955f"))
-	if entry_opened:
-		entrance_leaf.rotation.y = 1.48
-		entrance_shape.disabled = true
+	entrance_door = load("res://assets/entrance/front_door.tscn").instantiate()
+	home.night_world.street.add_child(entrance_door)
+	entrance_door.position = Vector3(.02,0,-.53)
+	entrance_leaf = entrance_door.get_node("Leaf")
+	entrance_shape = entrance_leaf.get_node("Collision")
+	entrance_door.setup(home,entry_opened)
+	entrance_door.state_changed.connect(on_entrance_changed)
 
 func attach_fridge_note(cabinet: Node3D) -> void:
 	fridge_note = Node3D.new()
@@ -235,19 +230,34 @@ func place_at_door() -> void:
 	home.player.move_to(door+Vector3(-2.25,1.64,0),door+Vector3(0,1.45,0))
 
 func entry_aimed() -> bool:
-	if not opening_completed or entry_opened or entrance_leaf == null:
+	if (not opening_completed and not WalkSession.active) or not is_instance_valid(entrance_door):
 		return false
-	var eye := home.player.camera.global_position
-	var offset := entrance_leaf.to_global(Vector3(-.06,1.18,.53))-eye
-	return offset.length_squared()<2.8*2.8 and offset.normalized().dot(-home.player.camera.global_basis.z)>.87
+	var camera := home.player.camera
+	var eye := camera.global_position
+	var target := entrance_leaf.to_global(Vector3(-.04,1.08,.93))
+	var offset := target-eye
+	if offset.length_squared()>2.8*2.8:
+		return false
+	var ray := PhysicsRayQueryParameters3D.create(eye,eye-camera.global_basis.z*2.8,1,[home.player.get_rid()])
+	var hit := home.get_world_3d().direct_space_state.intersect_ray(ray)
+	return not hit.is_empty() and hit.collider == entrance_leaf
+
+func toggle_entrance() -> void:
+	if WalkSession.active:
+		WalkSession.toggle_map_door(entrance_door)
+	else:
+		entrance_door.set_open(not entry_opened)
 
 func open_entrance() -> void:
 	if entry_opened:
 		return
-	entry_opened = true
-	entrance_shape.set_deferred("disabled",true)
-	create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT).tween_property(entrance_leaf,"rotation:y",1.48,.58)
-	place_audio(entrance_leaf,Vector3(0,1,.75),DOOR_THUD,-17.0,1.6,8.0).play()
+	entrance_door.set_open(true)
+
+func on_entrance_changed(value: bool) -> void:
+	entry_opened = value
+	var sound := place_audio(entrance_leaf,Vector3(0,1,.75),DOOR_THUD,-17.0,1.6,8.0)
+	sound.finished.connect(sound.queue_free)
+	sound.play()
 	save_story()
 	update_objective()
 
@@ -322,7 +332,6 @@ func start(is_replay: bool = false) -> void:
 	highway = Highway.new()
 	home.night_world.street.add_child(highway)
 	highway.build(home.night_world)
-	home.night_world.district.highway_gate.hide()
 	headlight_mount = Node3D.new()
 	highway.add_child(headlight_mount)
 	for side in [-1,1]:
@@ -801,7 +810,6 @@ func finish() -> void:
 	street_sound.stop()
 	club_sound.stop()
 	AudioServer.set_bus_mute(home.club.music_bus,old_club_mute)
-	home.night_world.district.highway_gate.show()
 	var guard := home.club.staff[2] as PartyGuest
 	guard.rotation.y = guard_yaw
 	guard.name_tag.visible = guard_tag_visible

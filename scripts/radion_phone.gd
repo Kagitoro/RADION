@@ -1,6 +1,6 @@
 extends Control
 
-const BOUNDS := Rect2(-77,-36,85,72)
+const BOUNDS := Rect2(-79,-51,87,87)
 const ACCENT := Color("#79d6ff")
 var game: NightGame
 var shell: PanelContainer
@@ -186,6 +186,7 @@ func places() -> Array:
 		["Deck Room",world.retail[1].position-Vector3(0,0,4.5)],
 		[tr("Метро"),Vector3(subway.x,0,subway.y)],
 		[tr("Миссия: %s") % game.intro.objective.text if game.intro.objective.visible else tr("Миссия: первый вечер"),target],
+		["Skyline Rooftop", world.delivery.tower.position + Vector3(2.53,0,9.6)],
 	]
 
 func map_point(point: Vector3) -> Vector2:
@@ -197,6 +198,7 @@ func draw_map() -> void:
 	var route := NightDistrict.TRAFFIC_ROUTE
 	for i in range(route.size()):
 		map_view.draw_line(map_point(route[i]),map_point(route[(i+1)%route.size()]),Color("#667282"),8,true)
+	map_view.draw_line(map_point(Vector3(-54,0,-22)),map_point(Vector3(-55.3,0,-45)),Color("#667282"),6,true)
 	var player := game.home.night_world.street.to_local(game.home.player.global_position)
 	var list := places()
 	if selected>=0:
