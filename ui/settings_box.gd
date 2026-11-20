@@ -12,11 +12,12 @@ signal language_changed(code: String)
 ## 0 low, 1 medium, 2 high (VisualQuality.LEVEL_NAMES).
 signal graphics_changed(level: int)
 
-const ROWS := [["music","MusicSlider","Музыка"],["steps","StepsSlider","Шаги"],["mouse","MouseSlider","Чувствительность мыши"]]
+const ROWS := [["master","MasterSlider","Общая громкость"],["music","MusicSlider","Музыка"],["steps","StepsSlider","Шаги"],["mouse","MouseSlider","Чувствительность мыши"]]
 
 var sliders := {}
 var language: OptionButton
 var graphics: OptionButton
+var fps_toggle: CheckButton
 
 func _ready() -> void:
 	add_theme_constant_override("separation",10)
@@ -64,6 +65,18 @@ func _ready() -> void:
 	for index in VisualQuality.LEVEL_NAMES.size():
 		graphics.add_item(VisualQuality.LEVEL_NAMES[index])
 	graphics.item_selected.connect(graphics_changed.emit)
+	var fps_line := HBoxContainer.new()
+	fps_line.add_theme_constant_override("separation",12)
+	add_child(fps_line)
+	var fps_caption := UIKit.label("Счётчик FPS",14)
+	fps_caption.custom_minimum_size.x = 190
+	fps_caption.add_theme_color_override("font_color",UIKit.MUTED)
+	fps_line.add_child(fps_caption)
+	fps_toggle = CheckButton.new()
+	fps_toggle.name = "FpsToggle"
+	fps_line.add_child(fps_toggle)
+	register(fps_toggle)
+	fps_toggle.toggled.connect(GameSettings.set_show_fps)
 	var line := HBoxContainer.new()
 	line.add_theme_constant_override("separation",12)
 	add_child(line)
@@ -92,6 +105,7 @@ func sync() -> void:
 		slider.set_value_no_signal(GameSettings.level(key))
 		(slider.get_parent().get_child(2) as Label).text = "%d%%" % roundi(slider.value*100)
 	graphics.select(GameSettings.graphics())
+	fps_toggle.set_pressed_no_signal(GameSettings.show_fps())
 	var current := GameSettings.language()
 	for index in language.item_count:
 		if language.get_item_metadata(index)==current:

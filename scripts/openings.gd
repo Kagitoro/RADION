@@ -164,19 +164,7 @@ func insert(row: Dictionary, id: String = "") -> String:
 	home.records[id] = row
 	home.nodes[id] = model
 	home.add_child(model)
-	if kind(row)=="door" and str(row.template)=="opening":
-		add_door_leaf(model,home.vector(row.dimensions))
 	return id
-
-func add_door_leaf(model: Node3D, dimensions: Vector3) -> void:
-	var leaf := Node3D.new()
-	model.add_child(leaf)
-	leaf.position.x = -dimensions.x*.42
-	leaf.rotation.y = 1.42
-	var span := dimensions.x*.84
-	box(leaf,Vector3(span*.5,dimensions.y*.46,0),Vector3(span,dimensions.y*.90,.044),door_finish)
-	box(leaf,Vector3(span*.5,dimensions.y*.59,.023),Vector3(span*.69,dimensions.y*.40,.008),wall_finish)
-	box(leaf,Vector3(span*.89,dimensions.y*.46,.044),Vector3(.105,.027,.045),brass)
 
 func box(parent: Node3D, at: Vector3, size: Vector3, material: Material) -> void:
 	var part := MeshInstance3D.new()

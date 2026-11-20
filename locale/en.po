@@ -1557,3 +1557,9 @@ msgstr "The host disconnected."
 
 msgid "Игрок %d"
 msgstr "Player %d"
+
+msgid "Общая громкость"
+msgstr "Master volume"
+
+msgid "Счётчик FPS"
+msgstr "FPS counter"

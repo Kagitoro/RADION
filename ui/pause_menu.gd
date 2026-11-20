@@ -37,6 +37,7 @@ func _ready() -> void:
 			"music": music_volume_changed.emit(value)
 			"steps": steps_volume_changed.emit(value)
 			"mouse": mouse_sensitivity_changed.emit(value)
+			"master": GameSettings.set_level(key, value); GameSettings.apply_master(value)
 	)
 	settings.language_changed.connect(language_changed.emit)
 	settings.graphics_changed.connect(graphics_changed.emit)

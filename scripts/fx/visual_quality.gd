@@ -288,4 +288,9 @@ static func flat_arrays(arrays: Array) -> Array:
 		normals[corner+2] = normal
 	flat[Mesh.ARRAY_NORMAL] = normals
 	flat[Mesh.ARRAY_TANGENT] = null
-	return flat
+	# Re-index (corners keep their face normal, so facets stay split): unindexed
+	# surfaces break the auto-generated shadow/LOD meshes.
+	var indexed := SurfaceTool.new()
+	indexed.create_from_arrays(flat,Mesh.PRIMITIVE_TRIANGLES)
+	indexed.index()
+	return indexed.commit_to_arrays()

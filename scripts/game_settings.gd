@@ -26,7 +26,7 @@ static func apply_language(code: String) -> void:
 	TranslationServer.set_locale(code if not code.is_empty() else OS.get_locale())
 
 ## Slider settings (0..1) shown in the pause menu and the main menu.
-const DEFAULTS := {"music": .85, "steps": .63, "mouse": .45}
+const DEFAULTS := {"master": 1.0, "music": .85, "steps": .63, "mouse": .45}
 
 ## Graphics quality: 0 low, 1 medium, 2 high (VisualQuality.LEVEL_NAMES).
 static func graphics() -> int:
@@ -54,3 +54,23 @@ static func set_level(key: String, value: float) -> void:
 	config.set_value("levels", key, clampf(value, 0.0, 1.0))
 	if config.save(FILE) != OK:
 		push_warning("Не удалось сохранить настройки")
+
+## Overall volume (Master bus), 0..1.
+static func apply_master(value: float) -> void:
+	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(.0001, value)))
+	AudioServer.set_bus_mute(0, value <= .001)
+
+## FPS counter in the corner of the screen.
+static func show_fps() -> bool:
+	var config := ConfigFile.new()
+	if config.load(FILE) != OK:
+		return false
+	return bool(config.get_value("video", "show_fps", false))
+
+static func set_show_fps(value: bool) -> void:
+	var config := ConfigFile.new()
+	config.load(FILE)
+	config.set_value("video", "show_fps", value)
+	if config.save(FILE) != OK:
+		push_warning("Не удалось сохранить настройки")
+	FpsCounter.apply(value)

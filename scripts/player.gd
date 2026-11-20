@@ -60,8 +60,12 @@ var action_look := Vector3.ZERO
 var action_shift := Vector3.ZERO
 var action_fov := 0.0
 var mouse_sensitivity := .0025
+## Hold U to pee (see PeeStream).
+var pee: Node3D
 
 func drink_beer() -> void:
+	if pee!=null:
+		pee.drink()
 	intoxication = minf(1.0,intoxication+.22)
 	if intoxication>=.98 and not collapsed:
 		fall_over()
@@ -132,6 +136,8 @@ func _ready() -> void:
 	add_child(screen_fx)
 	make_body()
 	setup_steps()
+	pee = preload("res://scripts/fx/pee_stream.gd").new(self)
+	add_child(pee)
 
 func look_motion(delta: Vector2) -> void:
 	if collapsed:

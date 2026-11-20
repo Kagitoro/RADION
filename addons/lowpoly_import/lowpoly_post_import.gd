@@ -127,7 +127,12 @@ static func flatten(arrays: Array) -> Array:
 	flat[Mesh.ARRAY_NORMAL] = normals
 	# Facets do the shading: no tangents / normal maps.
 	flat[Mesh.ARRAY_TANGENT] = null
-	return flat
+	# Re-index (corners keep their face normal, so facets stay split): unindexed
+	# surfaces break the auto-generated shadow/LOD meshes.
+	var indexed := SurfaceTool.new()
+	indexed.create_from_arrays(flat,Mesh.PRIMITIVE_TRIANGLES)
+	indexed.index()
+	return indexed.commit_to_arrays()
 
 ## Matte, map-free materials: low-poly surfaces read through flat colour and light.
 static func matte(material: Material) -> void:

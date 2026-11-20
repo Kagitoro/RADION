@@ -90,6 +90,7 @@ func setup() -> void:
 	pause_panel.hide()
 	for key in GameSettings.DEFAULTS:
 		apply_level(key,GameSettings.level(key))
+	FpsCounter.apply(GameSettings.show_fps())
 	backpack = BACKPACK.instantiate()
 	root.add_child(backpack)
 	backpack.close_requested.connect(close_backpack)
@@ -559,6 +560,7 @@ func apply_level(key: String, value: float) -> void:
 		"music": home.party.music_gain = value
 		"steps": home.player.step_audio.volume_db = -16.0+linear_to_db(maxf(.0001,value))
 		"mouse": home.player.mouse_sensitivity = .0008+value*.0038
+		"master": GameSettings.apply_master(value)
 
 # --- inventory (Tab) --------------------------------------------------------------
 

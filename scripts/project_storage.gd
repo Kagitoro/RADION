@@ -129,8 +129,6 @@ func restore_project(project) -> bool:
 			row.zone = id
 		if int(project.get("version",1))<3 and str(row.get("template",""))=="wall" and is_equal_approx(float(row.h),2.65):
 			row.h = SceneFinish.WALL_HEIGHT
-		if home.openings.kind(row)=="door" and str(row.get("template",""))=="opening":
-			home.openings.add_door_leaf(home.nodes[id],home.vector(row.dimensions))
 	if int(project.get("version",1))<2:
 		home.openings.install_stock_passages()
 		home.openings.install_studio_windows()
